@@ -676,9 +676,9 @@ export function DashboardPage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="text-2xl font-semibold">Mi progreso</div>
-            <div className={'text-sm ' + subtleText}>Hola, {name}. Rutinas y tareas, sin fricción.</div>
+            <div className={'text-sm ' + subtleText}>Hola, {name}. ¿Estás listo para seguir de cerca tus rutinas y tareas?</div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
             <button type="button" className={rangeButtonClass(range === '7d')} onClick={() => setRange('7d')}>
               7 días
             </button>
@@ -691,7 +691,7 @@ export function DashboardPage() {
             {routines.length > 0 ? (
               <Button
                 className={cn(
-                  'ml-2 bg-gradient-to-r from-cyan-400 to-violet-500 text-slate-950 hover:from-cyan-300 hover:to-violet-400 focus:ring-cyan-300',
+                  'w-full bg-gradient-to-r from-cyan-400 to-violet-500 text-slate-950 hover:from-cyan-300 hover:to-violet-400 focus:ring-cyan-300 sm:ml-2 sm:w-auto',
                   !isDay ? 'ring-1 ring-white/10' : '',
                 )}
                 onClick={() => setCreateOpen(true)}
@@ -710,7 +710,41 @@ export function DashboardPage() {
         </Card>
       ) : null}
 
-      <div className="mb-6 grid gap-4 md:grid-cols-4">
+      {routines.length === 0 ? (
+        <Card className="mb-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="text-base font-semibold">Empieza en 2 minutos</div>
+              <div className={'mt-1 text-sm ' + subtleText}>Crea tu primera rutina y añade 3 tareas.</div>
+              <ol className={'mt-3 list-decimal pl-5 text-sm ' + panelText}>
+                <li>Crea una rutina (ej. Mañana, Gym, Estudio)</li>
+                <li>Añade 3 tareas pequeñas</li>
+                <li>Marca una como completada</li>
+              </ol>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                onClick={() => setCreateOpen(true)}
+                className={cn(
+                  'w-full bg-gradient-to-r from-cyan-400 to-violet-500 text-slate-950 hover:from-cyan-300 hover:to-violet-400 focus:ring-cyan-300 sm:w-auto',
+                  !isDay ? 'ring-1 ring-white/10' : '',
+                )}
+              >
+                Crear rutina
+              </Button>
+              <Button variant="secondary" onClick={() => void loadRoutines()} className="w-full sm:w-auto">
+                Refrescar
+              </Button>
+            </div>
+          </div>
+        </Card>
+      ) : null}
+
+      <div className="mb-6 lg:hidden">
+        <RoutinePanel />
+      </div>
+
+      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
         <Card>
           <div className={'text-xs ' + kpiLabelClass}>Rutinas activas</div>
           <div className={'mt-1 text-2xl font-semibold ' + kpiValueClass}>{routines.length}</div>
@@ -1450,37 +1484,9 @@ export function DashboardPage() {
         </Card>
       </div>
 
-      {routines.length === 0 ? (
-        <Card className="mb-8">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <div className="text-base font-semibold">Empieza en 2 minutos</div>
-              <div className={'mt-1 text-sm ' + subtleText}>Crea tu primera rutina y añade 3 tareas.</div>
-              <ol className={'mt-3 list-decimal pl-5 text-sm ' + panelText}>
-                <li>Crea una rutina (ej. Mañana, Gym, Estudio)</li>
-                <li>Añade 3 tareas pequeñas</li>
-                <li>Marca una como completada</li>
-              </ol>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={() => setCreateOpen(true)}
-                className={cn(
-                  'bg-gradient-to-r from-cyan-400 to-violet-500 text-slate-950 hover:from-cyan-300 hover:to-violet-400 focus:ring-cyan-300',
-                  !isDay ? 'ring-1 ring-white/10' : '',
-                )}
-              >
-                Crear rutina
-              </Button>
-              <Button variant="secondary" onClick={() => void loadRoutines()}>
-                Refrescar
-              </Button>
-            </div>
-          </div>
-        </Card>
-      ) : null}
-
-      <RoutinePanel />
+      <div className="hidden lg:block">
+        <RoutinePanel />
+      </div>
     </AppShell>
   )
 }
