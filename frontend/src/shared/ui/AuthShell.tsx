@@ -58,7 +58,24 @@ export function AuthShell({ title, subtitle, badge, footer, className, children 
         <div className="lg:col-span-6">
           <div className="flex items-start justify-between gap-3">
             <Link to="/" className="inline-flex items-center gap-2">
-              <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-cyan-400 to-violet-500" />
+              <div className="grid h-9 w-9 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-cyan-400 to-violet-500" aria-hidden="true">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="white"
+                  strokeWidth="2.25"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M9 6h11" />
+                  <path d="M9 12h11" />
+                  <path d="M9 18h11" />
+                  <path d="M4 6l1 1 2-2" />
+                  <path d="M4 12l1 1 2-2" />
+                  <path d="M4 18l1 1 2-2" />
+                </svg>
+              </div>
               <div className="leading-tight">
                 <div className="text-sm font-semibold">NeuroRoutine</div>
                 <div className={cn('text-xs', subtleText)}>Rutinas simples. Hábitos sostenibles.</div>
