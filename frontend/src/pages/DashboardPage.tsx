@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '@/features/auth/authStore'
 import { RoutineFormModal } from '@/features/routines/components'
 import { RoutinePanel } from '@/features/routines/components/RoutinePanel'
@@ -6,7 +6,7 @@ import { useRoutines } from '@/features/routines/routinesStore'
 import { AppShell } from '@/shared/layout'
 import { cn } from '@/shared/lib/cn'
 import { useUiStore } from '@/shared/state/uiStore'
-import { Button, Card } from '@/shared/ui'
+import { Button, Card, Tooltip } from '@/shared/ui'
 
 type RangeKey = '7d' | '28d' | '90d'
 type BucketGranularity = 'day' | 'week'
@@ -46,6 +46,51 @@ function clamp01(v: number) {
 
 function formatHour(h: number) {
   return `${String(h).padStart(2, '0')}:00`
+}
+
+type PopoverTip = {
+  x: number
+  y: number
+  title: string
+  lines: string[]
+}
+
+function clamp(v: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, v))
+}
+
+function usePopoverTooltip() {
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const [tip, setTip] = useState<PopoverTip | null>(null)
+
+  useEffect(() => {
+    if (!tip) return
+    const onPointerDown = (e: PointerEvent) => {
+      const el = containerRef.current
+      if (!el) return
+      if (el.contains(e.target as Node)) return
+      setTip(null)
+    }
+    window.addEventListener('pointerdown', onPointerDown, { capture: true })
+    return () => window.removeEventListener('pointerdown', onPointerDown, { capture: true } as AddEventListenerOptions)
+  }, [tip])
+
+  const show = (
+    e: Pick<React.MouseEvent, 'clientX' | 'clientY'> | Pick<React.PointerEvent, 'clientX' | 'clientY'>,
+    next: Omit<PopoverTip, 'x' | 'y'>,
+  ) => {
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const rawX = e.clientX - rect.left
+    const rawY = e.clientY - rect.top
+    const x = clamp(rawX, 64, rect.width - 64)
+    const y = clamp(rawY, 36, rect.height - 12)
+    setTip({ x, y, ...next })
+  }
+
+  const hide = () => setTip(null)
+
+  return { containerRef, tip, show, hide }
 }
 
 export function DashboardPage() {
@@ -155,6 +200,8 @@ export function DashboardPage() {
     const hourCompleted = new Array<number>(24).fill(0)
     const hourUncompleted = new Array<number>(24).fill(0)
 
+    const weekdayCompleted = new Array<number>(7).fill(0) // 0=Sun..6=Sat
+
     const perTaskEvents = new Map<string, { created_at: string; event_type: 'completed' | 'uncompleted' }[]>()
     const taskCounts = new Map<
       string,
@@ -182,6 +229,8 @@ export function DashboardPage() {
         const h = t.getHours()
         if (ev.event_type === 'completed') hourCompleted[h] += 1
         else hourUncompleted[h] += 1
+
+        if (ev.event_type === 'completed') weekdayCompleted[t.getDay()] += 1
 
         const list = perTaskEvents.get(ev.routine_task_id) ?? []
         list.push({ created_at: ev.created_at, event_type: ev.event_type })
@@ -303,6 +352,13 @@ export function DashboardPage() {
       .sort((a, b) => b.completed - a.completed)
       .slice(0, 5)
 
+    let bestWeekday = 0
+    let worstWeekday = 0
+    for (let i = 1; i < 7; i++) {
+      if (weekdayCompleted[i] > weekdayCompleted[bestWeekday]) bestWeekday = i
+      if (weekdayCompleted[i] < weekdayCompleted[worstWeekday]) worstWeekday = i
+    }
+
     return {
       start,
       end,
@@ -316,6 +372,9 @@ export function DashboardPage() {
       best,
       hourCompleted,
       hourUncompleted,
+      weekdayCompleted,
+      bestWeekday,
+      worstWeekday,
       bestWindowStart,
       bestWindowSum,
       medianHours,
@@ -385,6 +444,10 @@ export function DashboardPage() {
     if (!selectedRoutine) return 'Selecciona una rutina para ver insights automáticos.'
     if (selectedRoutineAnalytics.source !== 'events') return 'Activa el historial real para generar insights.'
 
+    const weekdayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
+    const bestDayName = weekdayNames[selectedRoutineAnalytics.bestWeekday] ?? '—'
+    const worstDayName = weekdayNames[selectedRoutineAnalytics.worstWeekday] ?? '—'
+
     const windowStart = selectedRoutineAnalytics.bestWindowStart
     const bestWindow = `${formatHour(windowStart)}–${formatHour((windowStart + 3) % 24)}`
     const trend = Math.round(selectedRoutineAnalytics.trendPct)
@@ -402,8 +465,36 @@ export function DashboardPage() {
           ? `Constancia media (${consistency}%)`
           : `Baja constancia (${consistency}%)`
 
-    return `Rinde mejor ${bestWindow}. ${consistencyText}. ${trendText}.`
+    const bestDay = selectedRoutineAnalytics.weekdayCompleted[selectedRoutineAnalytics.bestWeekday] ?? 0
+    const worstDay = selectedRoutineAnalytics.weekdayCompleted[selectedRoutineAnalytics.worstWeekday] ?? 0
+
+    const counts = selectedRoutineAnalytics.weekdayCompleted
+    const weekend = (counts[0] ?? 0) + (counts[6] ?? 0)
+    const total = counts.reduce((s, x) => s + x, 0)
+    const weekdaySum = total - weekend
+    const weekdayAvg = weekdaySum / 5
+    const hasWeekendDrop = total > 0 && weekend < weekdayAvg * 1.4
+    const hasSundayDrop = (counts[0] ?? 0) === worstDay && total > 0 && (counts[0] ?? 0) < (bestDay || 1) * 0.5
+
+    const weekdayText = hasSundayDrop
+      ? `Cae los domingos. Mejor: ${bestDayName}.`
+      : hasWeekendDrop
+        ? `Baja en fines de semana. Mejor: ${bestDayName}.`
+        : worstDay === 0 && bestDay > 0
+          ? `Mejor: ${bestDayName}. Cae los ${worstDayName}.`
+          : `Mejor: ${bestDayName}. Más bajo: ${worstDayName}.`
+
+    return `Rinde mejor ${bestWindow}. ${weekdayText} ${consistencyText}. ${trendText}.`
   }, [selectedRoutine, selectedRoutineAnalytics])
+
+  const complianceTooltip = usePopoverTooltip()
+  const hourlyTooltip = usePopoverTooltip()
+  const {
+    containerRef: heatmapContainerRef,
+    tip: heatmapTip,
+    show: showHeatmapTooltip,
+    hide: hideHeatmapTooltip,
+  } = usePopoverTooltip()
 
   const selectedRoutineKpis = useMemo(() => {
     const total = selectedRoutineTasks.length
@@ -850,18 +941,25 @@ export function DashboardPage() {
             <div className="mt-4">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    className={cn(rangeButtonClass(effectiveRoutineGranularity === 'day'), range === '90d' ? 'cursor-not-allowed opacity-50' : '')}
-                    onClick={() => {
-                      if (range === '90d') return
-                      setRoutineGranularity('day')
-                    }}
-                    disabled={range === '90d'}
-                    title={range === '90d' ? 'Para 90 días se recomienda vista semanal' : undefined}
-                  >
-                    Día
-                  </button>
+                  {range === '90d' ? (
+                    <Tooltip isDay={isDay} content="Para 90 días se recomienda vista semanal" className="inline-flex">
+                      <button
+                        type="button"
+                        className={cn(rangeButtonClass(effectiveRoutineGranularity === 'day'), 'cursor-not-allowed opacity-50')}
+                        disabled
+                      >
+                        Día
+                      </button>
+                    </Tooltip>
+                  ) : (
+                    <button
+                      type="button"
+                      className={rangeButtonClass(effectiveRoutineGranularity === 'day')}
+                      onClick={() => setRoutineGranularity('day')}
+                    >
+                      Día
+                    </button>
+                  )}
                   <button type="button" className={rangeButtonClass(effectiveRoutineGranularity === 'week')} onClick={() => setRoutineGranularity('week')}>
                     Semana
                   </button>
@@ -894,9 +992,16 @@ export function DashboardPage() {
 
                 return (
                   <>
-                    <svg viewBox={`0 0 ${W} ${H}`} className="h-24 w-full" role="img" aria-label="Cumplimiento">
-                      <rect x="0" y="0" width={W} height={H} rx="12" className={isDay ? 'fill-slate-50' : 'fill-white/5'} />
-                      {limited.map((d, i) => {
+                    <div ref={complianceTooltip.containerRef} className="relative">
+                      <svg
+                        viewBox={`0 0 ${W} ${H}`}
+                        className="h-24 w-full"
+                        role="img"
+                        aria-label="Cumplimiento"
+                        onMouseLeave={complianceTooltip.hide}
+                      >
+                        <rect x="0" y="0" width={W} height={H} rx="12" className={isDay ? 'fill-slate-50' : 'fill-white/5'} />
+                        {limited.map((d, i) => {
                         const total = d.completed + d.uncompleted
                         const t = maxTotal ? total / maxTotal : 0
                         const totalH = Math.round(innerH * clamp01(t))
@@ -907,8 +1012,23 @@ export function DashboardPage() {
                         const yTop = padY + (innerH - totalH)
                         const yCompleted = yTop + uncompletedH
                         return (
-                          <g key={d.key}>
-                            <title>{`${d.key}: completed ${d.completed}, uncompleted ${d.uncompleted}`}</title>
+                          <g
+                            key={d.key}
+                            onMouseMove={(e) =>
+                              complianceTooltip.show(e, {
+                                title: d.key,
+                                lines: [`Hechas: ${d.completed}`, `No hechas: ${d.uncompleted}`],
+                              })
+                            }
+                            onPointerDown={(e) => {
+                              if (e.pointerType === 'touch' || e.pointerType === 'pen') {
+                                complianceTooltip.show(e, {
+                                  title: d.key,
+                                  lines: [`Hechas: ${d.completed}`, `No hechas: ${d.uncompleted}`],
+                                })
+                              }
+                            }}
+                          >
                             {uncompletedH > 0 ? (
                               <rect x={x} y={yTop} width={barW} height={uncompletedH} rx={3} fill={uFill} opacity={0.85} />
                             ) : null}
@@ -917,8 +1037,36 @@ export function DashboardPage() {
                             ) : null}
                           </g>
                         )
-                      })}
-                    </svg>
+                        })}
+                      </svg>
+
+                      {complianceTooltip.tip ? (
+                        <div
+                          className={cn(
+                            'pointer-events-none absolute z-20 min-w-40 max-w-64 rounded-lg px-3 py-2 text-xs shadow-lg ring-1',
+                            isDay ? 'bg-white text-slate-900 ring-slate-200' : 'bg-slate-900 text-slate-100 ring-white/10',
+                          )}
+                          style={{
+                            left: complianceTooltip.tip.x,
+                            top: complianceTooltip.tip.y,
+                            transform: 'translate(-50%, calc(-100% - 10px))',
+                          }}
+                        >
+                          <div className="font-semibold">{complianceTooltip.tip.title}</div>
+                          {complianceTooltip.tip.lines.map((l) => (
+                            <div key={l} className={cn('mt-0.5', isDay ? 'text-slate-600' : 'text-slate-300')}>
+                              {l}
+                            </div>
+                          ))}
+                          <div
+                            className={cn(
+                              'absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 ring-1',
+                              isDay ? 'bg-white ring-slate-200' : 'bg-slate-900 ring-white/10',
+                            )}
+                          />
+                        </div>
+                      ) : null}
+                    </div>
 
                     <div className={'mt-2 flex items-center justify-between text-xs ' + subtleText}>
                       <div>{limited[0]?.key}</div>
@@ -985,21 +1133,73 @@ export function DashboardPage() {
 
                 return (
                   <>
-                    <svg viewBox={`0 0 ${W} ${H}`} className="h-24 w-full" role="img" aria-label="Histograma por hora">
-                      <rect x="0" y="0" width={W} height={H} rx="12" className={isDay ? 'fill-slate-50' : 'fill-white/5'} />
-                      {selectedRoutineAnalytics.hourCompleted.map((v, i) => {
+                    <div ref={hourlyTooltip.containerRef} className="relative">
+                      <svg
+                        viewBox={`0 0 ${W} ${H}`}
+                        className="h-24 w-full"
+                        role="img"
+                        aria-label="Histograma por hora"
+                        onMouseLeave={hourlyTooltip.hide}
+                      >
+                        <rect x="0" y="0" width={W} height={H} rx="12" className={isDay ? 'fill-slate-50' : 'fill-white/5'} />
+                        {selectedRoutineAnalytics.hourCompleted.map((v, i) => {
                         const h = Math.round(innerH * clamp01(v / max))
                         const x = padX + i * (barW + gap)
                         const y = padY + (innerH - h)
                         const isHot = i === windowStart || i === (windowStart + 1) % 24 || i === (windowStart + 2) % 24
                         return (
-                          <g key={i}>
-                            <title>{`${formatHour(i)}: ${v} completed`}</title>
+                          <g
+                            key={i}
+                            onMouseMove={(e) =>
+                              hourlyTooltip.show(e, {
+                                title: formatHour(i),
+                                lines: [`Hechas: ${v}`, isHot ? 'En tu mejor franja' : ''],
+                              })
+                            }
+                            onPointerDown={(e) => {
+                              if (e.pointerType === 'touch' || e.pointerType === 'pen') {
+                                hourlyTooltip.show(e, {
+                                  title: formatHour(i),
+                                  lines: [`Hechas: ${v}`, isHot ? 'En tu mejor franja' : ''],
+                                })
+                              }
+                            }}
+                          >
                             <rect x={x} y={y} width={barW} height={h} rx={3} fill={fill} opacity={isHot ? 1 : 0.55} />
                           </g>
                         )
-                      })}
-                    </svg>
+                        })}
+                      </svg>
+
+                      {hourlyTooltip.tip ? (
+                        <div
+                          className={cn(
+                            'pointer-events-none absolute z-20 min-w-36 max-w-64 rounded-lg px-3 py-2 text-xs shadow-lg ring-1',
+                            isDay ? 'bg-white text-slate-900 ring-slate-200' : 'bg-slate-900 text-slate-100 ring-white/10',
+                          )}
+                          style={{
+                            left: hourlyTooltip.tip.x,
+                            top: hourlyTooltip.tip.y,
+                            transform: 'translate(-50%, calc(-100% - 10px))',
+                          }}
+                        >
+                          <div className="font-semibold">{hourlyTooltip.tip.title}</div>
+                          {hourlyTooltip.tip.lines
+                            .filter(Boolean)
+                            .map((l) => (
+                              <div key={l} className={cn('mt-0.5', isDay ? 'text-slate-600' : 'text-slate-300')}>
+                                {l}
+                              </div>
+                            ))}
+                          <div
+                            className={cn(
+                              'absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 ring-1',
+                              isDay ? 'bg-white ring-slate-200' : 'bg-slate-900 ring-white/10',
+                            )}
+                          />
+                        </div>
+                      ) : null}
+                    </div>
                     <div className={'mt-2 flex items-center justify-between text-xs ' + subtleText}>
                       <div>00</div>
                       <div>12</div>
@@ -1058,13 +1258,15 @@ export function DashboardPage() {
                     <div className={'text-xs ' + subtleText}>Distribución</div>
                     <div className="mt-2 space-y-2">
                       {items.map((it) => (
-                        <div key={it.label} className="flex items-center gap-2" title={`${it.label}: ${it.value} intervalos`}>
+                        <Tooltip key={it.label} isDay={isDay} content={`${it.label}: ${it.value} intervalos`} className="block">
+                        <div className="flex items-center gap-2">
                           <div className={'w-10 text-xs ' + subtleText}>{it.label}</div>
                           <div className={'h-2 flex-1 rounded-full ' + (isDay ? 'bg-slate-200' : 'bg-white/10')}>
                             <div className="h-2 rounded-full" style={{ width: `${Math.round((it.value / max) * 100)}%`, backgroundColor: fill as unknown as string, opacity: 0.9 }} />
                           </div>
                           <div className={'w-10 text-right text-xs ' + subtleText}>{total ? Math.round((it.value / total) * 100) : 0}%</div>
                         </div>
+                        </Tooltip>
                       ))}
                     </div>
                   </div>
@@ -1105,9 +1307,9 @@ export function DashboardPage() {
               <div className={cn('divide-y', isDay ? 'divide-slate-200' : 'divide-white/10')}>
                 {selectedRoutineAnalytics.topTasks.map((t) => (
                   <div key={t.taskId} className={cn('grid grid-cols-12 gap-2 px-3 py-2 text-sm', isDay ? 'bg-white' : 'bg-transparent')}>
-                    <div className={'col-span-6 truncate ' + panelText} title={t.title}>
-                      {t.title}
-                    </div>
+                    <Tooltip isDay={isDay} content={t.title} className="col-span-6">
+                      <div className={'truncate ' + panelText}>{t.title}</div>
+                    </Tooltip>
                     <div className={'col-span-2 text-right ' + panelText}>{t.completed}</div>
                     <div className={'col-span-2 text-right ' + panelText}>{t.uncompleted}</div>
                     <div className={'col-span-2 text-right ' + panelText}>{t.reopens}</div>
@@ -1135,11 +1337,13 @@ export function DashboardPage() {
           ) : (
             <div className="mt-4 space-y-2">
               {routinesRanking.map((r, idx) => (
-                <div
+                <Tooltip
                   key={r.id}
-                  className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}
-                  title={`Activos ${Math.round(r.activePct)}% • Completed ${r.completed} • Tendencia ${r.trendPct >= 0 ? '+' : ''}${Math.round(r.trendPct)}%`}
+                  isDay={isDay}
+                  className="block"
+                  content={`Activos ${Math.round(r.activePct)}% • Completed ${r.completed} • Tendencia ${r.trendPct >= 0 ? '+' : ''}${Math.round(r.trendPct)}%`}
                 >
+                <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
                   <div className="flex items-center justify-between gap-3">
                     <div className={'text-sm font-medium ' + panelText}>
                       {idx + 1}. {r.title}
@@ -1154,6 +1358,7 @@ export function DashboardPage() {
                     <div>Completed: {r.completed}</div>
                   </div>
                 </div>
+                </Tooltip>
               ))}
             </div>
           )}
@@ -1173,19 +1378,53 @@ export function DashboardPage() {
           </div>
 
           <div className="mt-4 overflow-x-auto">
-            <div className="inline-grid grid-flow-col grid-rows-7 gap-1">
-              {heatmap.counts.map((c) => (
+            <div ref={heatmapContainerRef} className="relative inline-block" onMouseLeave={hideHeatmapTooltip}>
+              <div className="inline-grid grid-flow-col grid-rows-7 gap-1">
+                {heatmap.counts.map((c) => (
+                  <div
+                    key={c.key}
+                    onMouseMove={(e) => showHeatmapTooltip(e, { title: c.key, lines: [`Checks: ${c.count}`] })}
+                    onPointerDown={(e) => {
+                      if (e.pointerType === 'touch' || e.pointerType === 'pen') {
+                        showHeatmapTooltip(e, { title: c.key, lines: [`Checks: ${c.count}`] })
+                      }
+                    }}
+                    className={
+                      'h-3 w-3 rounded-sm ring-1 ' +
+                      heatCellClass(c.count) +
+                      ' ' +
+                      (isDay ? 'ring-slate-200' : 'ring-white/10')
+                    }
+                  />
+                ))}
+              </div>
+
+              {heatmapTip ? (
                 <div
-                  key={c.key}
-                  title={`${c.key}: ${c.count}`}
-                  className={
-                    'h-3 w-3 rounded-sm ring-1 ' +
-                    heatCellClass(c.count) +
-                    ' ' +
-                    (isDay ? 'ring-slate-200' : 'ring-white/10')
-                  }
-                />
-              ))}
+                  className={cn(
+                    'pointer-events-none absolute z-20 min-w-36 max-w-64 rounded-lg px-3 py-2 text-xs shadow-lg ring-1',
+                    isDay ? 'bg-white text-slate-900 ring-slate-200' : 'bg-slate-900 text-slate-100 ring-white/10',
+                  )}
+                  style={{
+                    left: heatmapTip.x,
+                    top: heatmapTip.y,
+                    transform: 'translate(-50%, calc(-100% - 10px))',
+                  }}
+                >
+                  <div className="font-semibold">{heatmapTip.title}</div>
+                  {heatmapTip.lines.map((l) => (
+                    <div key={l} className={cn('mt-0.5', isDay ? 'text-slate-600' : 'text-slate-300')}>
+                      {l}
+                    </div>
+                  ))}
+                  <div
+                    className={cn(
+                      'absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 ring-1',
+                      isDay ? 'bg-white ring-slate-200' : 'bg-slate-900 ring-white/10',
+                    )}
+                  />
+                </div>
+              ) : null}
             </div>
           </div>
 
