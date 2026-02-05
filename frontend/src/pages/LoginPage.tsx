@@ -31,7 +31,7 @@ export function LoginPage() {
     <AuthShell
       title="Bienvenido de vuelta"
       subtitle="Inicia sesión para ver tus rutinas y tu progreso"
-      badge="Acceso rápido • Google o usuario/email"
+      badge="¿Listo para un día más claro?"
     >
       <Card className="mx-auto w-full max-w-md bg-white/5 p-5 ring-1 ring-white/10">
         <form className="space-y-4" onSubmit={onSubmit}>
@@ -104,9 +104,6 @@ export function LoginPage() {
             </Link>
           </div>
 
-          <div className="text-xs text-slate-400">
-            Serás redirigido a: <span className="text-slate-200">{from}</span>
-          </div>
         </form>
       </Card>
     </AuthShell>

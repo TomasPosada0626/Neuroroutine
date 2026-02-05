@@ -51,20 +51,20 @@ export function AuthShell({ title, subtitle, badge, footer, className, children 
 
           <div className="mt-6 hidden max-w-md grid-cols-2 gap-3 sm:grid">
             <div className="rounded-xl bg-white/5 p-4 ring-1 ring-white/10">
-              <div className="text-xs text-slate-300">Login flexible</div>
-              <div className="mt-1 text-sm font-semibold">Usuario o email</div>
+              <div className="text-xs text-slate-300">Entra y sigue</div>
+              <div className="mt-1 text-sm font-semibold">Tu rutina te espera</div>
             </div>
             <div className="rounded-xl bg-white/5 p-4 ring-1 ring-white/10">
-              <div className="text-xs text-slate-300">Privacidad real</div>
-              <div className="mt-1 text-sm font-semibold">RLS por usuario</div>
+              <div className="text-xs text-slate-300">Sin presión</div>
+              <div className="mt-1 text-sm font-semibold">Pequeños pasos cada día</div>
             </div>
           </div>
 
           <div className="mt-6 flex flex-wrap items-center gap-2 text-xs text-slate-300">
-            <span className="rounded-full bg-white/5 px-2 py-1 ring-1 ring-white/10">Supabase Auth</span>
-            <span className="rounded-full bg-white/5 px-2 py-1 ring-1 ring-white/10">Postgres + RLS</span>
-            <span className="rounded-full bg-white/5 px-2 py-1 ring-1 ring-white/10">Vite + React + TS</span>
-            <span className="rounded-full bg-white/5 px-2 py-1 ring-1 ring-white/10">Tailwind</span>
+            <span className="rounded-full bg-white/5 px-2 py-1 ring-1 ring-white/10">Empieza en minutos</span>
+            <span className="rounded-full bg-white/5 px-2 py-1 ring-1 ring-white/10">Diseño simple</span>
+            <span className="rounded-full bg-white/5 px-2 py-1 ring-1 ring-white/10">Progreso visible</span>
+            <span className="rounded-full bg-white/5 px-2 py-1 ring-1 ring-white/10">Tu espacio privado</span>
           </div>
         </div>
 
