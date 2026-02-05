@@ -92,20 +92,6 @@ function UseCaseTabs({ value, onChange }: { value: UseCase; onChange: (v: UseCas
   )
 }
 
-function Check({ className }: { className?: string }) {
-  return (
-    <span
-      className={
-        'inline-flex h-5 w-5 items-center justify-center rounded-md bg-emerald-400/15 text-emerald-200 ring-1 ring-emerald-400/20 ' +
-        (className ?? '')
-      }
-      aria-hidden="true"
-    >
-      ✓
-    </span>
-  )
-}
-
 export function LandingPage() {
   const [useCase, setUseCase] = useState<UseCase>('study')
   const [isSwitching, setIsSwitching] = useState(false)
@@ -476,72 +462,6 @@ export function LandingPage() {
                 </div>
               </div>
 
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <div className="rounded-xl bg-white/5 p-4 ring-1 ring-white/10">
-                  <div className="text-xs text-slate-300">Lo que dicen</div>
-                  <div className={"mt-2 space-y-2 " + (isSwitching ? 'opacity-80' : 'opacity-100')}>
-                    {content.testimonials.map((t) => (
-                      <div key={t.name} className="rounded-lg bg-slate-950/40 p-3 ring-1 ring-white/10">
-                        <div className="text-sm text-slate-200">{t.quote}</div>
-                        <div className="mt-1 text-xs text-slate-400">{t.name}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-xl bg-white/5 p-4 ring-1 ring-white/10">
-                  <div className="text-xs text-slate-300">NeuroRoutine vs Lista</div>
-                  <div className="mt-2 overflow-hidden rounded-lg ring-1 ring-white/10">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-white/5 text-slate-300">
-                        <tr>
-                          <th className="px-3 py-2 font-medium">Función</th>
-                          <th className="px-3 py-2 font-medium">NeuroRoutine</th>
-                          <th className="px-3 py-2 font-medium">Lista</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/10 text-slate-200">
-                        <tr>
-                          <td className="px-3 py-2">Rutinas repetibles</td>
-                          <td className="px-3 py-2"><Check /></td>
-                          <td className="px-3 py-2 text-slate-400">—</td>
-                        </tr>
-                        <tr>
-                          <td className="px-3 py-2">Plan en bloques</td>
-                          <td className="px-3 py-2"><Check className="bg-cyan-400/15 text-cyan-200 ring-cyan-400/20" /></td>
-                          <td className="px-3 py-2 text-slate-400">—</td>
-                        </tr>
-                        <tr>
-                          <td className="px-3 py-2">Progreso visible</td>
-                          <td className="px-3 py-2"><Check className="bg-violet-400/15 text-violet-200 ring-violet-400/20" /></td>
-                          <td className="px-3 py-2 text-slate-400">a veces</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className="mt-3 flex gap-2">
-                  <Link
-                    to="/register"
-                    className={
-                      primaryLinkClass +
-                      ' flex-1 bg-gradient-to-r from-cyan-400 to-violet-500 text-slate-950 hover:opacity-95 motion-safe:transition motion-safe:duration-300 hover:-translate-y-0.5'
-                    }
-                  >
-                    Registrarme
-                  </Link>
-                  <Link
-                    to="/login"
-                    className={
-                      secondaryLinkClass +
-                      ' flex-1 bg-white/10 text-white ring-1 ring-white/15 hover:bg-white/15 motion-safe:transition motion-safe:duration-300 hover:-translate-y-0.5'
-                    }
-                  >
-                    Entrar
-                  </Link>
-                </div>
-              </div>
-              </div>
             </div>
           </div>
         </div>
