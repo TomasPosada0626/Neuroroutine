@@ -2,6 +2,7 @@ import type { PropsWithChildren, ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { cn } from '@/shared/lib/cn'
 import { useUiStore } from '@/shared/state/uiStore'
+import { ThemeToggle } from '@/shared/ui/ThemeToggle'
 
 type Props = PropsWithChildren<{
   title: string
@@ -51,13 +52,16 @@ export function AuthShell({ title, subtitle, badge, footer, className, children 
       <div className="relative mx-auto grid min-h-dvh max-w-6xl items-center gap-8 px-4 py-10 lg:grid-cols-12">
         {/* Left */}
         <div className="lg:col-span-6">
-          <Link to="/" className="inline-flex items-center gap-2">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-cyan-400 to-violet-500" />
-            <div className="leading-tight">
-              <div className="text-sm font-semibold">NeuroRoutine</div>
-              <div className={cn('text-xs', subtleText)}>Rutinas simples, hábitos sostenibles</div>
-            </div>
-          </Link>
+          <div className="flex items-start justify-between gap-3">
+            <Link to="/" className="inline-flex items-center gap-2">
+              <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-cyan-400 to-violet-500" />
+              <div className="leading-tight">
+                <div className="text-sm font-semibold">NeuroRoutine</div>
+                <div className={cn('text-xs', subtleText)}>Rutinas simples, hábitos sostenibles</div>
+              </div>
+            </Link>
+            <ThemeToggle compact />
+          </div>
 
           {badge ? (
             <div className="mt-6 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs ring-1 ring-white/15">

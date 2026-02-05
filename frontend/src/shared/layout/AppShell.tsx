@@ -2,6 +2,7 @@ import type { PropsWithChildren } from 'react'
 import { useAuth } from '@/features/auth/authStore'
 import { Button } from '@/shared/ui'
 import { useUiStore } from '@/shared/state/uiStore'
+import { ThemeToggle } from '@/shared/ui/ThemeToggle'
 
 export function AppShell({ children }: PropsWithChildren) {
   const { user, signOut } = useAuth()
@@ -28,6 +29,7 @@ export function AppShell({ children }: PropsWithChildren) {
           </div>
           <div className="flex items-center gap-3">
             <div className={"hidden text-xs sm:block " + subtleText}>{user?.email}</div>
+            <ThemeToggle compact />
             <Button variant="secondary" onClick={() => signOut()}>
               Salir
             </Button>
