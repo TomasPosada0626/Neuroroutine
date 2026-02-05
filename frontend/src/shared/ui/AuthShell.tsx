@@ -57,7 +57,7 @@ export function AuthShell({ title, subtitle, badge, footer, className, children 
               <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-cyan-400 to-violet-500" />
               <div className="leading-tight">
                 <div className="text-sm font-semibold">NeuroRoutine</div>
-                <div className={cn('text-xs', subtleText)}>Rutinas simples, hábitos sostenibles</div>
+                <div className={cn('text-xs', subtleText)}>Rutinas simples. Hábitos sostenibles.</div>
               </div>
             </Link>
             <ThemeToggle compact />
@@ -75,20 +75,20 @@ export function AuthShell({ title, subtitle, badge, footer, className, children 
 
           <div className="mt-6 hidden max-w-md grid-cols-2 gap-3 sm:grid">
             <div className={cardClass}>
-              <div className={cn('text-xs', subtleText)}>Entra y sigue</div>
-              <div className="mt-1 text-sm font-semibold">Tu rutina te espera</div>
+              <div className={cn('text-xs', subtleText)}>Entra y continúa</div>
+              <div className="mt-1 text-sm font-semibold">Retoma tu plan en segundos</div>
             </div>
             <div className={cardClass}>
               <div className={cn('text-xs', subtleText)}>Sin presión</div>
-              <div className="mt-1 text-sm font-semibold">Pequeños pasos cada día</div>
+              <div className="mt-1 text-sm font-semibold">Paso a paso, pero sin parar</div>
             </div>
           </div>
 
           <div className={cn('mt-6 flex flex-wrap items-center gap-2 text-xs', subtleText)}>
-            <span className={chipClass}>Empieza en minutos</span>
-            <span className={chipClass}>Diseño simple</span>
-            <span className={chipClass}>Progreso visible</span>
-            <span className={chipClass}>Tu espacio privado</span>
+            <span className={chipClass}>Entra en segundos</span>
+            <span className={chipClass}>Prioridades claras</span>
+            <span className={chipClass}>Progreso semanal</span>
+            <span className={chipClass}>Tu espacio, solo tuyo</span>
           </div>
         </div>
 

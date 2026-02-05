@@ -51,9 +51,9 @@ export function LoginPage() {
 
   return (
     <AuthShell
-      title="Bienvenido de vuelta"
-      subtitle="Inicia sesión para ver tus rutinas y tu progreso"
-      badge="¿Listo para un día más claro?"
+      title="Continúa donde lo dejaste"
+      subtitle="Inicia sesión y retoma tus rutinas, tus tareas y tu progreso de esta semana."
+      badge="Tu rutina de hoy te está esperando"
     >
       <Card className={cardClass}>
         <form className="space-y-4" onSubmit={onSubmit}>

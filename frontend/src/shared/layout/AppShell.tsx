@@ -24,7 +24,7 @@ export function AppShell({ children }: PropsWithChildren) {
             <div className={logoClass} />
             <div className="leading-tight">
               <div className="text-sm font-semibold">NeuroRoutine</div>
-              <div className={"text-xs " + subtleText}>Rutinas simples, hábitos sostenibles</div>
+              <div className={"text-xs " + subtleText}>Rutinas simples. Hábitos sostenibles.</div>
             </div>
           </div>
           <div className="flex items-center gap-3">
