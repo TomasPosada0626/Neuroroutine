@@ -105,6 +105,8 @@ Save images under `docs/screenshots/` using this naming:
 - Supabase Auth (register/login/logout) + session handling.
 - Protected routes (only authenticated users can access the app area).
 - Real CRUD over Postgres for routines and tasks.
+- Analytics dashboard (KPIs + activity heatmap + per-routine metrics + charts).
+- Analytics-grade completion history via event log (accurate streaks/consistency).
 - Modern Tailwind UI with reusable layouts.
 - Persistent day/night theme (global state with localStorage persistence).
 - SPA-friendly deploy (no 404 on refresh for client-side routes).
@@ -137,6 +139,7 @@ Save images under `docs/screenshots/` using this naming:
 - **Zustand**: simple, performant global state (e.g. persistent theme and feature stores) without boilerplate.
 - **React Hook Form + Zod**: fast forms with typed, declarative validation for consistent UX.
 - **SPA rewrite on Vercel**: React Router needs an `index.html` rewrite to avoid 404 on refresh for routes like `/login`.
+- **Event log for analytics**: completion events are stored in Postgres to compute streaks, consistency, and charts from real history.
 
 ## Architecture
 
@@ -157,7 +160,7 @@ flowchart LR
   SB --> DB[Postgres]
 
   DB -.-> RLS[RLS policies]
-  RLS -.-> DATA[(routines, routine_tasks, profiles)]
+  RLS -.-> DATA[(routines, routine_tasks, routine_task_events, profiles)]
 ```
 
 ### Frontend structure (high level)
@@ -188,7 +191,8 @@ ER diagram: `docs/diagrams/er-diagram.png` (guide in `docs/diagrams/README.md`).
 |---|---|---|
 | `profiles` | User profile (app-level) | `id` (UUID = `auth.users.id`), `email`, `username`, `first_name`, `last_name` |
 | `routines` | User routines | `id`, `user_id`, `title`, `notes` |
-| `routine_tasks` | Tasks within a routine | `id`, `user_id`, `routine_id`, `title`, `is_done` |
+| `routine_tasks` | Tasks within a routine | `id`, `user_id`, `routine_id`, `title`, `is_done`, `completed_at` |
+| `routine_task_events` | Completion event history | `id`, `user_id`, `routine_id`, `routine_task_id`, `event_type`, `created_at` |
 
 ### Relationships
 
@@ -201,6 +205,9 @@ auth.users
 
 routines
   1 ── *  routine_tasks
+
+routine_tasks
+  1 ── *  routine_task_events
 ```
 
 ## API Surface
@@ -250,6 +257,8 @@ How updates are applied:
 
 - For this project, schema changes are applied by running the SQL in Supabase (SQL Editor).
 - When the schema evolves, the SQL file is updated in the repo so the full database setup remains reproducible.
+
+Note: analytics features (streaks/consistency/charts) rely on `routine_task_events` and the trigger defined in `backend/supabase/schema.sql`.
 
 ## Repo Structure
 
@@ -399,7 +408,7 @@ Ideas to push this towards a product:
 - Notifications/reminders
 - Advanced task editing
 - Drag & drop ordering
-- Analytics / habits
+- More analytics (insights quality, export, per-task trends)
 - Light offline caching
 
 ## Contributing
@@ -423,6 +432,7 @@ PR guidelines:
 - **MVP (SPA + Auth + RLS)**: React frontend + Supabase Auth with Postgres and per-user RLS.
 - **Real CRUD**: routines and tasks persisted with row-level security.
 - **Premium UX/UI**: scroll-free landing with preview, persistent theme, and SPA-ready deploy.
+- **Pro dashboard analytics**: heatmap + per-routine charts powered by a completion event log.
 
 ## Author
 

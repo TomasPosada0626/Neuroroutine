@@ -67,6 +67,7 @@ export function DashboardPage() {
     loadAllTasks,
     loadTaskEvents,
     loadTasks,
+    selectRoutine,
     addRoutine,
     setTaskDone,
   } = useRoutines()
@@ -379,6 +380,30 @@ export function DashboardPage() {
       })
       .slice(0, 7)
   }, [hasEvents, taskEvents, routines, range])
+
+  const selectedRoutineInsight = useMemo(() => {
+    if (!selectedRoutine) return 'Selecciona una rutina para ver insights automáticos.'
+    if (selectedRoutineAnalytics.source !== 'events') return 'Activa el historial real para generar insights.'
+
+    const windowStart = selectedRoutineAnalytics.bestWindowStart
+    const bestWindow = `${formatHour(windowStart)}–${formatHour((windowStart + 3) % 24)}`
+    const trend = Math.round(selectedRoutineAnalytics.trendPct)
+    const trendText =
+      trend >= 15
+        ? `Tendencia fuerte: +${trend}%`
+        : trend <= -15
+          ? `Atención: ${trend}%`
+          : `Tendencia: ${trend >= 0 ? '+' : ''}${trend}%`
+    const consistency = Math.round(selectedRoutineAnalytics.activeDaysPct)
+    const consistencyText =
+      consistency >= 70
+        ? `Muy constante (${consistency}%)`
+        : consistency >= 40
+          ? `Constancia media (${consistency}%)`
+          : `Baja constancia (${consistency}%)`
+
+    return `Rinde mejor ${bestWindow}. ${consistencyText}. ${trendText}.`
+  }, [selectedRoutine, selectedRoutineAnalytics])
 
   const selectedRoutineKpis = useMemo(() => {
     const total = selectedRoutineTasks.length
@@ -701,7 +726,46 @@ export function DashboardPage() {
         </Card>
       </div>
 
-      <div className="mb-8 grid gap-4 lg:grid-cols-3">
+      <div className="mb-8">
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="text-sm font-semibold">Analíticas por rutina</div>
+            <div className={'text-xs ' + subtleText}>Selector + gráficas + insights</div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className={'text-xs ' + subtleText}>Rutina</div>
+            <select
+              value={selectedRoutineId ?? ''}
+              onChange={(e) => selectRoutine(e.target.value ? e.target.value : null)}
+              className={cn(
+                'h-9 max-w-[260px] rounded-lg px-3 text-sm ring-1 outline-none transition focus:ring-2',
+                isDay
+                  ? 'bg-white text-slate-900 ring-slate-200 focus:ring-slate-400'
+                  : 'bg-white/10 text-slate-50 ring-white/15 focus:ring-white/30',
+              )}
+            >
+              <option value="">Selecciona…</option>
+              {routines.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.title}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div
+          className={cn(
+            'mb-4 rounded-lg p-3 text-sm ring-1',
+            isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10',
+          )}
+        >
+          <div className={'text-xs ' + subtleText}>Insight automático</div>
+          <div className={'mt-1 text-sm font-medium ' + panelText}>{selectedRoutineInsight}</div>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-1">
           <div>
             <div className="text-sm font-semibold">Rutina</div>
@@ -844,6 +908,7 @@ export function DashboardPage() {
                         const yCompleted = yTop + uncompletedH
                         return (
                           <g key={d.key}>
+                            <title>{`${d.key}: completed ${d.completed}, uncompleted ${d.uncompleted}`}</title>
                             {uncompletedH > 0 ? (
                               <rect x={x} y={yTop} width={barW} height={uncompletedH} rx={3} fill={uFill} opacity={0.85} />
                             ) : null}
@@ -877,6 +942,7 @@ export function DashboardPage() {
             </div>
           )}
         </Card>
+      </div>
       </div>
 
       <div className="mb-8 grid gap-4 lg:grid-cols-3">
@@ -926,7 +992,12 @@ export function DashboardPage() {
                         const x = padX + i * (barW + gap)
                         const y = padY + (innerH - h)
                         const isHot = i === windowStart || i === (windowStart + 1) % 24 || i === (windowStart + 2) % 24
-                        return <rect key={i} x={x} y={y} width={barW} height={h} rx={3} fill={fill} opacity={isHot ? 1 : 0.55} />
+                        return (
+                          <g key={i}>
+                            <title>{`${formatHour(i)}: ${v} completed`}</title>
+                            <rect x={x} y={y} width={barW} height={h} rx={3} fill={fill} opacity={isHot ? 1 : 0.55} />
+                          </g>
+                        )
                       })}
                     </svg>
                     <div className={'mt-2 flex items-center justify-between text-xs ' + subtleText}>
@@ -987,7 +1058,7 @@ export function DashboardPage() {
                     <div className={'text-xs ' + subtleText}>Distribución</div>
                     <div className="mt-2 space-y-2">
                       {items.map((it) => (
-                        <div key={it.label} className="flex items-center gap-2">
+                        <div key={it.label} className="flex items-center gap-2" title={`${it.label}: ${it.value} intervalos`}>
                           <div className={'w-10 text-xs ' + subtleText}>{it.label}</div>
                           <div className={'h-2 flex-1 rounded-full ' + (isDay ? 'bg-slate-200' : 'bg-white/10')}>
                             <div className="h-2 rounded-full" style={{ width: `${Math.round((it.value / max) * 100)}%`, backgroundColor: fill as unknown as string, opacity: 0.9 }} />
@@ -1064,7 +1135,11 @@ export function DashboardPage() {
           ) : (
             <div className="mt-4 space-y-2">
               {routinesRanking.map((r, idx) => (
-                <div key={r.id} className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+                <div
+                  key={r.id}
+                  className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}
+                  title={`Activos ${Math.round(r.activePct)}% • Completed ${r.completed} • Tendencia ${r.trendPct >= 0 ? '+' : ''}${Math.round(r.trendPct)}%`}
+                >
                   <div className="flex items-center justify-between gap-3">
                     <div className={'text-sm font-medium ' + panelText}>
                       {idx + 1}. {r.title}
