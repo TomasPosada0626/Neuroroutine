@@ -47,41 +47,67 @@ function MiniBars({ bars }: { bars: number[] }) {
   )
 }
 
-type DemoMode = 'focus' | 'balance'
+type UseCase = 'study' | 'fitness' | 'work'
 
-function DemoToggle({ mode, onChange }: { mode: DemoMode; onChange: (m: DemoMode) => void }) {
+function UseCaseTabs({ value, onChange }: { value: UseCase; onChange: (v: UseCase) => void }) {
   return (
     <div className="inline-flex rounded-lg bg-white/5 p-1 ring-1 ring-white/10">
       <button
         type="button"
-        onClick={() => onChange('focus')}
+        onClick={() => onChange('study')}
         className={
           'rounded-md px-2.5 py-1 text-xs font-medium transition ' +
-          (mode === 'focus'
+          (value === 'study'
             ? 'bg-white/10 text-white ring-1 ring-white/15'
             : 'text-slate-300 hover:bg-white/5 hover:text-white')
         }
       >
-        Enfoque
+        Estudio
       </button>
       <button
         type="button"
-        onClick={() => onChange('balance')}
+        onClick={() => onChange('fitness')}
         className={
           'rounded-md px-2.5 py-1 text-xs font-medium transition ' +
-          (mode === 'balance'
+          (value === 'fitness'
             ? 'bg-white/10 text-white ring-1 ring-white/15'
             : 'text-slate-300 hover:bg-white/5 hover:text-white')
         }
       >
-        Equilibrio
+        Fitness
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange('work')}
+        className={
+          'rounded-md px-2.5 py-1 text-xs font-medium transition ' +
+          (value === 'work'
+            ? 'bg-white/10 text-white ring-1 ring-white/15'
+            : 'text-slate-300 hover:bg-white/5 hover:text-white')
+        }
+      >
+        Trabajo
       </button>
     </div>
   )
 }
 
+function Check({ className }: { className?: string }) {
+  return (
+    <span
+      className={
+        'inline-flex h-5 w-5 items-center justify-center rounded-md bg-emerald-400/15 text-emerald-200 ring-1 ring-emerald-400/20 ' +
+        (className ?? '')
+      }
+      aria-hidden="true"
+    >
+      ✓
+    </span>
+  )
+}
+
 export function LandingPage() {
-  const [mode, setMode] = useState<DemoMode>('focus')
+  const [useCase, setUseCase] = useState<UseCase>('study')
   const [isSwitching, setIsSwitching] = useState(false)
   const switchTimerRef = useRef<number | null>(null)
 
@@ -93,8 +119,8 @@ export function LandingPage() {
     }
   }, [])
 
-  const handleModeChange = (nextMode: DemoMode) => {
-    setMode(nextMode)
+  const handleUseCaseChange = (next: UseCase) => {
+    setUseCase(next)
     setIsSwitching(true)
     if (switchTimerRef.current != null) {
       window.clearTimeout(switchTimerRef.current)
@@ -102,47 +128,104 @@ export function LandingPage() {
     switchTimerRef.current = window.setTimeout(() => setIsSwitching(false), 260)
   }
 
-  const demo = useMemo(() => {
-    if (mode === 'focus') {
+  const content = useMemo(() => {
+    if (useCase === 'study') {
       return {
-        badge: 'Pomodoro + priorización',
-        consistencyPct: '+28%',
-        completedLabel: 'Completadas',
-        completedValue: '12',
-        streakDays: '7 días',
+        badge: 'Para estudiar sin procrastinar',
+        subtitle:
+          'Organiza tu sesión en pasos cortos. Menos “¿por dónde empiezo?” y más avance real.',
+        metricPill: '10s para crear una rutina',
+        stat1Label: 'Constancia',
+        stat1Value: '+28%',
+        stat2Label: 'Bloques hoy',
+        stat2Value: '3',
+        stat3Label: 'Racha',
+        stat3Value: '7 días',
         weeklyTargetPct: 72,
-        energyLabel: 'Alta',
-        energyPct: 78,
-        energyWindow: '9:00 – 11:00',
-        focusBlocks: '2 bloques',
         bars: [6, 10, 14, 9, 18, 12, 20],
+        tableTitle: 'Plan rápido (Estudio)',
         tableRows: [
-          { title: 'Mañana enfocada', tasks: 3, status: 'En progreso', tone: 'emerald' as const },
-          { title: 'Estudio', tasks: 5, status: 'Planificada', tone: 'cyan' as const },
-          { title: 'Cierre del día', tasks: 2, status: 'Pendiente', tone: 'neutral' as const },
+          { title: 'Repaso 10 min', tasks: 2, status: 'Listo', tone: 'emerald' as const },
+          { title: 'Problemas 25 min', tasks: 4, status: 'En progreso', tone: 'cyan' as const },
+          { title: 'Resumen 5 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
+        ],
+        testimonials: [
+          {
+            quote: '“Me quita fricción. Entro y ya sé qué hacer.”',
+            name: 'Andrea • estudiante',
+          },
+          {
+            quote: '“Mi día dejó de ser una lista infinita: ahora son bloques claros.”',
+            name: 'Luis • autodidacta',
+          },
+        ],
+      }
+    }
+
+    if (useCase === 'fitness') {
+      return {
+        badge: 'Para entrenar y no fallar',
+        subtitle:
+          'Convierte “tengo que entrenar” en un plan simple. Pequeñas acciones, gran consistencia.',
+        metricPill: 'Rutina lista en 30s',
+        stat1Label: 'Constancia',
+        stat1Value: '+19%',
+        stat2Label: 'Sesiones',
+        stat2Value: '2',
+        stat3Label: 'Racha',
+        stat3Value: '5 días',
+        weeklyTargetPct: 64,
+        bars: [8, 12, 9, 14, 11, 16, 13],
+        tableTitle: 'Plan rápido (Fitness)',
+        tableRows: [
+          { title: 'Calentamiento', tasks: 3, status: 'Listo', tone: 'emerald' as const },
+          { title: 'Fuerza', tasks: 5, status: 'En progreso', tone: 'cyan' as const },
+          { title: 'Estiramiento', tasks: 2, status: 'Siguiente', tone: 'neutral' as const },
+        ],
+        testimonials: [
+          {
+            quote: '“Lo hago más seguido porque es simple y rápido.”',
+            name: 'Camila • fitness',
+          },
+          {
+            quote: '“Me mantiene constante sin sentirlo pesado.”',
+            name: 'Diego • runner',
+          },
         ],
       }
     }
 
     return {
-      badge: 'Hábitos + bienestar',
-      consistencyPct: '+19%',
-      completedLabel: 'Check-ins',
-      completedValue: '8',
-      streakDays: '5 días',
-      weeklyTargetPct: 64,
-      energyLabel: 'Media',
-      energyPct: 62,
-      energyWindow: '10:00 – 12:00',
-      focusBlocks: '1 bloque',
-      bars: [8, 12, 9, 14, 11, 16, 13],
+      badge: 'Para trabajar con calma',
+      subtitle:
+        'Define 3 prioridades, conviértelas en tareas y avanza sin ruido. Lo esencial, claro.',
+      metricPill: 'Plan del día en 1 min',
+      stat1Label: 'Claridad',
+      stat1Value: '+22%',
+      stat2Label: 'Prioridades',
+      stat2Value: '3',
+      stat3Label: 'Racha',
+      stat3Value: '6 días',
+      weeklyTargetPct: 68,
+      bars: [10, 9, 13, 11, 15, 12, 18],
+      tableTitle: 'Plan rápido (Trabajo)',
       tableRows: [
-        { title: 'Rutina base', tasks: 4, status: 'En progreso', tone: 'emerald' as const },
-        { title: 'Movimiento', tasks: 2, status: 'Planificada', tone: 'cyan' as const },
-        { title: 'Cierre amable', tasks: 3, status: 'Pendiente', tone: 'neutral' as const },
+        { title: 'Inbox 10 min', tasks: 2, status: 'Listo', tone: 'emerald' as const },
+        { title: 'Proyecto 45 min', tasks: 3, status: 'En progreso', tone: 'cyan' as const },
+        { title: 'Cierre 5 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
+      ],
+      testimonials: [
+        {
+          quote: '“Me ayuda a enfocarme sin sentirme abrumado.”',
+          name: 'Sofía • producto',
+        },
+        {
+          quote: '“Ahora sí cierro el día con sensación de avance.”',
+          name: 'Julián • dev',
+        },
       ],
     }
-  }, [mode])
+  }, [useCase])
 
   return (
     <div className="h-dvh overflow-hidden bg-slate-950 text-slate-50">
@@ -199,20 +282,20 @@ export function LandingPage() {
           {/* Left: pitch */}
           <div className="lg:col-span-7">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs ring-1 ring-white/15">
-              <span className="text-white/90">Minimalista</span>
+              <span className="text-white/90">Simple</span>
               <span className="text-white/30">•</span>
-              <span className="text-white/90">Datos por usuario (RLS)</span>
+              <span className="text-white/90">Solo tú lo ves</span>
               <span className="text-white/30">•</span>
-              <span className="text-white/90">Auth Supabase</span>
+              <span className="text-white/90">Tu progreso, claro</span>
             </div>
 
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <div className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-200 ring-1 ring-white/10">
                 <span className="h-1.5 w-1.5 rounded-full bg-gradient-to-r from-cyan-400 to-violet-500" />
-                Demo: {demo.badge}
+                {content.badge}
               </div>
               <div className="sm:hidden">
-                <DemoToggle mode={mode} onChange={handleModeChange} />
+                <UseCaseTabs value={useCase} onChange={handleUseCaseChange} />
               </div>
             </div>
 
@@ -225,8 +308,7 @@ export function LandingPage() {
             </h1>
 
             <p className="mt-3 max-w-xl text-sm text-slate-300 sm:mt-4 sm:text-lg">
-              Diseñada para ayudarte a ejecutar lo importante: crea rutinas, desglósalas en tareas y mantén el foco.
-              Todo con una UX simple y una arquitectura lista para producción.
+              {content.subtitle}
             </p>
 
             <div className="mt-5 flex flex-wrap items-center gap-3 sm:mt-6">
@@ -256,39 +338,44 @@ export function LandingPage() {
                 <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400" />
                 Deploy activo en Vercel
               </div>
+
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-200 ring-1 ring-white/10">
+                <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
+                {content.metricPill}
+              </div>
             </div>
 
             <div className={"mt-5 grid grid-cols-3 gap-2 sm:mt-6 sm:gap-3 " + (isSwitching ? 'motion-safe:animate-pulse' : '')}>
               <Card className="bg-white/5 p-3 ring-1 ring-white/10 sm:p-4 motion-safe:transition motion-safe:duration-300 hover:bg-white/7 hover:-translate-y-0.5">
-                <div className="text-[11px] text-slate-300 sm:text-xs">Consistencia</div>
-                <div className="mt-0.5 text-base font-semibold sm:mt-1 sm:text-lg">{demo.consistencyPct}</div>
+                <div className="text-[11px] text-slate-300 sm:text-xs">{content.stat1Label}</div>
+                <div className="mt-0.5 text-base font-semibold sm:mt-1 sm:text-lg">{content.stat1Value}</div>
                 <div className="mt-2 hidden sm:block">
                   <Sparkline />
                 </div>
               </Card>
 
               <Card className="bg-white/5 p-3 ring-1 ring-white/10 sm:p-4 motion-safe:transition motion-safe:duration-300 hover:bg-white/7 hover:-translate-y-0.5">
-                <div className="text-[11px] text-slate-300 sm:text-xs">{demo.completedLabel}</div>
-                <div className="mt-0.5 text-base font-semibold sm:mt-1 sm:text-lg">{demo.completedValue}</div>
+                <div className="text-[11px] text-slate-300 sm:text-xs">{content.stat2Label}</div>
+                <div className="mt-0.5 text-base font-semibold sm:mt-1 sm:text-lg">{content.stat2Value}</div>
                 <div className="mt-2 hidden sm:block">
-                  <MiniBars bars={demo.bars} />
+                  <MiniBars bars={content.bars} />
                 </div>
               </Card>
 
               <Card className="bg-white/5 p-3 ring-1 ring-white/10 sm:p-4 motion-safe:transition motion-safe:duration-300 hover:bg-white/7 hover:-translate-y-0.5">
                 <div className="text-[11px] text-slate-300 sm:text-xs">Streak</div>
-                <div className="mt-0.5 text-base font-semibold sm:mt-1 sm:text-lg">{demo.streakDays}</div>
+                <div className="mt-0.5 text-base font-semibold sm:mt-1 sm:text-lg">{content.stat3Value}</div>
                 <div className="mt-2 hidden items-center gap-3 sm:flex">
                   <div
                     className="h-12 w-12 rounded-full"
                     style={{
                       background:
-                        `conic-gradient(rgba(34,211,238,0.9) 0 ${(demo.weeklyTargetPct / 100) * 360}deg, rgba(255,255,255,0.12) ${(demo.weeklyTargetPct / 100) * 360}deg 360deg)`,
+                        `conic-gradient(rgba(34,211,238,0.9) 0 ${(content.weeklyTargetPct / 100) * 360}deg, rgba(255,255,255,0.12) ${(content.weeklyTargetPct / 100) * 360}deg 360deg)`,
                     }}
                   />
                   <div className="text-xs text-slate-300">
                     Meta semanal
-                    <div className="text-sm font-semibold text-white">{demo.weeklyTargetPct}%</div>
+                    <div className="text-sm font-semibold text-white">{content.weeklyTargetPct}%</div>
                   </div>
                 </div>
               </Card>
@@ -316,15 +403,15 @@ export function LandingPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-sm font-semibold">Vista previa</div>
-                  <div className="text-xs text-slate-300">Tablas y estado en tiempo real</div>
+                  <div className="text-xs text-slate-300">Elige un caso y mira cómo se ve</div>
                 </div>
-                <DemoToggle mode={mode} onChange={handleModeChange} />
+                <UseCaseTabs value={useCase} onChange={handleUseCaseChange} />
               </div>
 
               <div className="mt-4 grid gap-3">
                 <div className="rounded-xl bg-slate-950/40 p-4 ring-1 ring-white/10">
                   <div className="flex items-center justify-between">
-                    <div className="text-xs text-slate-300">Rutinas</div>
+                    <div className="text-xs text-slate-300">{content.tableTitle}</div>
                     <div className="text-xs text-slate-300">Hoy</div>
                   </div>
 
@@ -338,7 +425,7 @@ export function LandingPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/10 text-slate-200">
-                        {demo.tableRows.map((r) => (
+                        {content.tableRows.map((r) => (
                           <tr key={r.title} className={isSwitching ? 'opacity-70' : 'opacity-100'}>
                             <td className="px-3 py-2">{r.title}</td>
                             <td className="px-3 py-2">{r.tasks}</td>
@@ -366,33 +453,74 @@ export function LandingPage() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-xl bg-slate-950/40 p-4 ring-1 ring-white/10">
-                    <div className="text-xs text-slate-300">Energía</div>
-                    <div className="mt-1 text-base font-semibold">{demo.energyLabel}</div>
+                    <div className="text-xs text-slate-300">Avance</div>
+                    <div className="mt-1 text-base font-semibold">Se siente mejor</div>
                     <div className="mt-3 h-2 rounded-full bg-white/10">
                       <div
                         className="h-2 rounded-full bg-gradient-to-r from-cyan-400 to-violet-500 motion-safe:transition-all motion-safe:duration-300"
-                        style={{ width: `${demo.energyPct}%` }}
+                        style={{ width: `${content.weeklyTargetPct}%` }}
                       />
                     </div>
-                    <div className="mt-2 text-xs text-slate-300">Ventana ideal: {demo.energyWindow}</div>
+                    <div className="mt-2 text-xs text-slate-300">Más claridad con menos esfuerzo</div>
                   </div>
                   <div className="rounded-xl bg-slate-950/40 p-4 ring-1 ring-white/10">
-                    <div className="text-xs text-slate-300">Foco</div>
-                    <div className="mt-1 text-base font-semibold">{demo.focusBlocks}</div>
+                    <div className="text-xs text-slate-300">Hoy</div>
+                    <div className="mt-1 text-base font-semibold">Hecho es mejor</div>
                     <div className="mt-3 flex gap-2">
                       <div className="h-6 flex-1 rounded-md bg-cyan-400/25 ring-1 ring-cyan-400/20" />
                       <div className="h-6 flex-1 rounded-md bg-violet-400/25 ring-1 ring-violet-400/20" />
                       <div className="h-6 flex-1 rounded-md bg-white/10 ring-1 ring-white/10" />
                     </div>
-                    <div className="mt-2 text-xs text-slate-300">Pomodoro 25/5</div>
+                    <div className="mt-2 text-xs text-slate-300">Pequeños pasos, gran progreso</div>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-4 rounded-xl bg-white/5 p-4 ring-1 ring-white/10">
-                <div className="text-xs text-slate-300">CTA</div>
-                <div className="mt-1 text-sm">Crea tu primera rutina en menos de 30 segundos.</div>
-                <div className="mt-3 flex gap-2">
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <div className="rounded-xl bg-white/5 p-4 ring-1 ring-white/10">
+                  <div className="text-xs text-slate-300">Lo que dicen</div>
+                  <div className={"mt-2 space-y-2 " + (isSwitching ? 'opacity-80' : 'opacity-100')}>
+                    {content.testimonials.map((t) => (
+                      <div key={t.name} className="rounded-lg bg-slate-950/40 p-3 ring-1 ring-white/10">
+                        <div className="text-sm text-slate-200">{t.quote}</div>
+                        <div className="mt-1 text-xs text-slate-400">{t.name}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-xl bg-white/5 p-4 ring-1 ring-white/10">
+                  <div className="text-xs text-slate-300">NeuroRoutine vs Lista</div>
+                  <div className="mt-2 overflow-hidden rounded-lg ring-1 ring-white/10">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-white/5 text-slate-300">
+                        <tr>
+                          <th className="px-3 py-2 font-medium">Función</th>
+                          <th className="px-3 py-2 font-medium">NeuroRoutine</th>
+                          <th className="px-3 py-2 font-medium">Lista</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/10 text-slate-200">
+                        <tr>
+                          <td className="px-3 py-2">Rutinas repetibles</td>
+                          <td className="px-3 py-2"><Check /></td>
+                          <td className="px-3 py-2 text-slate-400">—</td>
+                        </tr>
+                        <tr>
+                          <td className="px-3 py-2">Plan en bloques</td>
+                          <td className="px-3 py-2"><Check className="bg-cyan-400/15 text-cyan-200 ring-cyan-400/20" /></td>
+                          <td className="px-3 py-2 text-slate-400">—</td>
+                        </tr>
+                        <tr>
+                          <td className="px-3 py-2">Progreso visible</td>
+                          <td className="px-3 py-2"><Check className="bg-violet-400/15 text-violet-200 ring-violet-400/20" /></td>
+                          <td className="px-3 py-2 text-slate-400">a veces</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="mt-3 flex gap-2">
                   <Link
                     to="/register"
                     className={
@@ -412,6 +540,7 @@ export function LandingPage() {
                     Entrar
                   </Link>
                 </div>
+              </div>
               </div>
             </div>
           </div>
