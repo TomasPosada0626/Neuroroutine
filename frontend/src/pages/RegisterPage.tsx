@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/features/auth/authStore'
 import { registerSchema, type RegisterValues } from '@/features/auth/schemas'
-import { AuthShell, Button, Card, Input, PasswordInput } from '@/shared/ui'
+import { AuthShell, Button, Card, GoogleMark, Input, PasswordInput } from '@/shared/ui'
 import { useUiStore } from '@/shared/state/uiStore'
 
 export function RegisterPage() {
@@ -16,8 +16,8 @@ export function RegisterPage() {
     ? 'mx-auto w-full max-w-md bg-white/70 p-5 ring-1 ring-slate-200'
     : 'mx-auto w-full max-w-md bg-white/5 p-5 ring-1 ring-white/10'
   const googleButtonClass = isDay
-    ? 'w-full bg-slate-900 text-white ring-1 ring-slate-900/15 hover:bg-slate-800 focus:ring-slate-300 motion-safe:transition motion-safe:duration-300 hover:-translate-y-0.5'
-    : 'w-full bg-white/10 text-white ring-1 ring-white/15 hover:bg-white/15 focus:ring-white/30 motion-safe:transition motion-safe:duration-300 hover:-translate-y-0.5'
+    ? 'w-full bg-white ring-1 ring-slate-200 hover:bg-slate-50 focus:ring-cyan-500/25 shadow-sm motion-safe:transition motion-safe:duration-300 hover:-translate-y-0.5'
+    : 'w-full bg-white/10 ring-1 ring-white/15 hover:bg-white/15 focus:ring-white/30 motion-safe:transition motion-safe:duration-300 hover:-translate-y-0.5'
   const dividerLineClass = isDay ? 'h-px flex-1 bg-slate-200' : 'h-px flex-1 bg-white/10'
   const dividerTextClass = isDay ? 'text-xs text-slate-500' : 'text-xs text-slate-300'
   const labelClass = isDay ? 'text-sm font-medium text-slate-800' : 'text-sm font-medium text-slate-200'
@@ -88,8 +88,10 @@ export function RegisterPage() {
                 })
               }
             }}
+            aria-label="Continuar con Google"
           >
-            Registrarme con Google
+            <span className="sr-only">Continuar con Google</span>
+            <GoogleMark className="h-5 w-5" />
           </Button>
 
           <div className="flex items-center gap-3">
