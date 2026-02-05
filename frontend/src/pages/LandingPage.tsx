@@ -383,15 +383,15 @@ export function LandingPage() {
 
             <div className="mt-5 hidden gap-3 sm:mt-6 sm:grid sm:grid-cols-2">
               <Card className="bg-white/5 p-4 ring-1 ring-white/10">
-                <div className="text-sm font-semibold">Privacidad real</div>
+                <div className="text-sm font-semibold">Tu espacio es tuyo</div>
                 <div className="mt-1 text-sm text-slate-300">
-                  RLS en Postgres: cada usuario solo ve sus rutinas y tareas.
+                  Tus rutinas y tu progreso se mantienen privados.
                 </div>
               </Card>
               <Card className="bg-white/5 p-4 ring-1 ring-white/10">
-                <div className="text-sm font-semibold">Auth moderno</div>
+                <div className="text-sm font-semibold">Entra como prefieras</div>
                 <div className="mt-1 text-sm text-slate-300">
-                  Email/usuario + Google OAuth (Supabase).
+                  Accede con tu usuario, tu email o Google.
                 </div>
               </Card>
             </div>
