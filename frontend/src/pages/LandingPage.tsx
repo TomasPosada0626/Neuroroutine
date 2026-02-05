@@ -126,6 +126,7 @@ export function LandingPage() {
   const [energy, setEnergy] = useState<EnergyLevel>('medium')
   const theme = useUiStore((s) => s.theme)
   const [isSwitching, setIsSwitching] = useState(false)
+  const [demoStep, setDemoStep] = useState(0)
   const switchTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
@@ -140,6 +141,7 @@ export function LandingPage() {
     setUseCase(next)
     setPreset('starter')
     setEnergy('medium')
+    setDemoStep(0)
     setIsSwitching(true)
     if (switchTimerRef.current != null) {
       window.clearTimeout(switchTimerRef.current)
@@ -292,6 +294,21 @@ export function LandingPage() {
   }, [useCase])
 
   const activePreset = content.presets[preset]
+  const demoItems = useMemo(
+    () => activePreset.tableRows.map((r) => r.title).slice(0, 3),
+    [activePreset.tableRows]
+  )
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setDemoStep((s) => {
+        if (demoItems.length <= 0) return 0
+        return s >= demoItems.length ? 0 : s + 1
+      })
+    }, 1100)
+    return () => window.clearInterval(id)
+  }, [useCase, preset, demoItems.length])
+
   const isDay = theme === 'day'
   const panelClass = isDay
     ? 'bg-white text-slate-900 ring-1 ring-slate-200'
@@ -595,14 +612,63 @@ export function LandingPage() {
                 </div>
 
                 <div className={"rounded-xl p-3 " + (isDay ? 'bg-slate-50 ring-1 ring-slate-200' : 'bg-white/5 ring-1 ring-white/10')}>
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start justify-between gap-4">
+                    {/* Left: animated checklist simulation */}
                     <div className="min-w-0">
-                      <div className={"text-xs " + panelMutedText}>Plantillas rápidas</div>
-                      <div className={"text-xs " + (isDay ? 'text-slate-500' : 'text-slate-400')}>
-                        Un clic para ajustar el plan
-                      </div>
+                      <div className={"text-xs font-medium " + panelMutedText}>Marcando progreso</div>
+                      <ul className="mt-2 space-y-1.5">
+                        {demoItems.map((label, idx) => {
+                          const checked = idx < demoStep
+                          return (
+                            <li key={label} className="flex items-center gap-2">
+                              <span
+                                className={
+                                  'inline-flex h-5 w-5 items-center justify-center rounded-md ring-1 motion-safe:transition motion-safe:duration-300 ' +
+                                  (checked
+                                    ? isDay
+                                      ? 'bg-emerald-500/10 text-emerald-700 ring-emerald-500/20'
+                                      : 'bg-emerald-400/15 text-emerald-200 ring-emerald-400/20'
+                                    : isDay
+                                      ? 'bg-slate-900/5 text-slate-500 ring-slate-200'
+                                      : 'bg-slate-950/30 text-slate-400 ring-white/10')
+                                }
+                                aria-hidden="true"
+                              >
+                                {checked ? (
+                                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none">
+                                    <path
+                                      d="M20 7L10 17l-5-5"
+                                      stroke="currentColor"
+                                      strokeWidth="2.5"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
+                                  </svg>
+                                ) : (
+                                  <span className="h-1.5 w-1.5 rounded-full bg-current opacity-60" />
+                                )}
+                              </span>
+                              <span
+                                className={
+                                  'truncate text-xs motion-safe:transition motion-safe:duration-300 ' +
+                                  (checked
+                                    ? isDay
+                                      ? 'text-slate-900'
+                                      : 'text-slate-50'
+                                    : isDay
+                                      ? 'text-slate-600'
+                                      : 'text-slate-300')
+                                }
+                              >
+                                {label}
+                              </span>
+                            </li>
+                          )
+                        })}
+                      </ul>
                     </div>
 
+                    {/* Right: energy + weekly */}
                     <div className="shrink-0">
                       <div className={"text-[11px] " + panelMutedText}>Energía</div>
                       <div
@@ -628,6 +694,7 @@ export function LandingPage() {
                               onClick={() => {
                                 setEnergy(opt.key)
                                 setPreset(presetForEnergy(opt.key))
+                                setDemoStep(0)
                               }}
                               className={
                                 'rounded-md px-2 py-1 text-[11px] font-medium motion-safe:transition motion-safe:duration-200 ' +
@@ -674,6 +741,7 @@ export function LandingPage() {
                           onClick={() => {
                             setPreset(key)
                             setEnergy(energyForPreset(key))
+                            setDemoStep(0)
                           }}
                           className={
                             'rounded-full px-2.5 py-1 text-xs font-medium ring-1 motion-safe:transition motion-safe:duration-300 ' +
