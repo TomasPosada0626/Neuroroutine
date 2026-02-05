@@ -336,7 +336,7 @@ export function LandingPage() {
 
               <div className="flex items-center gap-2 text-xs text-slate-300">
                 <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-                Deploy activo en Vercel
+                Listo para empezar hoy
               </div>
 
               <div className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-200 ring-1 ring-white/10">
