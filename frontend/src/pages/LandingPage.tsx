@@ -50,6 +50,19 @@ function MiniBars({ bars }: { bars: number[] }) {
 
 type UseCase = 'study' | 'fitness' | 'work'
 type Preset = 'starter' | 'sprint' | 'light'
+type EnergyLevel = 'low' | 'medium' | 'high'
+
+const presetForEnergy = (level: EnergyLevel): Preset => {
+  if (level === 'low') return 'light'
+  if (level === 'high') return 'sprint'
+  return 'starter'
+}
+
+const energyForPreset = (preset: Preset): EnergyLevel => {
+  if (preset === 'light') return 'low'
+  if (preset === 'sprint') return 'high'
+  return 'medium'
+}
 
 function UseCaseTabs({
   value,
@@ -110,6 +123,7 @@ function UseCaseTabs({
 export function LandingPage() {
   const [useCase, setUseCase] = useState<UseCase>('study')
   const [preset, setPreset] = useState<Preset>('starter')
+  const [energy, setEnergy] = useState<EnergyLevel>('medium')
   const theme = useUiStore((s) => s.theme)
   const [isSwitching, setIsSwitching] = useState(false)
   const switchTimerRef = useRef<number | null>(null)
@@ -125,6 +139,7 @@ export function LandingPage() {
   const handleUseCaseChange = (next: UseCase) => {
     setUseCase(next)
     setPreset('starter')
+    setEnergy('medium')
     setIsSwitching(true)
     if (switchTimerRef.current != null) {
       window.clearTimeout(switchTimerRef.current)
@@ -580,11 +595,71 @@ export function LandingPage() {
                 </div>
 
                 <div className={"rounded-xl p-3 " + (isDay ? 'bg-slate-50 ring-1 ring-slate-200' : 'bg-white/5 ring-1 ring-white/10')}>
-                  <div className="flex items-center justify-between">
-                    <div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
                       <div className={"text-xs " + panelMutedText}>Plantillas rápidas</div>
                       <div className={"text-xs " + (isDay ? 'text-slate-500' : 'text-slate-400')}>
                         Un clic para ajustar el plan
+                      </div>
+                    </div>
+
+                    <div className="shrink-0">
+                      <div className={"text-[11px] " + panelMutedText}>Energía</div>
+                      <div
+                        className={
+                          'mt-1 inline-flex rounded-lg p-1 ring-1 ' +
+                          (isDay ? 'bg-white ring-slate-200' : 'bg-slate-950/30 ring-white/10')
+                        }
+                        role="group"
+                        aria-label="Nivel de energía"
+                      >
+                        {(
+                          [
+                            { key: 'low' as const, label: 'Baja' },
+                            { key: 'medium' as const, label: 'Media' },
+                            { key: 'high' as const, label: 'Alta' },
+                          ]
+                        ).map((opt) => {
+                          const selected = energy === opt.key
+                          return (
+                            <button
+                              key={opt.key}
+                              type="button"
+                              onClick={() => {
+                                setEnergy(opt.key)
+                                setPreset(presetForEnergy(opt.key))
+                              }}
+                              className={
+                                'rounded-md px-2 py-1 text-[11px] font-medium motion-safe:transition motion-safe:duration-200 ' +
+                                (selected
+                                  ? isDay
+                                    ? 'bg-slate-900 text-white'
+                                    : 'bg-white/10 text-white'
+                                  : isDay
+                                    ? 'text-slate-600 hover:bg-slate-900/5 hover:text-slate-900'
+                                    : 'text-slate-300 hover:bg-white/5 hover:text-white')
+                              }
+                              aria-pressed={selected}
+                            >
+                              {opt.label}
+                            </button>
+                          )
+                        })}
+                      </div>
+
+                      <div className="mt-2">
+                        <div className={"flex items-center justify-between text-[11px] " + panelMutedText}>
+                          <span>Esta semana</span>
+                          <span className={isDay ? 'text-slate-500' : 'text-slate-400'}>
+                            {content.weeklyTargetPct}%
+                          </span>
+                        </div>
+                        <div className={"mt-1 h-1.5 w-36 rounded-full " + panelDivider}>
+                          <div
+                            className="h-1.5 rounded-full bg-gradient-to-r from-cyan-400 to-violet-500 motion-safe:transition-all motion-safe:duration-300"
+                            style={{ width: `${content.weeklyTargetPct}%` }}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -596,7 +671,10 @@ export function LandingPage() {
                         <button
                           key={key}
                           type="button"
-                          onClick={() => setPreset(key)}
+                          onClick={() => {
+                            setPreset(key)
+                            setEnergy(energyForPreset(key))
+                          }}
                           className={
                             'rounded-full px-2.5 py-1 text-xs font-medium ring-1 motion-safe:transition motion-safe:duration-300 ' +
                             (selected
