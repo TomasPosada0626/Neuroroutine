@@ -33,6 +33,7 @@ export function DashboardPage() {
     error,
     routines,
     selectedRoutineId,
+    tasksByRoutineId,
     allTasks,
     taskEvents,
     loadRoutines,
@@ -69,6 +70,80 @@ export function DashboardPage() {
   const tasksTotal = allTasks.length
   const tasksDone = useMemo(() => allTasks.filter((t) => t.is_done).length, [allTasks])
   const completionRate = tasksTotal ? (tasksDone / tasksTotal) * 100 : 0
+
+  const selectedRoutine = useMemo(
+    () => routines.find((r) => r.id === selectedRoutineId) ?? null,
+    [routines, selectedRoutineId],
+  )
+
+  const selectedRoutineTasks = useMemo(() => {
+    if (!selectedRoutineId) return []
+    return tasksByRoutineId[selectedRoutineId] ?? []
+  }, [selectedRoutineId, tasksByRoutineId])
+
+  const selectedRoutineKpis = useMemo(() => {
+    const total = selectedRoutineTasks.length
+    const done = selectedRoutineTasks.filter((t) => t.is_done).length
+    const pct = total ? (done / total) * 100 : 0
+
+    const hasEvents = Array.isArray(taskEvents) && taskEvents.length > 0
+    const windowDays = 14
+    const end = new Date()
+    end.setHours(0, 0, 0, 0)
+
+    const days: Date[] = []
+    for (let i = windowDays - 1; i >= 0; i--) {
+      const d = new Date(end)
+      d.setDate(end.getDate() - i)
+      days.push(d)
+    }
+
+    const doneCounts = new Map<string, number>()
+
+    if (selectedRoutineId && hasEvents) {
+      for (const ev of taskEvents) {
+        if (ev.routine_id !== selectedRoutineId) continue
+        if (ev.event_type !== 'completed') continue
+        const d = new Date(ev.created_at)
+        const key = dateKeyLocal(d)
+        doneCounts.set(key, (doneCounts.get(key) ?? 0) + 1)
+      }
+    }
+
+    const daily = days.map((d) => {
+      const key = dateKeyLocal(d)
+      return { key, date: d, count: doneCounts.get(key) ?? 0 }
+    })
+    const max = daily.reduce((m, x) => Math.max(m, x.count), 0)
+
+    let streak = 0
+    for (let i = daily.length - 1; i >= 0; i--) {
+      if (daily[i].count > 0) streak++
+      else break
+    }
+
+    let best = 0
+    let run = 0
+    for (const c of daily) {
+      if (c.count > 0) {
+        run++
+        best = Math.max(best, run)
+      } else {
+        run = 0
+      }
+    }
+
+    return {
+      total,
+      done,
+      pct,
+      daily,
+      max,
+      streak,
+      best,
+      source: hasEvents ? ('events' as const) : ('none' as const),
+    }
+  }, [selectedRoutineId, selectedRoutineTasks, taskEvents])
 
   const todayFocus = useMemo(() => {
     const pending = allTasks
@@ -198,6 +273,9 @@ export function DashboardPage() {
             <button type="button" className={rangeButtonClass(range === '90d')} onClick={() => setRange('90d')}>
               90 días
             </button>
+            <Button className="ml-2" onClick={() => setCreateOpen(true)} disabled={!user || loading}>
+              Nueva rutina
+            </Button>
           </div>
         </div>
       </div>
@@ -243,14 +321,13 @@ export function DashboardPage() {
               <div className="text-sm font-semibold">Hoy</div>
               <div className={'text-xs ' + subtleText}>Tu foco inmediato (pendientes recientes)</div>
             </div>
-            <Button variant="secondary" onClick={() => setCreateOpen(true)}>
-              Nueva rutina
-            </Button>
           </div>
 
           {todayFocus.length === 0 ? (
             <div className={'mt-4 rounded-lg p-3 ring-1 ' + (isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')}>
-              No hay tareas pendientes. Crea una rutina o añade tareas para ver tu “Hoy” aquí.
+              {routines.length === 0
+                ? 'Aún no hay tareas porque no tienes rutinas. Crea tu primera rutina para empezar.'
+                : 'No hay tareas pendientes. Crea o edita tareas dentro de una rutina para ver tu “Hoy” aquí.'}
             </div>
           ) : (
             <div className="mt-4 space-y-2">
@@ -313,6 +390,99 @@ export function DashboardPage() {
               <div className={'mt-1 text-sm font-medium ' + panelText}>Solo tú ves tus datos (RLS)</div>
             </div>
           </div>
+        </Card>
+      </div>
+
+      <div className="mb-8 grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-1">
+          <div>
+            <div className="text-sm font-semibold">Rutina</div>
+            <div className={'text-xs ' + subtleText}>Métricas puntuales por rutina</div>
+          </div>
+
+          {selectedRoutine ? (
+            <div className="mt-4">
+              <div className={'text-sm font-semibold ' + panelText}>{selectedRoutine.title}</div>
+              <div className={'mt-2 grid grid-cols-3 gap-2'}>
+                <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+                  <div className={'text-xs ' + subtleText}>Tareas</div>
+                  <div className={'mt-1 text-lg font-semibold ' + kpiValueClass}>{selectedRoutineKpis.total}</div>
+                </div>
+                <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+                  <div className={'text-xs ' + subtleText}>Hechas</div>
+                  <div className={'mt-1 text-lg font-semibold ' + kpiValueClass}>{selectedRoutineKpis.done}</div>
+                </div>
+                <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+                  <div className={'text-xs ' + subtleText}>Cumpl.</div>
+                  <div className={'mt-1 text-lg font-semibold ' + kpiValueClass}>{formatPct(selectedRoutineKpis.pct)}</div>
+                </div>
+              </div>
+
+              <div className={'mt-3 rounded-lg p-3 ring-1 ' + (isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+                <div className={'text-xs ' + subtleText}>Racha (14 días)</div>
+                <div className={'mt-1 text-sm font-medium ' + panelText}>
+                  {selectedRoutineKpis.source === 'events' ? (
+                    <>
+                      {selectedRoutineKpis.streak} días <span className={subtleText}>(mejor: {selectedRoutineKpis.best})</span>
+                    </>
+                  ) : (
+                    'Activa el historial real para ver rachas por rutina.'
+                  )}
+                </div>
+              </div>
+
+              {selectedRoutineKpis.total === 0 ? (
+                <div className={'mt-3 rounded-lg p-3 text-sm ring-1 ' + (isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')}>
+                  Esta rutina aún no tiene tareas. Añade tareas para empezar a medir.
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <div className={'mt-4 rounded-lg p-3 text-sm ring-1 ' + (isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')}>
+              Selecciona una rutina para ver sus métricas.
+            </div>
+          )}
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="text-sm font-semibold">Actividad de la rutina</div>
+              <div className={'text-xs ' + subtleText}>Últimos 14 días (checks “completed”)</div>
+            </div>
+            <div className={'text-xs ' + subtleText}>
+              {selectedRoutine ? (selectedRoutineKpis.source === 'events' ? 'historial real' : 'sin historial') : '—'}
+            </div>
+          </div>
+
+          {!selectedRoutine ? (
+            <div className={'mt-4 rounded-lg p-3 text-sm ring-1 ' + (isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')}>
+              Selecciona una rutina para ver su gráfica.
+            </div>
+          ) : selectedRoutineKpis.source !== 'events' ? (
+            <div className={'mt-4 rounded-lg p-3 text-sm ring-1 ' + (isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')}>
+              Aún no hay historial real para graficar (ejecuta el SQL en Supabase y marca tareas como completadas).
+            </div>
+          ) : (
+            <div className="mt-4">
+              <svg viewBox="0 0 280 64" className="h-16 w-full" role="img" aria-label="Actividad por día">
+                <rect x="0" y="0" width="280" height="64" rx="10" className={isDay ? 'fill-slate-50' : 'fill-white/5'} />
+                {selectedRoutineKpis.daily.map((d, i) => {
+                  const max = Math.max(1, selectedRoutineKpis.max)
+                  const h = Math.round((d.count / max) * 44)
+                  const x = 10 + i * 19
+                  const y = 54 - h
+                  const fill = isDay ? 'rgb(34 211 238)' : 'rgba(34, 211, 238, 0.65)'
+                  return <rect key={d.key} x={x} y={y} width={12} height={h} rx={3} fill={fill} opacity={d.count === 0 ? 0.25 : 0.9} />
+                })}
+              </svg>
+
+              <div className={'mt-2 flex items-center justify-between text-xs ' + subtleText}>
+                <div>{selectedRoutineKpis.daily[0]?.key}</div>
+                <div>Hoy</div>
+              </div>
+            </div>
+          )}
         </Card>
       </div>
 
@@ -389,7 +559,7 @@ export function DashboardPage() {
         </Card>
       ) : null}
 
-      <RoutinePanel onCreateRoutine={() => setCreateOpen(true)} />
+      <RoutinePanel />
     </AppShell>
   )
 }

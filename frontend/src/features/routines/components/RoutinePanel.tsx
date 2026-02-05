@@ -5,11 +5,7 @@ import { RoutineFormModal } from '@/features/routines/components'
 import { Button, Card, Input } from '@/shared/ui'
 import { useUiStore } from '@/shared/state/uiStore'
 
-type Props = {
-  onCreateRoutine?: () => void
-}
-
-export function RoutinePanel({ onCreateRoutine }: Props) {
+export function RoutinePanel() {
   const { user } = useAuth()
   const theme = useUiStore((s) => s.theme)
   const isDay = theme === 'day'
@@ -129,9 +125,6 @@ export function RoutinePanel({ onCreateRoutine }: Props) {
             <div className={'text-xs ' + subtleText}>Solo las tuyas (RLS)</div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={onCreateRoutine} disabled={!user || loading || !onCreateRoutine}>
-              Nueva
-            </Button>
             <Button variant="secondary" onClick={() => void loadRoutines()} disabled={loading}>
               Refrescar
             </Button>
