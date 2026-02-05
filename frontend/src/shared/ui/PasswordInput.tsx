@@ -3,9 +3,11 @@ import { useId, useState } from 'react'
 import { cn } from '@/shared/lib/cn'
 import { Input } from './Input'
 
-type Props = Omit<InputHTMLAttributes<HTMLInputElement>, 'type'>
+type Props = Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> & {
+  toggleClassName?: string
+}
 
-export function PasswordInput({ className, ...props }: Props) {
+export function PasswordInput({ className, toggleClassName, ...props }: Props) {
   const [visible, setVisible] = useState(false)
   const inputId = useId()
 
@@ -20,7 +22,10 @@ export function PasswordInput({ className, ...props }: Props) {
       <button
         type="button"
         onClick={() => setVisible((v) => !v)}
-        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"
+        className={cn(
+          'absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400',
+          toggleClassName,
+        )}
         aria-controls={props.id ?? inputId}
         aria-pressed={visible}
       >

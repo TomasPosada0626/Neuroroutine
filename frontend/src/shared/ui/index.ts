@@ -1,5 +1,6 @@
 export * from './Button'
 export * from './Card'
+export * from './AuthShell'
 export * from './Input'
 export * from './Modal'
 export * from './PasswordInput'
