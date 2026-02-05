@@ -3,7 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from '@/features/auth/authStore'
 import { RequireAuth } from '@/features/auth/RequireAuth'
 import { DashboardPage } from '@/pages/DashboardPage'
-import { LandingPage } from '@/pages/LandingPage'
+import { LandingPage } from '../pages/LandingPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { RegisterPage } from '@/pages/RegisterPage'
 
