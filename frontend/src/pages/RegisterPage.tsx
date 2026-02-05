@@ -11,14 +11,27 @@ export function RegisterPage() {
 
   const form = useForm<RegisterValues>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { email: '', password: '', confirmPassword: '' },
+    defaultValues: {
+      firstName: '',
+      lastName: '',
+      username: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+    },
   })
 
   if (session) return <Navigate to="/app" replace />
 
   const onSubmit = form.handleSubmit(async (values) => {
     try {
-      await signUpWithPassword(values.email, values.password)
+      await signUpWithPassword({
+        email: values.email,
+        password: values.password,
+        username: values.username,
+        firstName: values.firstName,
+        lastName: values.lastName,
+      })
       navigate('/app', { replace: true })
     } catch (e) {
       form.setError('root', { message: e instanceof Error ? e.message : 'Registration failed' })
@@ -35,6 +48,31 @@ export function RegisterPage() {
 
         <Card>
           <form className="space-y-4" onSubmit={onSubmit}>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Nombre</label>
+              <Input autoComplete="given-name" {...form.register('firstName')} />
+              {form.formState.errors.firstName && (
+                <div className="text-xs text-rose-600">{form.formState.errors.firstName.message}</div>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Apellidos</label>
+              <Input autoComplete="family-name" {...form.register('lastName')} />
+              {form.formState.errors.lastName && (
+                <div className="text-xs text-rose-600">{form.formState.errors.lastName.message}</div>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Nombre de usuario</label>
+              <Input autoComplete="username" {...form.register('username')} />
+              {form.formState.errors.username && (
+                <div className="text-xs text-rose-600">{form.formState.errors.username.message}</div>
+              )}
+              <div className="text-xs text-slate-500">3-24 caracteres: letras, números, punto, guión o guión bajo.</div>
+            </div>
+
             <div className="space-y-1">
               <label className="text-sm font-medium">Email</label>
               <Input type="email" autoComplete="email" {...form.register('email')} />

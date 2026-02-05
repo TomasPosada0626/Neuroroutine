@@ -8,9 +8,37 @@ type AuthState = {
   user: User | null
 
   init: () => Promise<() => void>
-  signInWithPassword: (email: string, password: string) => Promise<void>
-  signUpWithPassword: (email: string, password: string) => Promise<void>
+  signInWithPassword: (identifier: string, password: string) => Promise<void>
+  signUpWithPassword: (params: {
+    email: string
+    password: string
+    username: string
+    firstName: string
+    lastName: string
+  }) => Promise<void>
   signOut: () => Promise<void>
+}
+
+async function syncProfileFromUser(user: User) {
+  const username = (user.user_metadata?.username as string | undefined) ?? null
+  const firstName = (user.user_metadata?.first_name as string | undefined) ?? null
+  const lastName = (user.user_metadata?.last_name as string | undefined) ?? null
+  const email = user.email ?? null
+
+  if (!email) return
+
+  await supabase
+    .from('profiles')
+    .upsert(
+      {
+        id: user.id,
+        email,
+        username: username ?? email.split('@')[0],
+        first_name: firstName,
+        last_name: lastName,
+      },
+      { onConflict: 'id' },
+    )
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -21,27 +49,76 @@ export const useAuthStore = create<AuthState>((set) => ({
   init: async () => {
     set({ loading: true })
     const { data } = await supabase.auth.getSession()
-    set({ session: data.session, user: data.session?.user ?? null, loading: false })
+    const user = data.session?.user ?? null
+    set({ session: data.session, user, loading: false })
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    if (user) {
+      try {
+        await syncProfileFromUser(user)
+      } catch {
+        // ignore profile sync errors; auth should still work
+      }
+    }
+
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       set({ session, user: session?.user ?? null })
+      if (session?.user) {
+        try {
+          await syncProfileFromUser(session.user)
+        } catch {
+          // ignore
+        }
+      }
     })
 
     return () => listener.subscription.unsubscribe()
   },
 
-  signInWithPassword: async (email, password) => {
+  signInWithPassword: async (identifier, password) => {
     set({ loading: true })
+    const trimmed = identifier.trim()
+    let email = trimmed
+    if (!trimmed.includes('@')) {
+      const { data, error } = await supabase.rpc('get_email_by_username', { u: trimmed })
+      if (error) {
+        set({ loading: false })
+        throw error
+      }
+      if (!data) {
+        set({ loading: false })
+        throw new Error('Usuario o contraseña inválidos')
+      }
+      email = data
+    }
+
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     set({ loading: false })
     if (error) throw error
   },
 
-  signUpWithPassword: async (email, password) => {
+  signUpWithPassword: async ({ email, password, username, firstName, lastName }) => {
     set({ loading: true })
-    const { error } = await supabase.auth.signUp({ email, password })
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          username,
+          first_name: firstName,
+          last_name: lastName,
+        },
+      },
+    })
     set({ loading: false })
     if (error) throw error
+
+    if (data.user) {
+      try {
+        await syncProfileFromUser(data.user)
+      } catch {
+        // ignore
+      }
+    }
   },
 
   signOut: async () => {

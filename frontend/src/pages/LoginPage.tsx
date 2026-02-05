@@ -13,14 +13,14 @@ export function LoginPage() {
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: '', password: '' },
+    defaultValues: { identifier: '', password: '' },
   })
 
   if (session) return <Navigate to="/app" replace />
 
   const onSubmit = form.handleSubmit(async (values) => {
     try {
-      await signInWithPassword(values.email, values.password)
+      await signInWithPassword(values.identifier, values.password)
       navigate(from, { replace: true })
     } catch (e) {
       form.setError('root', { message: e instanceof Error ? e.message : 'Login failed' })
@@ -38,10 +38,12 @@ export function LoginPage() {
         <Card>
           <form className="space-y-4" onSubmit={onSubmit}>
             <div className="space-y-1">
-              <label className="text-sm font-medium">Email</label>
-              <Input type="email" autoComplete="email" {...form.register('email')} />
-              {form.formState.errors.email && (
-                <div className="text-xs text-rose-600">{form.formState.errors.email.message}</div>
+              <label className="text-sm font-medium">Usuario o correo</label>
+              <Input autoComplete="username" {...form.register('identifier')} />
+              {form.formState.errors.identifier && (
+                <div className="text-xs text-rose-600">
+                  {form.formState.errors.identifier.message}
+                </div>
               )}
             </div>
 
