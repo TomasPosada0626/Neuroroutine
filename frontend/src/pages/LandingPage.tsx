@@ -563,7 +563,7 @@ export function LandingPage() {
                   <div className="text-sm font-semibold">Vista previa</div>
                   <div className={"text-xs " + panelMutedText}>Elige un caso y mira cómo se ve</div>
                 </div>
-                <UseCaseTabs value={useCase} onChange={handleUseCaseChange} />
+                <UseCaseTabs value={useCase} onChange={handleUseCaseChange} theme={theme} />
               </div>
 
               <div className="mt-4 grid gap-3">
