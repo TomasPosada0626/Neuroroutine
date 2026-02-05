@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Card } from '@/shared/ui'
+import { useUiStore, type ThemeMode } from '@/shared/state/uiStore'
 
 const primaryLinkClass =
   'inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-slate-400 bg-slate-900 text-white hover:bg-slate-800'
@@ -49,7 +50,6 @@ function MiniBars({ bars }: { bars: number[] }) {
 
 type UseCase = 'study' | 'fitness' | 'work'
 type Preset = 'starter' | 'sprint' | 'light'
-type PreviewTheme = 'night' | 'day'
 
 function UseCaseTabs({
   value,
@@ -58,7 +58,7 @@ function UseCaseTabs({
 }: {
   value: UseCase
   onChange: (v: UseCase) => void
-  theme?: PreviewTheme
+  theme?: ThemeMode
 }) {
   const isDay = theme === 'day'
   const wrapClass = isDay
@@ -107,7 +107,7 @@ function UseCaseTabs({
   )
 }
 
-function ThemeToggle({ value, onChange }: { value: PreviewTheme; onChange: (v: PreviewTheme) => void }) {
+function ThemeToggle({ value, onChange }: { value: ThemeMode; onChange: (v: ThemeMode) => void }) {
   const isDay = value === 'day'
   const buttonClass = isDay
     ? 'group inline-flex items-center gap-2 rounded-full bg-slate-900/5 px-2 py-1 text-xs text-slate-700 ring-1 ring-slate-200 hover:bg-slate-900/10 focus:outline-none focus:ring-2 focus:ring-slate-300'
@@ -140,7 +140,8 @@ function ThemeToggle({ value, onChange }: { value: PreviewTheme; onChange: (v: P
 export function LandingPage() {
   const [useCase, setUseCase] = useState<UseCase>('study')
   const [preset, setPreset] = useState<Preset>('starter')
-  const [previewTheme, setPreviewTheme] = useState<PreviewTheme>('night')
+  const theme = useUiStore((s) => s.theme)
+  const setTheme = useUiStore((s) => s.setTheme)
   const [isSwitching, setIsSwitching] = useState(false)
   const switchTimerRef = useRef<number | null>(null)
 
@@ -307,7 +308,7 @@ export function LandingPage() {
   }, [useCase])
 
   const activePreset = content.presets[preset]
-  const isDay = previewTheme === 'day'
+  const isDay = theme === 'day'
   const panelClass = isDay
     ? 'bg-white text-slate-900 ring-1 ring-slate-200'
     : 'bg-white/5 text-slate-50 ring-1 ring-white/10'
@@ -383,7 +384,7 @@ export function LandingPage() {
                 {content.badge}
               </div>
               <div className="sm:hidden">
-                <UseCaseTabs value={useCase} onChange={handleUseCaseChange} theme={previewTheme} />
+                <UseCaseTabs value={useCase} onChange={handleUseCaseChange} theme={theme} />
               </div>
             </div>
 
@@ -592,7 +593,7 @@ export function LandingPage() {
                         Un clic para ajustar el plan
                       </div>
                     </div>
-                    <ThemeToggle value={previewTheme} onChange={setPreviewTheme} />
+                    <ThemeToggle value={theme} onChange={setTheme} />
                   </div>
 
                   <div className="mt-2 flex flex-wrap gap-2">
