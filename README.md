@@ -1,76 +1,422 @@
-# NeuroRoutine
+<div align="center">
+  <h1>NeuroRoutine</h1>
+  <p><strong>Gestor inteligente de rutinas diarias (portfolio)</strong> enfocado en UX premium y buenas prácticas de SPA + Auth + RLS.</p>
+  <p><em>React, TypeScript, Vite, Tailwind CSS, Supabase (Auth + Postgres + RLS), React Router, Zustand, React Hook Form, Zod, GitHub Actions, Vercel</em></p>
+  <p><a href="https://neuroroutine.vercel.app/">Live demo: neuroroutine.vercel.app</a></p>
 
-Gestor inteligente de rutinas diarias (portfolio).
+  <p>
+    <a href="https://github.com/TomasPosada0626/Neuroroutine/actions/workflows/ci.yml">
+      <img alt="CI" src="https://github.com/TomasPosada0626/Neuroroutine/actions/workflows/ci.yml/badge.svg" />
+    </a>
+    <a href="https://github.com/TomasPosada0626/Neuroroutine/actions/workflows/deploy-vercel.yml">
+      <img alt="Deploy (Vercel)" src="https://github.com/TomasPosada0626/Neuroroutine/actions/workflows/deploy-vercel.yml/badge.svg" />
+    </a>
+    <img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-10B981" />
+  </p>
 
-## Estructura
+  <p>
+    <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white" />
+    <img alt="React" src="https://img.shields.io/badge/React-18.x-61DAFB?logo=react&logoColor=0B1320" />
+    <img alt="Vite" src="https://img.shields.io/badge/Vite-5.x-646CFF?logo=vite&logoColor=white" />
+    <img alt="TailwindCSS" src="https://img.shields.io/badge/TailwindCSS-3.x-06B6D4?logo=tailwindcss&logoColor=white" />
+    <img alt="Supabase" src="https://img.shields.io/badge/Supabase-Auth%20%2B%20Postgres%20%2B%20RLS-3ECF8E?logo=supabase&logoColor=0B1320" />
+    <img alt="React Router" src="https://img.shields.io/badge/React%20Router-6.x-CA4245?logo=reactrouter&logoColor=white" />
+    <img alt="Zustand" src="https://img.shields.io/badge/Zustand-State%20Management-111827" />
+    <img alt="React Hook Form" src="https://img.shields.io/badge/React%20Hook%20Form-Forms-EC5990" />
+    <img alt="Zod" src="https://img.shields.io/badge/Zod-Validation-3E67B1" />
+  </p>
+</div>
 
-- `frontend/`: app web (React + TypeScript + Tailwind)
-- `backend/`: capa de persistencia y configuración (Supabase SQL/RLS y documentación)
+---
 
-## Desarrollo
+## Table of Contents
 
-### Frontend
+- [Overview](#overview)
+- [Scope & Non-goals](#scope--non-goals)
+- [Gallery](#gallery)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Key Decisions](#key-decisions)
+- [Architecture](#architecture)
+- [Data Model](#data-model)
+- [Database Migrations](#database-migrations)
+- [API Surface](#api-surface)
+- [Security](#security)
+- [Testing & Quality](#testing--quality)
+- [Performance & UX](#performance--ux)
+- [Repo Structure](#repo-structure)
+- [Main Routes](#main-routes)
+- [Requirements](#requirements)
+- [Environment Variables](#environment-variables)
+- [Local Development](#local-development)
+- [Scripts](#scripts)
+- [Backend (Supabase)](#backend-supabase)
+- [CI/CD](#cicd)
+- [Deploy](#deploy)
+- [Troubleshooting](#troubleshooting)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [Changelog](#changelog)
+- [Author](#author)
+- [License](#license)
+
+---
+
+## Overview
+
+NeuroRoutine is a portfolio-ready web app for planning **routines and tasks** with real persistence, authentication, and strong **database-level security** via Supabase RLS.
+
+## Scope & Non-goals
+
+Scope (what this project focuses on):
+
+- A clean, modern SPA with a premium UX.
+- Real auth + persistence (Supabase Auth + Postgres).
+- Secure multi-user access enforced via database RLS.
+
+Non-goals (intentional trade-offs for this portfolio MVP):
+
+- No custom backend server (the frontend talks directly to Supabase).
+- No notifications/cron jobs yet.
+- No full test suite yet (CI enforces lint + build; tests are a recommended next step).
+
+## Gallery
+
+> (Add screenshots later — they will render here on GitHub)
+
+Save images under `docs/screenshots/` using this naming:
+
+- `01-landing.png`
+- `02-login.png`
+- `03-register.png`
+- `04-dashboard.png`
+- `05-routines.png`
+
+| Step | Preview |
+|---|---|
+| Landing | ![Landing](docs/screenshots/01-landing.png) |
+| Login | ![Login](docs/screenshots/02-login.png) |
+| Register | ![Register](docs/screenshots/03-register.png) |
+| Dashboard | ![Dashboard](docs/screenshots/04-dashboard.png) |
+| Routines/Tasks | ![Routines](docs/screenshots/05-routines.png) |
+
+## Features
+
+- Supabase Auth (register/login/logout) + session handling.
+- Protected routes (only authenticated users can access the app area).
+- Real CRUD over Postgres for routines and tasks.
+- Modern Tailwind UI with reusable layouts.
+- Persistent day/night theme (global state with localStorage persistence).
+- SPA-friendly deploy (no 404 on refresh for client-side routes).
+
+## Tech Stack
+
+**Frontend**
+
+- React + TypeScript (SPA)
+- Vite (build tool)
+- Tailwind CSS (styling)
+- React Router (routing)
+- Zustand (global state + persistence)
+- React Hook Form + Zod (forms + validation)
+
+**Backend**
+
+- Supabase Auth
+- Postgres
+- Row Level Security (RLS) + per-user policies
+
+**DevOps**
+
+- GitHub Actions (CI)
+- Vercel (recommended deploy)
+
+## Key Decisions
+
+- **Supabase + RLS**: real backend without a custom server, with strong database-enforced security (each user only sees their own data).
+- **Zustand**: simple, performant global state (e.g. persistent theme and feature stores) without boilerplate.
+- **React Hook Form + Zod**: fast forms with typed, declarative validation for consistent UX.
+- **SPA rewrite on Vercel**: React Router needs an `index.html` rewrite to avoid 404 on refresh for routes like `/login`.
+
+## Architecture
+
+High-level approach:
+
+- **frontend/**: React SPA (UI, routing, forms, state).
+- **backend/**: Supabase schema + RLS policies (SQL) and documentation.
+
+Frontend talks directly to Supabase using the public anon key; access control is enforced in Postgres through RLS.
+
+### Frontend structure (high level)
+
+Inside `frontend/src/`:
+
+- `app/`: router + bootstrap
+- `pages/`: route pages (landing/auth/app)
+- `features/`: feature-based logic (auth, routines, etc.)
+- `shared/`: reusable UI/layout/lib/api
+
+Conventions:
+
+- Alias `@/` points to `frontend/src/`.
+- Prefer imports from barrels (e.g. `@/shared/ui`).
+
+## Data Model
+
+The model is versioned in `backend/supabase/schema.sql`.
+
+ER diagram: `docs/diagrams/er-diagram.png` (guide in `docs/diagrams/README.md`).
+
+![ER Diagram](docs/diagrams/er-diagram.png)
+
+### Entities
+
+| Table | Purpose | Key fields |
+|---|---|---|
+| `profiles` | User profile (app-level) | `id` (UUID = `auth.users.id`), `email`, `username`, `first_name`, `last_name` |
+| `routines` | User routines | `id`, `user_id`, `title`, `notes` |
+| `routine_tasks` | Tasks within a routine | `id`, `user_id`, `routine_id`, `title`, `is_done` |
+
+### Relationships
+
+```text
+auth.users (Supabase Auth)
+  1 ── 1  profiles
+
+auth.users
+  1 ── *  routines
+
+routines
+  1 ── *  routine_tasks
+```
+
+## API Surface
+
+Main operations the frontend performs against Supabase:
+
+- **Auth**: sign up / sign in / sign out + session reading.
+- **Reads (SELECT)**: fetch routines and tasks for the authenticated user.
+- **Writes (INSERT/UPDATE/DELETE)**: create/update/delete routines, toggle task completion.
+- **Profile**: read `profiles` (RLS-scoped) and support username login (SQL helper).
+
+## Security
+
+Checklist:
+
+- RLS enabled on `profiles`, `routines`, `routine_tasks`.
+- Per-user policies: access allowed only when `auth.uid()` matches the owner (`user_id` or `profiles.id`).
+- Public vs private:
+  - Private: routines and tasks (always user-scoped).
+  - Profile: only accessible by the same user.
+  - Note: `get_email_by_username()` exists (security definer) to enable username → email lookup for login; usernames should not be sensitive.
+- Key management:
+  - OK in frontend: `VITE_SUPABASE_ANON_KEY` (public) + RLS.
+  - Never in frontend: Supabase `service_role` key.
+
+## Testing & Quality
+
+- **Current CI**: GitHub Actions runs `npm ci`, `npm run lint`, and `npm run build` on each PR and push to `main`.
+- **Quality bar**: TypeScript + Zod validation + consistent styling (Tailwind).
+- **Recommended next steps**:
+  - Unit tests: Vitest + Testing Library (components + store logic).
+  - E2E: Playwright (auth flow, protected routes, CRUD).
+
+## Performance & UX
+
+- **Scroll-free landing**: hero + preview in a single view to reduce friction and improve first impression.
+- **Persistent theme**: global day/night theme persistence for consistent identity.
+- **Accessibility + contrast**: inputs and controls are designed for consistent readability.
+
+## Database Migrations
+
+The **source of truth** for the database schema and RLS policies is the versioned SQL file:
+
+- `backend/supabase/schema.sql`
+
+How updates are applied:
+
+- For this project, schema changes are applied by running the SQL in Supabase (SQL Editor).
+- When the schema evolves, the SQL file is updated in the repo so the full database setup remains reproducible.
+
+## Repo Structure
+
+```text
+.
+├─ frontend/                 # React + TS + Tailwind
+│  ├─ src/
+│  ├─ vercel.json            # SPA rewrite for React Router
+│  └─ ...
+├─ backend/                  # Supabase SQL/RLS + docs
+│  └─ supabase/
+│     └─ schema.sql
+├─ docs/
+│  ├─ diagrams/
+│  └─ screenshots/
+└─ .github/workflows/        # CI + deploy
+```
+
+For deeper docs per area:
+
+- `frontend/README.md`
+- `backend/README.md`
+
+## Main Routes
+
+- `/`: landing
+- `/login`: login
+- `/register`: register
+- `/app`: authenticated area (protected)
+
+## Requirements
+
+- Node.js 18+ (recommended)
+- A Supabase project (created)
+
+## Environment Variables
+
+Frontend requires (example in `frontend/.env.example`):
+
+| Variable | Description |
+|---|---|
+| `VITE_SUPABASE_URL` | Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | Public anon key |
+
+## Local Development
+
+1) Install dependencies
 
 ```bash
 cd frontend
 npm install
+```
+
+2) Create `.env`
+
+```bash
+cd frontend
+cp .env.example .env
+```
+
+Windows alternative:
+
+```bash
+cd frontend
+copy .env.example .env
+```
+
+3) Fill `frontend/.env`
+
+4) Run dev server
+
+```bash
 npm run dev
 ```
 
-## CI/CD (GitHub Actions)
+## Scripts
 
-### CI (integración continua)
+From `frontend/`:
 
-Este repo incluye un workflow que se ejecuta en cada `push` a `main` y en cada Pull Request:
+- `npm run dev`: development
+- `npm run build`: production build
+- `npm run lint`: lint
+- `npm run preview`: preview production build locally
 
-- instala dependencias (`npm ci`)
-- corre lint (`npm run lint`)
-- compila (`npm run build`)
+## Backend (Supabase)
 
-Workflow: [.github/workflows/ci.yml](.github/workflows/ci.yml)
+Supabase is used as the real backend (Auth + Postgres). Schema and RLS policies live in:
 
-### CD (despliegue continuo)
+- `backend/supabase/schema.sql`
 
-Opciones recomendadas (simples y profesionales):
+Quick setup:
 
-1) **Vercel o Netlify (recomendado)**
-	- Conectas el repo y el proveedor hace deploy automático al hacer push.
-	- Build command: `npm run build`
-	- Output dir: `frontend/dist`
-	- Root dir: `frontend`
-	- Variables de entorno: `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`
+1) Create a Supabase project
+2) Supabase → SQL Editor: run `backend/supabase/schema.sql`
+3) Enable Auth providers as needed (Email by default; OAuth optional)
+4) Configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
 
-2) **GitHub Actions deploy**
-	- Se puede automatizar con secretos (tokens) del proveedor.
-	- Útil si quieres todo en Actions, pero requiere configurar `Secrets` en GitHub.
+## CI/CD
 
-#### CD a Vercel (via GitHub Actions)
+### CI (GitHub Actions)
 
-Ya está agregado el workflow: [.github/workflows/deploy-vercel.yml](.github/workflows/deploy-vercel.yml)
+Workflow: `.github/workflows/ci.yml`
 
-Para activarlo necesitas crear estos **Secrets** en tu repo de GitHub:
+On each push to `main` and on PRs:
 
-- `VERCEL_TOKEN`
-- `VERCEL_ORG_ID`
-- `VERCEL_PROJECT_ID`
+- install deps (`npm ci`)
+- run lint (`npm run lint`)
+- build (`npm run build`)
 
-Y en Vercel debes configurar variables de entorno de tu proyecto:
+### CD (Deploy)
 
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
+Recommended: connect the repo to **Vercel** for automatic deploys.
 
-Si prefieres lo más simple: usa la integración Git de Vercel/Netlify y puedes ignorar el workflow de deploy.
+An optional GitHub Actions deploy workflow also exists:
 
-## Estado del proyecto (qué ya está hecho)
+- `.github/workflows/deploy-vercel.yml`
 
-- UI base responsive + Tailwind, layout minimalista
-- Auth (register/login/logout) con Supabase
-- Rutas protegidas
-- CRUD de rutinas y tareas con persistencia real
-- Backend Supabase documentado con RLS (script SQL)
+## Deploy
 
-Pendiente (si lo quieres a nivel “producto”): recordatorios/notifications, edición de tareas, reordenamiento, analytics/hábitos, etc.
+### Vercel (recommended)
 
-## Notas
+Suggested Vercel config:
 
-- El "backend" de este proyecto se implementa con Supabase (Auth + Postgres) para mantener la app simple, segura y lista para producción.
+- Root Directory: `frontend`
+- Build Command: `npm run build`
+- Output Directory: `dist`
+- Env vars:
+  - `VITE_SUPABASE_URL`
+  - `VITE_SUPABASE_ANON_KEY`
+
+### SPA routing (avoid 404 on refresh)
+
+React Router needs a SPA rewrite so refreshing routes like `/login` works:
+
+- `frontend/vercel.json`
+
+## Troubleshooting
+
+- 404 on refresh: verify the project root is `frontend` and `frontend/vercel.json` is included.
+- Auth issues: validate `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` locally and in the deploy provider.
+- RLS blocks writes: confirm the user is authenticated and review policies in `backend/supabase/schema.sql`.
+
+## Roadmap
+
+Ideas to push this towards a product:
+
+- Notifications/reminders
+- Advanced task editing
+- Drag & drop ordering
+- Analytics / habits
+- Light offline caching
+
+## Contributing
+
+Contributions are welcome.
+
+Before opening a PR:
+
+- Install deps: `npm ci` (inside `frontend/`)
+- Run lint: `npm run lint`
+- Verify build: `npm run build`
+
+PR guidelines:
+
+- Keep PRs small and focused.
+- Include a clear description and, if relevant, update [Gallery](#gallery).
+- Never commit secrets. Use local `.env` and provider env vars.
+
+## Changelog
+
+- **MVP (SPA + Auth + RLS)**: React frontend + Supabase Auth with Postgres and per-user RLS.
+- **Real CRUD**: routines and tasks persisted with row-level security.
+- **Premium UX/UI**: scroll-free landing with preview, persistent theme, and SPA-ready deploy.
+
+## Author
+
+Tomas Posada
+
+- Email: tomasposada67@gmail.com
+
+## License
+
+MIT — see `LICENSE`.
