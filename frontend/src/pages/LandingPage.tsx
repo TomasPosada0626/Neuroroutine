@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Card } from '@/shared/ui'
 
@@ -32,8 +33,7 @@ function Sparkline() {
   )
 }
 
-function MiniBars() {
-  const bars = [6, 10, 14, 9, 18, 12, 20]
+function MiniBars({ bars }: { bars: number[] }) {
   return (
     <div className="grid grid-cols-7 items-end gap-1 h-12" aria-hidden="true">
       {bars.map((v, idx) => (
@@ -47,7 +47,103 @@ function MiniBars() {
   )
 }
 
+type DemoMode = 'focus' | 'balance'
+
+function DemoToggle({ mode, onChange }: { mode: DemoMode; onChange: (m: DemoMode) => void }) {
+  return (
+    <div className="inline-flex rounded-lg bg-white/5 p-1 ring-1 ring-white/10">
+      <button
+        type="button"
+        onClick={() => onChange('focus')}
+        className={
+          'rounded-md px-2.5 py-1 text-xs font-medium transition ' +
+          (mode === 'focus'
+            ? 'bg-white/10 text-white ring-1 ring-white/15'
+            : 'text-slate-300 hover:bg-white/5 hover:text-white')
+        }
+      >
+        Enfoque
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange('balance')}
+        className={
+          'rounded-md px-2.5 py-1 text-xs font-medium transition ' +
+          (mode === 'balance'
+            ? 'bg-white/10 text-white ring-1 ring-white/15'
+            : 'text-slate-300 hover:bg-white/5 hover:text-white')
+        }
+      >
+        Equilibrio
+      </button>
+    </div>
+  )
+}
+
 export function LandingPage() {
+  const [mode, setMode] = useState<DemoMode>('focus')
+  const [isSwitching, setIsSwitching] = useState(false)
+  const switchTimerRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (switchTimerRef.current != null) {
+        window.clearTimeout(switchTimerRef.current)
+      }
+    }
+  }, [])
+
+  const handleModeChange = (nextMode: DemoMode) => {
+    setMode(nextMode)
+    setIsSwitching(true)
+    if (switchTimerRef.current != null) {
+      window.clearTimeout(switchTimerRef.current)
+    }
+    switchTimerRef.current = window.setTimeout(() => setIsSwitching(false), 260)
+  }
+
+  const demo = useMemo(() => {
+    if (mode === 'focus') {
+      return {
+        badge: 'Pomodoro + priorización',
+        consistencyPct: '+28%',
+        completedLabel: 'Completadas',
+        completedValue: '12',
+        streakDays: '7 días',
+        weeklyTargetPct: 72,
+        energyLabel: 'Alta',
+        energyPct: 78,
+        energyWindow: '9:00 – 11:00',
+        focusBlocks: '2 bloques',
+        bars: [6, 10, 14, 9, 18, 12, 20],
+        tableRows: [
+          { title: 'Mañana enfocada', tasks: 3, status: 'En progreso', tone: 'emerald' as const },
+          { title: 'Estudio', tasks: 5, status: 'Planificada', tone: 'cyan' as const },
+          { title: 'Cierre del día', tasks: 2, status: 'Pendiente', tone: 'neutral' as const },
+        ],
+      }
+    }
+
+    return {
+      badge: 'Hábitos + bienestar',
+      consistencyPct: '+19%',
+      completedLabel: 'Check-ins',
+      completedValue: '8',
+      streakDays: '5 días',
+      weeklyTargetPct: 64,
+      energyLabel: 'Media',
+      energyPct: 62,
+      energyWindow: '10:00 – 12:00',
+      focusBlocks: '1 bloque',
+      bars: [8, 12, 9, 14, 11, 16, 13],
+      tableRows: [
+        { title: 'Rutina base', tasks: 4, status: 'En progreso', tone: 'emerald' as const },
+        { title: 'Movimiento', tasks: 2, status: 'Planificada', tone: 'cyan' as const },
+        { title: 'Cierre amable', tasks: 3, status: 'Pendiente', tone: 'neutral' as const },
+      ],
+    }
+  }, [mode])
+
   return (
     <div className="h-dvh overflow-hidden bg-slate-950 text-slate-50">
       {/* Background */}
@@ -110,6 +206,16 @@ export function LandingPage() {
               <span className="text-white/90">Auth Supabase</span>
             </div>
 
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-200 ring-1 ring-white/10">
+                <span className="h-1.5 w-1.5 rounded-full bg-gradient-to-r from-cyan-400 to-violet-500" />
+                Demo: {demo.badge}
+              </div>
+              <div className="sm:hidden">
+                <DemoToggle mode={mode} onChange={handleModeChange} />
+              </div>
+            </div>
+
             <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-5xl">
               Rutinas inteligentes,
               <span className="bg-gradient-to-r from-cyan-300 to-violet-300 bg-clip-text text-transparent">
@@ -128,16 +234,19 @@ export function LandingPage() {
                 to="/register"
                 className={
                   primaryLinkClass +
-                  ' bg-gradient-to-r from-cyan-400 to-violet-500 text-slate-950 hover:opacity-95'
+                  ' relative overflow-hidden bg-gradient-to-r from-cyan-400 to-violet-500 text-slate-950 hover:opacity-95' +
+                  ' motion-safe:transition motion-safe:duration-300 hover:-translate-y-0.5'
                 }
               >
+                <span className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 hover:opacity-100" />
                 Empezar gratis
               </Link>
               <Link
                 to="/login"
                 className={
                   secondaryLinkClass +
-                  ' bg-white/10 text-white ring-1 ring-white/15 hover:bg-white/15'
+                  ' bg-white/10 text-white ring-1 ring-white/15 hover:bg-white/15' +
+                  ' motion-safe:transition motion-safe:duration-300 hover:-translate-y-0.5'
                 }
               >
                 Ver mi dashboard
@@ -149,37 +258,37 @@ export function LandingPage() {
               </div>
             </div>
 
-            <div className="mt-5 grid grid-cols-3 gap-2 sm:mt-6 sm:gap-3">
-              <Card className="bg-white/5 p-3 ring-1 ring-white/10 sm:p-4">
+            <div className={"mt-5 grid grid-cols-3 gap-2 sm:mt-6 sm:gap-3 " + (isSwitching ? 'motion-safe:animate-pulse' : '')}>
+              <Card className="bg-white/5 p-3 ring-1 ring-white/10 sm:p-4 motion-safe:transition motion-safe:duration-300 hover:bg-white/7 hover:-translate-y-0.5">
                 <div className="text-[11px] text-slate-300 sm:text-xs">Consistencia</div>
-                <div className="mt-0.5 text-base font-semibold sm:mt-1 sm:text-lg">+28%</div>
+                <div className="mt-0.5 text-base font-semibold sm:mt-1 sm:text-lg">{demo.consistencyPct}</div>
                 <div className="mt-2 hidden sm:block">
                   <Sparkline />
                 </div>
               </Card>
 
-              <Card className="bg-white/5 p-3 ring-1 ring-white/10 sm:p-4">
-                <div className="text-[11px] text-slate-300 sm:text-xs">Completadas</div>
-                <div className="mt-0.5 text-base font-semibold sm:mt-1 sm:text-lg">12</div>
+              <Card className="bg-white/5 p-3 ring-1 ring-white/10 sm:p-4 motion-safe:transition motion-safe:duration-300 hover:bg-white/7 hover:-translate-y-0.5">
+                <div className="text-[11px] text-slate-300 sm:text-xs">{demo.completedLabel}</div>
+                <div className="mt-0.5 text-base font-semibold sm:mt-1 sm:text-lg">{demo.completedValue}</div>
                 <div className="mt-2 hidden sm:block">
-                  <MiniBars />
+                  <MiniBars bars={demo.bars} />
                 </div>
               </Card>
 
-              <Card className="bg-white/5 p-3 ring-1 ring-white/10 sm:p-4">
+              <Card className="bg-white/5 p-3 ring-1 ring-white/10 sm:p-4 motion-safe:transition motion-safe:duration-300 hover:bg-white/7 hover:-translate-y-0.5">
                 <div className="text-[11px] text-slate-300 sm:text-xs">Streak</div>
-                <div className="mt-0.5 text-base font-semibold sm:mt-1 sm:text-lg">7 días</div>
+                <div className="mt-0.5 text-base font-semibold sm:mt-1 sm:text-lg">{demo.streakDays}</div>
                 <div className="mt-2 hidden items-center gap-3 sm:flex">
                   <div
                     className="h-12 w-12 rounded-full"
                     style={{
                       background:
-                        'conic-gradient(rgba(34,211,238,0.9) 0 260deg, rgba(255,255,255,0.12) 260deg 360deg)',
+                        `conic-gradient(rgba(34,211,238,0.9) 0 ${(demo.weeklyTargetPct / 100) * 360}deg, rgba(255,255,255,0.12) ${(demo.weeklyTargetPct / 100) * 360}deg 360deg)`,
                     }}
                   />
                   <div className="text-xs text-slate-300">
                     Meta semanal
-                    <div className="text-sm font-semibold text-white">72%</div>
+                    <div className="text-sm font-semibold text-white">{demo.weeklyTargetPct}%</div>
                   </div>
                 </div>
               </Card>
@@ -209,7 +318,7 @@ export function LandingPage() {
                   <div className="text-sm font-semibold">Vista previa</div>
                   <div className="text-xs text-slate-300">Tablas y estado en tiempo real</div>
                 </div>
-                <div className="text-xs text-slate-300">Modo demo</div>
+                <DemoToggle mode={mode} onChange={handleModeChange} />
               </div>
 
               <div className="mt-4 grid gap-3">
@@ -229,33 +338,27 @@ export function LandingPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/10 text-slate-200">
-                        <tr>
-                          <td className="px-3 py-2">Mañana enfocada</td>
-                          <td className="px-3 py-2">3</td>
-                          <td className="px-3 py-2">
-                            <span className="rounded-full bg-emerald-400/15 px-2 py-0.5 text-emerald-200 ring-1 ring-emerald-400/20">
-                              En progreso
-                            </span>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="px-3 py-2">Estudio</td>
-                          <td className="px-3 py-2">5</td>
-                          <td className="px-3 py-2">
-                            <span className="rounded-full bg-cyan-400/15 px-2 py-0.5 text-cyan-200 ring-1 ring-cyan-400/20">
-                              Planificada
-                            </span>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="px-3 py-2">Cierre del día</td>
-                          <td className="px-3 py-2">2</td>
-                          <td className="px-3 py-2">
-                            <span className="rounded-full bg-white/10 px-2 py-0.5 text-slate-200 ring-1 ring-white/10">
-                              Pendiente
-                            </span>
-                          </td>
-                        </tr>
+                        {demo.tableRows.map((r) => (
+                          <tr key={r.title} className={isSwitching ? 'opacity-70' : 'opacity-100'}>
+                            <td className="px-3 py-2">{r.title}</td>
+                            <td className="px-3 py-2">{r.tasks}</td>
+                            <td className="px-3 py-2">
+                              {r.tone === 'emerald' ? (
+                                <span className="rounded-full bg-emerald-400/15 px-2 py-0.5 text-emerald-200 ring-1 ring-emerald-400/20">
+                                  {r.status}
+                                </span>
+                              ) : r.tone === 'cyan' ? (
+                                <span className="rounded-full bg-cyan-400/15 px-2 py-0.5 text-cyan-200 ring-1 ring-cyan-400/20">
+                                  {r.status}
+                                </span>
+                              ) : (
+                                <span className="rounded-full bg-white/10 px-2 py-0.5 text-slate-200 ring-1 ring-white/10">
+                                  {r.status}
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
                       </tbody>
                     </table>
                   </div>
@@ -264,15 +367,18 @@ export function LandingPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-xl bg-slate-950/40 p-4 ring-1 ring-white/10">
                     <div className="text-xs text-slate-300">Energía</div>
-                    <div className="mt-1 text-base font-semibold">Alta</div>
+                    <div className="mt-1 text-base font-semibold">{demo.energyLabel}</div>
                     <div className="mt-3 h-2 rounded-full bg-white/10">
-                      <div className="h-2 w-[78%] rounded-full bg-gradient-to-r from-cyan-400 to-violet-500" />
+                      <div
+                        className="h-2 rounded-full bg-gradient-to-r from-cyan-400 to-violet-500 motion-safe:transition-all motion-safe:duration-300"
+                        style={{ width: `${demo.energyPct}%` }}
+                      />
                     </div>
-                    <div className="mt-2 text-xs text-slate-300">Ventana ideal: 9:00 – 11:00</div>
+                    <div className="mt-2 text-xs text-slate-300">Ventana ideal: {demo.energyWindow}</div>
                   </div>
                   <div className="rounded-xl bg-slate-950/40 p-4 ring-1 ring-white/10">
                     <div className="text-xs text-slate-300">Foco</div>
-                    <div className="mt-1 text-base font-semibold">2 bloques</div>
+                    <div className="mt-1 text-base font-semibold">{demo.focusBlocks}</div>
                     <div className="mt-3 flex gap-2">
                       <div className="h-6 flex-1 rounded-md bg-cyan-400/25 ring-1 ring-cyan-400/20" />
                       <div className="h-6 flex-1 rounded-md bg-violet-400/25 ring-1 ring-violet-400/20" />
@@ -291,7 +397,7 @@ export function LandingPage() {
                     to="/register"
                     className={
                       primaryLinkClass +
-                      ' flex-1 bg-gradient-to-r from-cyan-400 to-violet-500 text-slate-950 hover:opacity-95'
+                      ' flex-1 bg-gradient-to-r from-cyan-400 to-violet-500 text-slate-950 hover:opacity-95 motion-safe:transition motion-safe:duration-300 hover:-translate-y-0.5'
                     }
                   >
                     Registrarme
@@ -300,7 +406,7 @@ export function LandingPage() {
                     to="/login"
                     className={
                       secondaryLinkClass +
-                      ' flex-1 bg-white/10 text-white ring-1 ring-white/15 hover:bg-white/15'
+                      ' flex-1 bg-white/10 text-white ring-1 ring-white/15 hover:bg-white/15 motion-safe:transition motion-safe:duration-300 hover:-translate-y-0.5'
                     }
                   >
                     Entrar
