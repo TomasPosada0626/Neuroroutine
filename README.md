@@ -154,9 +154,10 @@ flowchart LR
 
   SPA -->|supabase-js\nVITE_SUPABASE_URL + anon key| SB[Supabase]
   SB --> AUTH[Auth]
-  SB --> DB[Postgres + RLS]
+  SB --> DB[Postgres]
 
-  DB -.->|Policies: auth.uid() = user_id| DATA[(routines, routine_tasks, profiles)]
+  DB -.-> RLS[RLS policies]
+  RLS -.-> DATA[(routines, routine_tasks, profiles)]
 ```
 
 ### Frontend structure (high level)
