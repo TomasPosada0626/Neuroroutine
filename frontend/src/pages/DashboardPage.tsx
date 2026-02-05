@@ -9,6 +9,7 @@ import { useUiStore } from '@/shared/state/uiStore'
 import { Button, Card } from '@/shared/ui'
 
 type RangeKey = '7d' | '28d' | '90d'
+type BucketGranularity = 'day' | 'week'
 
 function formatPct(value: number) {
   return `${Math.max(0, Math.min(100, Math.round(value)))}%`
@@ -19,6 +20,32 @@ function dateKeyLocal(d: Date) {
   const mm = String(d.getMonth() + 1).padStart(2, '0')
   const dd = String(d.getDate()).padStart(2, '0')
   return `${yyyy}-${mm}-${dd}`
+}
+
+function windowDaysFromRange(range: RangeKey) {
+  return range === '7d' ? 7 : range === '28d' ? 28 : 90
+}
+
+function startOfDayLocal(d: Date) {
+  const x = new Date(d)
+  x.setHours(0, 0, 0, 0)
+  return x
+}
+
+function startOfWeekMondayLocal(d: Date) {
+  const x = startOfDayLocal(d)
+  const day = x.getDay() // 0..6 (Sun..Sat)
+  const diff = (day + 6) % 7 // Mon=0
+  x.setDate(x.getDate() - diff)
+  return x
+}
+
+function clamp01(v: number) {
+  return Math.max(0, Math.min(1, v))
+}
+
+function formatHour(h: number) {
+  return `${String(h).padStart(2, '0')}:00`
 }
 
 export function DashboardPage() {
@@ -39,12 +66,15 @@ export function DashboardPage() {
     loadRoutines,
     loadAllTasks,
     loadTaskEvents,
+    loadTasks,
     addRoutine,
     setTaskDone,
   } = useRoutines()
 
   const [range, setRange] = useState<RangeKey>('28d')
   const [createOpen, setCreateOpen] = useState(false)
+  const [routineGranularity, setRoutineGranularity] = useState<BucketGranularity>(() => (range === '90d' ? 'week' : 'day'))
+  const effectiveRoutineGranularity: BucketGranularity = range === '90d' ? 'week' : routineGranularity
 
   useEffect(() => {
     void loadRoutines()
@@ -56,6 +86,10 @@ export function DashboardPage() {
     })
   }, [loadRoutines, loadAllTasks, loadTaskEvents])
 
+  useEffect(() => {
+    if (selectedRoutineId) void loadTasks(selectedRoutineId)
+  }, [selectedRoutineId, loadTasks])
+
   const name =
     (user?.user_metadata?.first_name as string | undefined) ||
     (user?.user_metadata?.username as string | undefined) ||
@@ -66,6 +100,12 @@ export function DashboardPage() {
     for (const r of routines) map.set(r.id, r.title)
     return map
   }, [routines])
+
+  const taskTitleById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const t of allTasks) map.set(t.id, t.title)
+    return map
+  }, [allTasks])
 
   const tasksTotal = allTasks.length
   const tasksDone = useMemo(() => allTasks.filter((t) => t.is_done).length, [allTasks])
@@ -80,6 +120,265 @@ export function DashboardPage() {
     if (!selectedRoutineId) return []
     return tasksByRoutineId[selectedRoutineId] ?? []
   }, [selectedRoutineId, tasksByRoutineId])
+
+  const hasEvents = Array.isArray(taskEvents) && taskEvents.length > 0
+
+  const selectedRoutineAnalytics = useMemo(() => {
+    const windowDays = windowDaysFromRange(range)
+    const end = startOfDayLocal(new Date())
+    const start = new Date(end)
+    start.setDate(end.getDate() - (windowDays - 1))
+
+    const selectedId = selectedRoutineId
+    const events = selectedId && hasEvents
+      ? taskEvents
+          .filter((ev) => ev.routine_id === selectedId)
+          .filter((ev) => {
+            const t = new Date(ev.created_at).getTime()
+            return t >= start.getTime() && t < end.getTime() + 1000 * 60 * 60 * 24
+          })
+          .slice()
+      : []
+
+    // daily buckets (local days)
+    const days: Date[] = []
+    for (let i = windowDays - 1; i >= 0; i--) {
+      const d = new Date(end)
+      d.setDate(end.getDate() - i)
+      days.push(d)
+    }
+
+    const byDay = new Map<string, { completed: number; uncompleted: number }>()
+    const byWeek = new Map<string, { completed: number; uncompleted: number; weekStart: Date }>()
+
+    const hourCompleted = new Array<number>(24).fill(0)
+    const hourUncompleted = new Array<number>(24).fill(0)
+
+    const perTaskEvents = new Map<string, { created_at: string; event_type: 'completed' | 'uncompleted' }[]>()
+    const taskCounts = new Map<
+      string,
+      { completed: number; uncompleted: number; reopens: number }
+    >()
+
+    if (events.length > 0) {
+      // Sort ascending for interval/reopen analysis.
+      events.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      for (const ev of events) {
+        const t = new Date(ev.created_at)
+        const dayKey = dateKeyLocal(t)
+        const current = byDay.get(dayKey) ?? { completed: 0, uncompleted: 0 }
+        if (ev.event_type === 'completed') current.completed += 1
+        else current.uncompleted += 1
+        byDay.set(dayKey, current)
+
+        const weekStart = startOfWeekMondayLocal(t)
+        const weekKey = dateKeyLocal(weekStart)
+        const w = byWeek.get(weekKey) ?? { completed: 0, uncompleted: 0, weekStart }
+        if (ev.event_type === 'completed') w.completed += 1
+        else w.uncompleted += 1
+        byWeek.set(weekKey, w)
+
+        const h = t.getHours()
+        if (ev.event_type === 'completed') hourCompleted[h] += 1
+        else hourUncompleted[h] += 1
+
+        const list = perTaskEvents.get(ev.routine_task_id) ?? []
+        list.push({ created_at: ev.created_at, event_type: ev.event_type })
+        perTaskEvents.set(ev.routine_task_id, list)
+
+        const c = taskCounts.get(ev.routine_task_id) ?? { completed: 0, uncompleted: 0, reopens: 0 }
+        if (ev.event_type === 'completed') c.completed += 1
+        else c.uncompleted += 1
+        taskCounts.set(ev.routine_task_id, c)
+      }
+
+      // Reopens: completed -> uncompleted transitions per task
+      for (const [taskId, list] of perTaskEvents.entries()) {
+        const c = taskCounts.get(taskId)
+        if (!c) continue
+        let prev: 'completed' | 'uncompleted' | null = null
+        for (const ev of list) {
+          if (prev === 'completed' && ev.event_type === 'uncompleted') c.reopens += 1
+          prev = ev.event_type
+        }
+        taskCounts.set(taskId, c)
+      }
+    }
+
+    const daySeries = days.map((d) => {
+      const key = dateKeyLocal(d)
+      const val = byDay.get(key) ?? { completed: 0, uncompleted: 0 }
+      return { key, date: d, ...val }
+    })
+
+    const weekSeries = Array.from(byWeek.values())
+      .sort((a, b) => a.weekStart.getTime() - b.weekStart.getTime())
+      .map((w) => ({ key: dateKeyLocal(w.weekStart), weekStart: w.weekStart, completed: w.completed, uncompleted: w.uncompleted }))
+
+    const totalCompleted = daySeries.reduce((s, x) => s + x.completed, 0)
+    const totalUncompleted = daySeries.reduce((s, x) => s + x.uncompleted, 0)
+    const activeDays = daySeries.filter((d) => d.completed > 0).length
+    const activeDaysPct = windowDays ? (activeDays / windowDays) * 100 : 0
+
+    // streak & best within range
+    let streak = 0
+    for (let i = daySeries.length - 1; i >= 0; i--) {
+      if (daySeries[i].completed > 0) streak++
+      else break
+    }
+    let best = 0
+    let run = 0
+    for (const d of daySeries) {
+      if (d.completed > 0) {
+        run++
+        best = Math.max(best, run)
+      } else {
+        run = 0
+      }
+    }
+
+    // Hour best window (3-hour)
+    let bestWindowStart = 0
+    let bestWindowSum = -1
+    for (let s = 0; s < 24; s++) {
+      const sum = hourCompleted[s] + hourCompleted[(s + 1) % 24] + hourCompleted[(s + 2) % 24]
+      if (sum > bestWindowSum) {
+        bestWindowSum = sum
+        bestWindowStart = s
+      }
+    }
+
+    // intervals between completed events (overall, not per task)
+    const completedTimes: number[] = []
+    for (const ev of events) {
+      if (ev.event_type !== 'completed') continue
+      completedTimes.push(new Date(ev.created_at).getTime())
+    }
+    completedTimes.sort((a, b) => a - b)
+    const intervalsHours: number[] = []
+    for (let i = 1; i < completedTimes.length; i++) {
+      intervalsHours.push((completedTimes[i] - completedTimes[i - 1]) / (1000 * 60 * 60))
+    }
+    const sortedIntervals = intervalsHours.slice().sort((a, b) => a - b)
+    const pctAt = (p: number) => {
+      if (sortedIntervals.length === 0) return null
+      const idx = Math.min(sortedIntervals.length - 1, Math.max(0, Math.floor(p * (sortedIntervals.length - 1))))
+      return sortedIntervals[idx]
+    }
+    const medianHours = pctAt(0.5)
+    const p90Hours = pctAt(0.9)
+
+    const intervalBuckets = {
+      lt6h: 0,
+      h6_24: 0,
+      d1_3: 0,
+      d3_7: 0,
+      gt7d: 0,
+    }
+    for (const h of intervalsHours) {
+      if (h < 6) intervalBuckets.lt6h += 1
+      else if (h < 24) intervalBuckets.h6_24 += 1
+      else if (h < 24 * 3) intervalBuckets.d1_3 += 1
+      else if (h < 24 * 7) intervalBuckets.d3_7 += 1
+      else intervalBuckets.gt7d += 1
+    }
+
+    // Trend: compare last chunk vs previous chunk (7d for 28/90, 3d for 7)
+    const chunk = range === '7d' ? 3 : 7
+    const lastChunk = daySeries.slice(-chunk)
+    const prevChunk = daySeries.slice(-(chunk * 2), -chunk)
+    const lastCompleted = lastChunk.reduce((s, x) => s + x.completed, 0)
+    const prevCompleted = prevChunk.reduce((s, x) => s + x.completed, 0)
+    const trendPct = prevCompleted === 0 ? (lastCompleted > 0 ? 100 : 0) : ((lastCompleted - prevCompleted) / prevCompleted) * 100
+
+    const topTasks = Array.from(taskCounts.entries())
+      .map(([taskId, c]) => ({
+        taskId,
+        title: taskTitleById.get(taskId) ?? 'Tarea',
+        completed: c.completed,
+        uncompleted: c.uncompleted,
+        reopens: c.reopens,
+      }))
+      .sort((a, b) => b.completed - a.completed)
+      .slice(0, 5)
+
+    return {
+      start,
+      end,
+      daySeries,
+      weekSeries,
+      totalCompleted,
+      totalUncompleted,
+      activeDays,
+      activeDaysPct,
+      streak,
+      best,
+      hourCompleted,
+      hourUncompleted,
+      bestWindowStart,
+      bestWindowSum,
+      medianHours,
+      p90Hours,
+      intervalBuckets,
+      lastCompleted,
+      prevCompleted,
+      trendPct,
+      topTasks,
+      source: hasEvents ? ('events' as const) : ('none' as const),
+    }
+  }, [selectedRoutineId, taskEvents, hasEvents, range, taskTitleById])
+
+  const routinesRanking = useMemo(() => {
+    if (!hasEvents) return []
+    const windowDays = windowDaysFromRange(range)
+    const end = startOfDayLocal(new Date())
+    const start = new Date(end)
+    start.setDate(end.getDate() - (windowDays - 1))
+
+    const byRoutineDay = new Map<string, Map<string, number>>()
+    const byRoutineCompleted = new Map<string, number>()
+    for (const ev of taskEvents) {
+      if (ev.event_type !== 'completed') continue
+      const t = new Date(ev.created_at).getTime()
+      if (t < start.getTime() || t >= end.getTime() + 1000 * 60 * 60 * 24) continue
+      const dayKey = dateKeyLocal(new Date(ev.created_at))
+      const dayMap = byRoutineDay.get(ev.routine_id) ?? new Map<string, number>()
+      dayMap.set(dayKey, (dayMap.get(dayKey) ?? 0) + 1)
+      byRoutineDay.set(ev.routine_id, dayMap)
+      byRoutineCompleted.set(ev.routine_id, (byRoutineCompleted.get(ev.routine_id) ?? 0) + 1)
+    }
+
+    const chunk = range === '7d' ? 3 : 7
+    const endDay = startOfDayLocal(new Date())
+    const makeDayKeys = (count: number, offsetFromEnd: number) => {
+      const keys: string[] = []
+      for (let i = count - 1; i >= 0; i--) {
+        const d = new Date(endDay)
+        d.setDate(endDay.getDate() - (offsetFromEnd + i))
+        keys.push(dateKeyLocal(d))
+      }
+      return keys
+    }
+    const lastKeys = makeDayKeys(chunk, 0)
+    const prevKeys = makeDayKeys(chunk, chunk)
+
+    return routines
+      .map((r) => {
+        const dayMap = byRoutineDay.get(r.id) ?? new Map<string, number>()
+        const activeDays = dayMap.size
+        const activePct = windowDays ? (activeDays / windowDays) * 100 : 0
+        const completed = byRoutineCompleted.get(r.id) ?? 0
+        const last = lastKeys.reduce((s, k) => s + (dayMap.get(k) ?? 0), 0)
+        const prev = prevKeys.reduce((s, k) => s + (dayMap.get(k) ?? 0), 0)
+        const trendPct = prev === 0 ? (last > 0 ? 100 : 0) : ((last - prev) / prev) * 100
+        return { id: r.id, title: r.title, activePct, completed, trendPct }
+      })
+      .sort((a, b) => {
+        if (b.activePct !== a.activePct) return b.activePct - a.activePct
+        return b.completed - a.completed
+      })
+      .slice(0, 7)
+  }, [hasEvents, taskEvents, routines, range])
 
   const selectedRoutineKpis = useMemo(() => {
     const total = selectedRoutineTasks.length
@@ -273,9 +572,18 @@ export function DashboardPage() {
             <button type="button" className={rangeButtonClass(range === '90d')} onClick={() => setRange('90d')}>
               90 días
             </button>
-            <Button className="ml-2" onClick={() => setCreateOpen(true)} disabled={!user || loading}>
-              Nueva rutina
-            </Button>
+            {routines.length > 0 ? (
+              <Button
+                className={cn(
+                  'ml-2 bg-gradient-to-r from-cyan-400 to-violet-500 text-slate-950 hover:from-cyan-300 hover:to-violet-400 focus:ring-cyan-300',
+                  !isDay ? 'ring-1 ring-white/10' : '',
+                )}
+                onClick={() => setCreateOpen(true)}
+                disabled={!user || loading}
+              >
+                Nueva rutina
+              </Button>
+            ) : null}
           </div>
         </div>
       </div>
@@ -419,14 +727,25 @@ export function DashboardPage() {
               </div>
 
               <div className={'mt-3 rounded-lg p-3 ring-1 ' + (isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
-                <div className={'text-xs ' + subtleText}>Racha (14 días)</div>
+                <div className={'text-xs ' + subtleText}>Consistencia (rango seleccionado)</div>
                 <div className={'mt-1 text-sm font-medium ' + panelText}>
-                  {selectedRoutineKpis.source === 'events' ? (
-                    <>
-                      {selectedRoutineKpis.streak} días <span className={subtleText}>(mejor: {selectedRoutineKpis.best})</span>
-                    </>
+                  {selectedRoutineAnalytics.source === 'events' ? (
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <div className={'text-xs ' + subtleText}>Racha</div>
+                        <div className={'text-sm font-semibold ' + panelText}>{selectedRoutineAnalytics.streak}d</div>
+                      </div>
+                      <div>
+                        <div className={'text-xs ' + subtleText}>Mejor</div>
+                        <div className={'text-sm font-semibold ' + panelText}>{selectedRoutineAnalytics.best}d</div>
+                      </div>
+                      <div>
+                        <div className={'text-xs ' + subtleText}>Días activos</div>
+                        <div className={'text-sm font-semibold ' + panelText}>{formatPct(selectedRoutineAnalytics.activeDaysPct)}</div>
+                      </div>
+                    </div>
                   ) : (
-                    'Activa el historial real para ver rachas por rutina.'
+                    'Activa el historial real para ver consistencia y gráficas.'
                   )}
                 </div>
               </div>
@@ -447,11 +766,11 @@ export function DashboardPage() {
         <Card className="lg:col-span-2">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <div className="text-sm font-semibold">Actividad de la rutina</div>
-              <div className={'text-xs ' + subtleText}>Últimos 14 días (checks “completed”)</div>
+              <div className="text-sm font-semibold">Cumplimiento</div>
+              <div className={'text-xs ' + subtleText}>Completed vs uncompleted (rango seleccionado)</div>
             </div>
             <div className={'text-xs ' + subtleText}>
-              {selectedRoutine ? (selectedRoutineKpis.source === 'events' ? 'historial real' : 'sin historial') : '—'}
+              {selectedRoutine ? (selectedRoutineAnalytics.source === 'events' ? 'historial real' : 'sin historial') : '—'}
             </div>
           </div>
 
@@ -459,28 +778,308 @@ export function DashboardPage() {
             <div className={'mt-4 rounded-lg p-3 text-sm ring-1 ' + (isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')}>
               Selecciona una rutina para ver su gráfica.
             </div>
-          ) : selectedRoutineKpis.source !== 'events' ? (
+          ) : selectedRoutineAnalytics.source !== 'events' ? (
             <div className={'mt-4 rounded-lg p-3 text-sm ring-1 ' + (isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')}>
               Aún no hay historial real para graficar (ejecuta el SQL en Supabase y marca tareas como completadas).
             </div>
           ) : (
             <div className="mt-4">
-              <svg viewBox="0 0 280 64" className="h-16 w-full" role="img" aria-label="Actividad por día">
-                <rect x="0" y="0" width="280" height="64" rx="10" className={isDay ? 'fill-slate-50' : 'fill-white/5'} />
-                {selectedRoutineKpis.daily.map((d, i) => {
-                  const max = Math.max(1, selectedRoutineKpis.max)
-                  const h = Math.round((d.count / max) * 44)
-                  const x = 10 + i * 19
-                  const y = 54 - h
-                  const fill = isDay ? 'rgb(34 211 238)' : 'rgba(34, 211, 238, 0.65)'
-                  return <rect key={d.key} x={x} y={y} width={12} height={h} rx={3} fill={fill} opacity={d.count === 0 ? 0.25 : 0.9} />
-                })}
-              </svg>
-
-              <div className={'mt-2 flex items-center justify-between text-xs ' + subtleText}>
-                <div>{selectedRoutineKpis.daily[0]?.key}</div>
-                <div>Hoy</div>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className={cn(rangeButtonClass(effectiveRoutineGranularity === 'day'), range === '90d' ? 'cursor-not-allowed opacity-50' : '')}
+                    onClick={() => {
+                      if (range === '90d') return
+                      setRoutineGranularity('day')
+                    }}
+                    disabled={range === '90d'}
+                    title={range === '90d' ? 'Para 90 días se recomienda vista semanal' : undefined}
+                  >
+                    Día
+                  </button>
+                  <button type="button" className={rangeButtonClass(effectiveRoutineGranularity === 'week')} onClick={() => setRoutineGranularity('week')}>
+                    Semana
+                  </button>
+                </div>
+                <div className={'text-xs ' + subtleText}>
+                  {selectedRoutineAnalytics.totalCompleted} completed • {selectedRoutineAnalytics.totalUncompleted} uncompleted
+                  <span className={'ml-2 ' + subtleText}>
+                    ({selectedRoutineAnalytics.trendPct >= 0 ? '+' : ''}
+                    {Math.round(selectedRoutineAnalytics.trendPct)}%)
+                  </span>
+                </div>
               </div>
+
+              {(() => {
+                const series = effectiveRoutineGranularity === 'week' ? selectedRoutineAnalytics.weekSeries : selectedRoutineAnalytics.daySeries
+                const maxTotal = series.reduce((m, x) => Math.max(m, x.completed + x.uncompleted), 0)
+                const limited = effectiveRoutineGranularity === 'day' ? series.slice(-Math.min(series.length, 28)) : series
+                const n = Math.max(1, limited.length)
+                const W = 320
+                const H = 96
+                const padX = 10
+                const padY = 10
+                const innerW = W - padX * 2
+                const innerH = H - padY * 2
+                const gap = n > 20 ? 1 : 2
+                const barW = Math.max(2, Math.floor((innerW - gap * (n - 1)) / n))
+
+                const cFill = isDay ? 'rgb(34 211 238)' : 'rgba(34, 211, 238, 0.75)'
+                const uFill = isDay ? 'rgb(251 113 133)' : 'rgba(251, 113, 133, 0.65)'
+
+                return (
+                  <>
+                    <svg viewBox={`0 0 ${W} ${H}`} className="h-24 w-full" role="img" aria-label="Cumplimiento">
+                      <rect x="0" y="0" width={W} height={H} rx="12" className={isDay ? 'fill-slate-50' : 'fill-white/5'} />
+                      {limited.map((d, i) => {
+                        const total = d.completed + d.uncompleted
+                        const t = maxTotal ? total / maxTotal : 0
+                        const totalH = Math.round(innerH * clamp01(t))
+                        const completedH = total ? Math.round((d.completed / total) * totalH) : 0
+                        const uncompletedH = totalH - completedH
+
+                        const x = padX + i * (barW + gap)
+                        const yTop = padY + (innerH - totalH)
+                        const yCompleted = yTop + uncompletedH
+                        return (
+                          <g key={d.key}>
+                            {uncompletedH > 0 ? (
+                              <rect x={x} y={yTop} width={barW} height={uncompletedH} rx={3} fill={uFill} opacity={0.85} />
+                            ) : null}
+                            {completedH > 0 ? (
+                              <rect x={x} y={yCompleted} width={barW} height={completedH} rx={3} fill={cFill} opacity={0.95} />
+                            ) : null}
+                          </g>
+                        )
+                      })}
+                    </svg>
+
+                    <div className={'mt-2 flex items-center justify-between text-xs ' + subtleText}>
+                      <div>{limited[0]?.key}</div>
+                      <div>{effectiveRoutineGranularity === 'day' ? 'Últimos 28 días máx.' : 'Semanas del rango'}</div>
+                      <div>Hoy</div>
+                    </div>
+
+                    <div className={'mt-2 flex items-center gap-3 text-xs ' + subtleText}>
+                      <div className="flex items-center gap-1">
+                        <span className="inline-block h-2 w-2 rounded-sm" style={{ backgroundColor: cFill as unknown as string }} />
+                        <span>Completed</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="inline-block h-2 w-2 rounded-sm" style={{ backgroundColor: uFill as unknown as string }} />
+                        <span>Uncompleted</span>
+                      </div>
+                    </div>
+                  </>
+                )
+              })()}
+            </div>
+          )}
+        </Card>
+      </div>
+
+      <div className="mb-8 grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="text-sm font-semibold">Hora típica</div>
+              <div className={'text-xs ' + subtleText}>Histograma por hora (completed)</div>
+            </div>
+            <div className={'text-xs ' + subtleText}>
+              {selectedRoutine && selectedRoutineAnalytics.source === 'events'
+                ? `Mejor franja: ${formatHour(selectedRoutineAnalytics.bestWindowStart)}–${formatHour((selectedRoutineAnalytics.bestWindowStart + 3) % 24)}`
+                : '—'}
+            </div>
+          </div>
+
+          {!selectedRoutine ? (
+            <div className={'mt-4 rounded-lg p-3 text-sm ring-1 ' + (isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')}>
+              Selecciona una rutina para ver su histograma.
+            </div>
+          ) : selectedRoutineAnalytics.source !== 'events' ? (
+            <div className={'mt-4 rounded-lg p-3 text-sm ring-1 ' + (isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')}>
+              Sin historial real aún. Se habilita al ejecutar el SQL y marcar tareas.
+            </div>
+          ) : (
+            <div className="mt-4">
+              {(() => {
+                const W = 420
+                const H = 100
+                const padX = 10
+                const padY = 10
+                const innerW = W - padX * 2
+                const innerH = H - padY * 2
+                const n = 24
+                const gap = 2
+                const barW = Math.floor((innerW - gap * (n - 1)) / n)
+                const max = Math.max(1, ...selectedRoutineAnalytics.hourCompleted)
+                const fill = isDay ? 'rgb(34 211 238)' : 'rgba(34, 211, 238, 0.75)'
+                const windowStart = selectedRoutineAnalytics.bestWindowStart
+
+                return (
+                  <>
+                    <svg viewBox={`0 0 ${W} ${H}`} className="h-24 w-full" role="img" aria-label="Histograma por hora">
+                      <rect x="0" y="0" width={W} height={H} rx="12" className={isDay ? 'fill-slate-50' : 'fill-white/5'} />
+                      {selectedRoutineAnalytics.hourCompleted.map((v, i) => {
+                        const h = Math.round(innerH * clamp01(v / max))
+                        const x = padX + i * (barW + gap)
+                        const y = padY + (innerH - h)
+                        const isHot = i === windowStart || i === (windowStart + 1) % 24 || i === (windowStart + 2) % 24
+                        return <rect key={i} x={x} y={y} width={barW} height={h} rx={3} fill={fill} opacity={isHot ? 1 : 0.55} />
+                      })}
+                    </svg>
+                    <div className={'mt-2 flex items-center justify-between text-xs ' + subtleText}>
+                      <div>00</div>
+                      <div>12</div>
+                      <div>23</div>
+                    </div>
+                  </>
+                )
+              })()}
+            </div>
+          )}
+        </Card>
+
+        <Card className="lg:col-span-1">
+          <div>
+            <div className="text-sm font-semibold">Regularidad</div>
+            <div className={'text-xs ' + subtleText}>Tiempo entre completados</div>
+          </div>
+
+          {!selectedRoutine ? (
+            <div className={'mt-4 rounded-lg p-3 text-sm ring-1 ' + (isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')}>
+              Selecciona una rutina para ver regularidad.
+            </div>
+          ) : selectedRoutineAnalytics.source !== 'events' ? (
+            <div className={'mt-4 rounded-lg p-3 text-sm ring-1 ' + (isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')}>
+              Sin historial real aún.
+            </div>
+          ) : (
+            <div className="mt-4 space-y-3">
+              <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+                <div className={'text-xs ' + subtleText}>Mediana</div>
+                <div className={'mt-1 text-sm font-semibold ' + panelText}>
+                  {selectedRoutineAnalytics.medianHours == null ? '—' : `${Math.round(selectedRoutineAnalytics.medianHours)}h`}
+                </div>
+              </div>
+              <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+                <div className={'text-xs ' + subtleText}>P90</div>
+                <div className={'mt-1 text-sm font-semibold ' + panelText}>
+                  {selectedRoutineAnalytics.p90Hours == null ? '—' : `${Math.round(selectedRoutineAnalytics.p90Hours)}h`}
+                </div>
+              </div>
+
+              {(() => {
+                const b = selectedRoutineAnalytics.intervalBuckets
+                const items: Array<{ label: string; value: number }> = [
+                  { label: '<6h', value: b.lt6h },
+                  { label: '6–24h', value: b.h6_24 },
+                  { label: '1–3d', value: b.d1_3 },
+                  { label: '3–7d', value: b.d3_7 },
+                  { label: '>7d', value: b.gt7d },
+                ]
+                const total = items.reduce((s, x) => s + x.value, 0)
+                const max = Math.max(1, ...items.map((x) => x.value))
+                const fill = isDay ? 'rgb(34 211 238)' : 'rgba(34, 211, 238, 0.75)'
+                return (
+                  <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+                    <div className={'text-xs ' + subtleText}>Distribución</div>
+                    <div className="mt-2 space-y-2">
+                      {items.map((it) => (
+                        <div key={it.label} className="flex items-center gap-2">
+                          <div className={'w-10 text-xs ' + subtleText}>{it.label}</div>
+                          <div className={'h-2 flex-1 rounded-full ' + (isDay ? 'bg-slate-200' : 'bg-white/10')}>
+                            <div className="h-2 rounded-full" style={{ width: `${Math.round((it.value / max) * 100)}%`, backgroundColor: fill as unknown as string, opacity: 0.9 }} />
+                          </div>
+                          <div className={'w-10 text-right text-xs ' + subtleText}>{total ? Math.round((it.value / total) * 100) : 0}%</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
+          )}
+        </Card>
+      </div>
+
+      <div className="mb-8 grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <div>
+            <div className="text-sm font-semibold">Top tareas</div>
+            <div className={'text-xs ' + subtleText}>Más completadas, re-open y desmarcadas</div>
+          </div>
+
+          {!selectedRoutine ? (
+            <div className={'mt-4 rounded-lg p-3 text-sm ring-1 ' + (isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')}>
+              Selecciona una rutina para ver top tareas.
+            </div>
+          ) : selectedRoutineAnalytics.source !== 'events' ? (
+            <div className={'mt-4 rounded-lg p-3 text-sm ring-1 ' + (isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')}>
+              Sin historial real aún.
+            </div>
+          ) : selectedRoutineAnalytics.topTasks.length === 0 ? (
+            <div className={'mt-4 rounded-lg p-3 text-sm ring-1 ' + (isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')}>
+              Aún no hay eventos en este rango.
+            </div>
+          ) : (
+            <div className="mt-4 overflow-hidden rounded-lg ring-1 ring-inset ring-slate-200/70 dark:ring-white/10">
+              <div className={cn('grid grid-cols-12 gap-2 px-3 py-2 text-xs', isDay ? 'bg-slate-50 text-slate-600' : 'bg-white/5 text-slate-300')}>
+                <div className="col-span-6">Tarea</div>
+                <div className="col-span-2 text-right">Completed</div>
+                <div className="col-span-2 text-right">Uncompleted</div>
+                <div className="col-span-2 text-right">Re-open</div>
+              </div>
+              <div className={cn('divide-y', isDay ? 'divide-slate-200' : 'divide-white/10')}>
+                {selectedRoutineAnalytics.topTasks.map((t) => (
+                  <div key={t.taskId} className={cn('grid grid-cols-12 gap-2 px-3 py-2 text-sm', isDay ? 'bg-white' : 'bg-transparent')}>
+                    <div className={'col-span-6 truncate ' + panelText} title={t.title}>
+                      {t.title}
+                    </div>
+                    <div className={'col-span-2 text-right ' + panelText}>{t.completed}</div>
+                    <div className={'col-span-2 text-right ' + panelText}>{t.uncompleted}</div>
+                    <div className={'col-span-2 text-right ' + panelText}>{t.reopens}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </Card>
+
+        <Card className="lg:col-span-1">
+          <div>
+            <div className="text-sm font-semibold">Comparativa</div>
+            <div className={'text-xs ' + subtleText}>Ranking de rutinas (rango)</div>
+          </div>
+
+          {!hasEvents ? (
+            <div className={'mt-4 rounded-lg p-3 text-sm ring-1 ' + (isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')}>
+              Activa historial real para ranking.
+            </div>
+          ) : routinesRanking.length === 0 ? (
+            <div className={'mt-4 rounded-lg p-3 text-sm ring-1 ' + (isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')}>
+              Aún no hay suficientes datos.
+            </div>
+          ) : (
+            <div className="mt-4 space-y-2">
+              {routinesRanking.map((r, idx) => (
+                <div key={r.id} className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className={'text-sm font-medium ' + panelText}>
+                      {idx + 1}. {r.title}
+                    </div>
+                    <div className={'text-xs ' + subtleText}>
+                      {r.trendPct >= 0 ? '+' : ''}
+                      {Math.round(r.trendPct)}%
+                    </div>
+                  </div>
+                  <div className={'mt-1 flex items-center justify-between text-xs ' + subtleText}>
+                    <div>Activos: {Math.round(r.activePct)}%</div>
+                    <div>Completed: {r.completed}</div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </Card>
@@ -550,7 +1149,15 @@ export function DashboardPage() {
               </ol>
             </div>
             <div className="flex items-center gap-2">
-              <Button onClick={() => setCreateOpen(true)}>Crear rutina</Button>
+              <Button
+                onClick={() => setCreateOpen(true)}
+                className={cn(
+                  'bg-gradient-to-r from-cyan-400 to-violet-500 text-slate-950 hover:from-cyan-300 hover:to-violet-400 focus:ring-cyan-300',
+                  !isDay ? 'ring-1 ring-white/10' : '',
+                )}
+              >
+                Crear rutina
+              </Button>
               <Button variant="secondary" onClick={() => void loadRoutines()}>
                 Refrescar
               </Button>
