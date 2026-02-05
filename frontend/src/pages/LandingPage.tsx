@@ -213,6 +213,8 @@ export function LandingPage() {
     }
   }, [useCase])
 
+  const filledDays = Math.max(1, Math.min(7, Math.round((content.weeklyTargetPct / 100) * 7)))
+
   return (
     <div className="h-dvh overflow-hidden bg-slate-950 text-slate-50">
       {/* Background */}
@@ -458,6 +460,55 @@ export function LandingPage() {
                       <div className="h-6 flex-1 rounded-md bg-white/10 ring-1 ring-white/10" />
                     </div>
                     <div className="mt-2 text-xs text-slate-300">Pequeños pasos, gran progreso</div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl bg-white/5 p-4 ring-1 ring-white/10">
+                    <div className="text-xs text-slate-300">En 3 pasos</div>
+                    <div className="mt-2 space-y-2 text-sm text-slate-200">
+                      <div className="flex items-start gap-2">
+                        <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-md bg-cyan-400/15 text-cyan-200 ring-1 ring-cyan-400/20">
+                          1
+                        </span>
+                        <div>
+                          Elige un objetivo <span className="text-slate-400">({useCase === 'study' ? 'estudiar' : useCase === 'fitness' ? 'entrenar' : 'trabajar'})</span>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-md bg-violet-400/15 text-violet-200 ring-1 ring-violet-400/20">
+                          2
+                        </span>
+                        <div>Divide en tareas pequeñas</div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-md bg-emerald-400/15 text-emerald-200 ring-1 ring-emerald-400/20">
+                          3
+                        </span>
+                        <div>Marca lo hecho y sigue</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl bg-white/5 p-4 ring-1 ring-white/10">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs text-slate-300">Tu semana</div>
+                      <div className="text-xs text-slate-400">{content.weeklyTargetPct}%</div>
+                    </div>
+                    <div className="mt-2 grid grid-cols-7 gap-1.5" aria-hidden="true">
+                      {Array.from({ length: 7 }).map((_, idx) => (
+                        <div
+                          key={idx}
+                          className={
+                            'h-6 rounded-md ring-1 ring-white/10 motion-safe:transition-all motion-safe:duration-300 ' +
+                            (idx < filledDays
+                              ? 'bg-gradient-to-br from-cyan-400/35 to-violet-500/25'
+                              : 'bg-slate-950/30')
+                          }
+                        />
+                      ))}
+                    </div>
+                    <div className="mt-2 text-xs text-slate-300">Pequeños pasos &gt; días perfectos</div>
                   </div>
                 </div>
               </div>
