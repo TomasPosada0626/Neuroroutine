@@ -15,7 +15,7 @@ type AuthState = {
     username: string
     firstName: string
     lastName: string
-  }) => Promise<void>
+  }) => Promise<{ needsEmailConfirmation: boolean }>
   signOut: () => Promise<void>
 }
 
@@ -119,6 +119,8 @@ export const useAuthStore = create<AuthState>((set) => ({
         // ignore
       }
     }
+
+    return { needsEmailConfirmation: !data.session }
   },
 
   signOut: async () => {

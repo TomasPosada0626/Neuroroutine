@@ -25,13 +25,19 @@ export function RegisterPage() {
 
   const onSubmit = form.handleSubmit(async (values) => {
     try {
-      await signUpWithPassword({
+      const result = await signUpWithPassword({
         email: values.email,
         password: values.password,
         username: values.username,
         firstName: values.firstName,
         lastName: values.lastName,
       })
+
+      if (result.needsEmailConfirmation) {
+        navigate('/login', { replace: true })
+        return
+      }
+
       navigate('/app', { replace: true })
     } catch (e) {
       form.setError('root', { message: e instanceof Error ? e.message : 'Registration failed' })
