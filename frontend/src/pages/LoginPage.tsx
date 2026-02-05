@@ -86,7 +86,6 @@ export function LoginPage() {
             <label className={labelClass}>Usuario o correo</label>
             <Input
               autoComplete="username"
-              placeholder="tomas / tomas@email.com"
               className={inputClass}
               {...form.register('identifier')}
             />

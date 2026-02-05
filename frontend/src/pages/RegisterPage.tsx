@@ -105,7 +105,6 @@ export function RegisterPage() {
               <label className={labelClass}>Nombre</label>
               <Input
                 autoComplete="given-name"
-                placeholder="Tomás"
                 className={inputClass}
                 {...form.register('firstName')}
               />
@@ -118,7 +117,6 @@ export function RegisterPage() {
               <label className={labelClass}>Apellidos</label>
               <Input
                 autoComplete="family-name"
-                placeholder="Posada"
                 className={inputClass}
                 {...form.register('lastName')}
               />
@@ -132,7 +130,6 @@ export function RegisterPage() {
             <label className={labelClass}>Nombre de usuario</label>
             <Input
               autoComplete="username"
-              placeholder="tomasposada"
               className={inputClass}
               {...form.register('username')}
             />
@@ -147,7 +144,6 @@ export function RegisterPage() {
             <Input
               type="email"
               autoComplete="email"
-              placeholder="tomas@email.com"
               className={inputClass}
               {...form.register('email')}
             />

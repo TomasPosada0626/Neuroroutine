@@ -367,6 +367,19 @@ export function LandingPage() {
     ? secondaryLinkClass
     : secondaryLinkClass + ' bg-white/10 text-white ring-1 ring-white/15 hover:bg-white/15 focus:ring-white/30'
 
+  const heroPillClass = isDay
+    ? 'inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs text-slate-700 ring-1 ring-slate-200'
+    : 'inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-200 ring-1 ring-white/10'
+
+  const statCardClass = isDay
+    ? 'bg-white p-3 ring-1 ring-slate-200 sm:p-4 motion-safe:transition motion-safe:duration-300 hover:bg-slate-50 hover:-translate-y-0.5'
+    : 'bg-white/5 p-3 ring-1 ring-white/10 sm:p-4 motion-safe:transition motion-safe:duration-300 hover:bg-white/7 hover:-translate-y-0.5'
+
+  const statLabelClass = isDay ? 'text-[11px] text-slate-600 sm:text-xs' : 'text-[11px] text-slate-300 sm:text-xs'
+
+  const trustCardClass = isDay ? 'bg-white p-4 ring-1 ring-slate-200' : 'bg-white/5 p-4 ring-1 ring-white/10'
+  const trustTextClass = isDay ? 'mt-1 text-sm text-slate-600' : 'mt-1 text-sm text-slate-300'
+
   return (
     <div className={rootClass}>
       {/* Background */}
@@ -482,31 +495,31 @@ export function LandingPage() {
                 Listo para empezar hoy
               </div>
 
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-200 ring-1 ring-white/10">
+              <div className={heroPillClass}>
                 <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
                 {activePreset.metricPill}
               </div>
             </div>
 
             <div className={"mt-5 grid grid-cols-3 gap-2 sm:mt-6 sm:gap-3 " + (isSwitching ? 'motion-safe:animate-pulse' : '')}>
-              <Card className="bg-white/5 p-3 ring-1 ring-white/10 sm:p-4 motion-safe:transition motion-safe:duration-300 hover:bg-white/7 hover:-translate-y-0.5">
-                <div className="text-[11px] text-slate-300 sm:text-xs">{content.stat1Label}</div>
+              <Card className={statCardClass}>
+                <div className={statLabelClass}>{content.stat1Label}</div>
                 <div className="mt-0.5 text-base font-semibold sm:mt-1 sm:text-lg">{content.stat1Value}</div>
                 <div className="mt-2 hidden sm:block">
                   <Sparkline />
                 </div>
               </Card>
 
-              <Card className="bg-white/5 p-3 ring-1 ring-white/10 sm:p-4 motion-safe:transition motion-safe:duration-300 hover:bg-white/7 hover:-translate-y-0.5">
-                <div className="text-[11px] text-slate-300 sm:text-xs">{content.stat2Label}</div>
+              <Card className={statCardClass}>
+                <div className={statLabelClass}>{content.stat2Label}</div>
                 <div className="mt-0.5 text-base font-semibold sm:mt-1 sm:text-lg">{content.stat2Value}</div>
                 <div className="mt-2 hidden sm:block">
                   <MiniBars bars={content.bars} />
                 </div>
               </Card>
 
-              <Card className="bg-white/5 p-3 ring-1 ring-white/10 sm:p-4 motion-safe:transition motion-safe:duration-300 hover:bg-white/7 hover:-translate-y-0.5">
-                <div className="text-[11px] text-slate-300 sm:text-xs">Streak</div>
+              <Card className={statCardClass}>
+                <div className={statLabelClass}>Streak</div>
                 <div className="mt-0.5 text-base font-semibold sm:mt-1 sm:text-lg">{content.stat3Value}</div>
                 <div className="mt-2 hidden items-center gap-3 sm:flex">
                   <div
@@ -516,24 +529,26 @@ export function LandingPage() {
                         `conic-gradient(rgba(34,211,238,0.9) 0 ${(content.weeklyTargetPct / 100) * 360}deg, rgba(255,255,255,0.12) ${(content.weeklyTargetPct / 100) * 360}deg 360deg)`,
                     }}
                   />
-                  <div className="text-xs text-slate-300">
+                  <div className={"text-xs " + (isDay ? 'text-slate-600' : 'text-slate-300')}>
                     Meta semanal
-                    <div className="text-sm font-semibold text-white">{content.weeklyTargetPct}%</div>
+                    <div className={"text-sm font-semibold " + (isDay ? 'text-slate-900' : 'text-white')}>
+                      {content.weeklyTargetPct}%
+                    </div>
                   </div>
                 </div>
               </Card>
             </div>
 
             <div className="mt-5 hidden gap-3 sm:mt-6 sm:grid sm:grid-cols-2">
-              <Card className="bg-white/5 p-4 ring-1 ring-white/10">
+              <Card className={trustCardClass}>
                 <div className="text-sm font-semibold">Tu espacio es tuyo</div>
-                <div className="mt-1 text-sm text-slate-300">
+                <div className={trustTextClass}>
                   Tus rutinas y tu progreso se mantienen privados.
                 </div>
               </Card>
-              <Card className="bg-white/5 p-4 ring-1 ring-white/10">
+              <Card className={trustCardClass}>
                 <div className="text-sm font-semibold">Entra como prefieras</div>
-                <div className="mt-1 text-sm text-slate-300">
+                <div className={trustTextClass}>
                   Accede con tu usuario, tu email o Google.
                 </div>
               </Card>

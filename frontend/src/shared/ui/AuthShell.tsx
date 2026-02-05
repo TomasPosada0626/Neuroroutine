@@ -23,6 +23,10 @@ export function AuthShell({ title, subtitle, badge, footer, className, children 
     ? 'rounded-full bg-white/70 px-2 py-1 ring-1 ring-slate-200'
     : 'rounded-full bg-white/5 px-2 py-1 ring-1 ring-white/10'
 
+  const backClass = isDay
+    ? 'inline-flex items-center gap-2 rounded-lg bg-white/70 px-2.5 py-2 text-xs font-medium text-slate-800 ring-1 ring-slate-200 hover:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/25'
+    : 'inline-flex items-center gap-2 rounded-lg bg-white/10 px-2.5 py-2 text-xs font-medium text-slate-100 ring-1 ring-white/15 hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white/30'
+
   return (
     <div className={cn(rootClass, className)}>
       {/* Background */}
@@ -60,7 +64,21 @@ export function AuthShell({ title, subtitle, badge, footer, className, children 
                 <div className={cn('text-xs', subtleText)}>Rutinas simples. Hábitos sostenibles.</div>
               </div>
             </Link>
-            <ThemeToggle compact />
+            <div className="flex items-center gap-2">
+              <Link to="/" className={backClass} aria-label="Volver a la landing">
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
+                  <path
+                    d="M15 18l-6-6 6-6"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                Volver
+              </Link>
+              <ThemeToggle compact />
+            </div>
           </div>
 
           {badge ? (
