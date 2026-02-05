@@ -587,7 +587,6 @@ export function LandingPage() {
                         Un clic para ajustar el plan
                       </div>
                     </div>
-                      <ThemeToggle />
                   </div>
 
                   <div className="mt-2 flex flex-wrap gap-2">
