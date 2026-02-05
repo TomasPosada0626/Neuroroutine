@@ -147,6 +147,18 @@ High-level approach:
 
 Frontend talks directly to Supabase using the public anon key; access control is enforced in Postgres through RLS.
 
+```mermaid
+flowchart LR
+  U[User] -->|HTTPS| H[Vercel Hosting]
+  H --> SPA[React SPA\nVite + TypeScript + Tailwind\nReact Router / Zustand / RHF+Zod]
+
+  SPA -->|supabase-js\nVITE_SUPABASE_URL + anon key| SB[Supabase]
+  SB --> AUTH[Auth]
+  SB --> DB[Postgres + RLS]
+
+  DB -.->|Policies: auth.uid() = user_id| DATA[(routines, routine_tasks, profiles)]
+```
+
 ### Frontend structure (high level)
 
 Inside `frontend/src/`:
