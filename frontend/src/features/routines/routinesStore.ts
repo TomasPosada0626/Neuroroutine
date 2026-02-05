@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Routine, RoutineTask } from './types'
+import type { Routine, RoutineTask, RoutineTaskEvent } from './types'
 import {
   createRoutine,
   createTask,
@@ -7,6 +7,7 @@ import {
   deleteTask,
   listAllTasks,
   listRoutines,
+  listTaskEvents,
   listTasks,
   toggleTaskDone,
   updateRoutine,
@@ -20,9 +21,11 @@ type RoutinesState = {
   selectedRoutineId: string | null
   tasksByRoutineId: Record<string, RoutineTask[]>
   allTasks: RoutineTask[]
+  taskEvents: RoutineTaskEvent[]
 
   loadRoutines: () => Promise<void>
   loadAllTasks: () => Promise<void>
+  loadTaskEvents: (params?: { since?: string }) => Promise<void>
   selectRoutine: (id: string | null) => void
 
   addRoutine: (input: { user_id: string; title: string; notes?: string | null }) => Promise<void>
@@ -43,6 +46,7 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
   selectedRoutineId: null,
   tasksByRoutineId: {},
   allTasks: [],
+  taskEvents: [],
 
   loadRoutines: async () => {
     set({ loading: true, error: null })
@@ -67,6 +71,18 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
       set({ allTasks })
     } catch (e) {
       set({ error: e instanceof Error ? e.message : 'Failed to load tasks' })
+    } finally {
+      set({ loading: false })
+    }
+  },
+
+  loadTaskEvents: async (params) => {
+    set({ loading: true, error: null })
+    try {
+      const taskEvents = await listTaskEvents({ since: params?.since })
+      set({ taskEvents })
+    } catch (e) {
+      set({ error: e instanceof Error ? e.message : 'Failed to load task events' })
     } finally {
       set({ loading: false })
     }
@@ -153,8 +169,19 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
     set({ loading: true, error: null })
     try {
       const updated = await toggleTaskDone({ id: input.id, is_done: input.is_done })
+      const eventType: RoutineTaskEvent['event_type'] = input.is_done ? 'completed' : 'uncompleted'
+      const optimisticEvent: RoutineTaskEvent = {
+        id: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `local_${Date.now()}`,
+        user_id: (updated as RoutineTask).user_id,
+        routine_id: (updated as RoutineTask).routine_id,
+        routine_task_id: updated.id,
+        event_type: eventType,
+        created_at: new Date().toISOString(),
+      }
+
       set((s) => ({
         allTasks: s.allTasks.map((t) => (t.id === updated.id ? updated : t)),
+        taskEvents: [optimisticEvent, ...s.taskEvents],
         tasksByRoutineId: {
           ...s.tasksByRoutineId,
           [input.routine_id]: (s.tasksByRoutineId[input.routine_id] ?? []).map((t) =>

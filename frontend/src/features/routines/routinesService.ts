@@ -1,5 +1,5 @@
 import { supabase } from '@/shared/api'
-import type { Routine, RoutineTask } from './types'
+import type { Routine, RoutineTask, RoutineTaskEvent } from './types'
 
 export async function listRoutines(): Promise<Routine[]> {
   const { data, error } = await supabase
@@ -66,6 +66,21 @@ export async function listAllTasks(): Promise<RoutineTask[]> {
 
   if (error) throw error
   return (data ?? []) as RoutineTask[]
+}
+
+export async function listTaskEvents(params?: { since?: string; limit?: number }): Promise<RoutineTaskEvent[]> {
+  const limit = params?.limit ?? 5000
+  let query = supabase
+    .from('routine_task_events')
+    .select('id,user_id,routine_id,routine_task_id,event_type,created_at')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (params?.since) query = query.gte('created_at', params.since)
+
+  const { data, error } = await query
+  if (error) throw error
+  return (data ?? []) as RoutineTaskEvent[]
 }
 
 export async function createTask(input: {

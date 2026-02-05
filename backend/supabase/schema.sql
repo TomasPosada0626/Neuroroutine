@@ -75,6 +75,27 @@ create table if not exists public.routine_tasks (
   updated_at timestamptz not null default now()
 );
 
+-- Backfill-friendly change: store last completion timestamp
+alter table public.routine_tasks
+  add column if not exists completed_at timestamptz;
+
+-- Analytics-grade history: task completion events
+create table if not exists public.routine_task_events (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  routine_id uuid not null references public.routines(id) on delete cascade,
+  routine_task_id uuid not null references public.routine_tasks(id) on delete cascade,
+  event_type text not null,
+  created_at timestamptz not null default now(),
+  constraint routine_task_events_event_type_check check (event_type in ('completed', 'uncompleted'))
+);
+
+create index if not exists routine_task_events_user_created_idx
+  on public.routine_task_events (user_id, created_at desc);
+
+create index if not exists routine_task_events_task_created_idx
+  on public.routine_task_events (routine_task_id, created_at desc);
+
 -- updated_at trigger
 create or replace function public.set_updated_at()
 returns trigger as $$
@@ -83,6 +104,28 @@ begin
   return new;
 end;
 $$ language plpgsql;
+
+-- Keep completed_at consistent and write analytics events when is_done changes.
+create or replace function public.handle_task_completion()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.is_done is distinct from old.is_done then
+    if new.is_done then
+      new.completed_at = coalesce(new.completed_at, now());
+      insert into public.routine_task_events (user_id, routine_id, routine_task_id, event_type)
+      values (new.user_id, new.routine_id, new.id, 'completed');
+    else
+      new.completed_at = null;
+      insert into public.routine_task_events (user_id, routine_id, routine_task_id, event_type)
+      values (new.user_id, new.routine_id, new.id, 'uncompleted');
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
 
 drop trigger if exists routines_set_updated_at on public.routines;
 create trigger routines_set_updated_at
@@ -94,6 +137,11 @@ create trigger routine_tasks_set_updated_at
 before update on public.routine_tasks
 for each row execute function public.set_updated_at();
 
+drop trigger if exists routine_tasks_handle_completion on public.routine_tasks;
+create trigger routine_tasks_handle_completion
+before update on public.routine_tasks
+for each row execute function public.handle_task_completion();
+
 drop trigger if exists profiles_set_updated_at on public.profiles;
 create trigger profiles_set_updated_at
 before update on public.profiles
@@ -102,6 +150,7 @@ for each row execute function public.set_updated_at();
 -- RLS
 alter table public.routines enable row level security;
 alter table public.routine_tasks enable row level security;
+alter table public.routine_task_events enable row level security;
 alter table public.profiles enable row level security;
 
 -- Policies: routines
@@ -137,6 +186,15 @@ for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 drop policy if exists "routine_tasks_delete_own" on public.routine_tasks;
 create policy "routine_tasks_delete_own" on public.routine_tasks
 for delete using (auth.uid() = user_id);
+
+-- Policies: routine_task_events
+drop policy if exists "routine_task_events_select_own" on public.routine_task_events;
+create policy "routine_task_events_select_own" on public.routine_task_events
+for select using (auth.uid() = user_id);
+
+drop policy if exists "routine_task_events_insert_own" on public.routine_task_events;
+create policy "routine_task_events_insert_own" on public.routine_task_events
+for insert with check (auth.uid() = user_id);
 
 -- Policies: profiles
 drop policy if exists "profiles_select_own" on public.profiles;

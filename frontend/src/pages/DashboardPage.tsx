@@ -34,8 +34,10 @@ export function DashboardPage() {
     routines,
     selectedRoutineId,
     allTasks,
+    taskEvents,
     loadRoutines,
     loadAllTasks,
+    loadTaskEvents,
     addRoutine,
     setTaskDone,
   } = useRoutines()
@@ -46,7 +48,12 @@ export function DashboardPage() {
   useEffect(() => {
     void loadRoutines()
     void loadAllTasks()
-  }, [loadRoutines, loadAllTasks])
+    // Pro analytics path: task completion history (heatmap/streak).
+    // If the table isn't deployed yet, this will fail and we fall back to updated_at estimation.
+    void loadTaskEvents({
+      since: new Date(Date.now() - 1000 * 60 * 60 * 24 * 120).toISOString(),
+    })
+  }, [loadRoutines, loadAllTasks, loadTaskEvents])
 
   const name =
     (user?.user_metadata?.first_name as string | undefined) ||
@@ -83,11 +90,23 @@ export function DashboardPage() {
     }
 
     const doneCounts = new Map<string, number>()
-    for (const task of allTasks) {
-      if (!task.is_done) continue
-      const d = new Date(task.updated_at)
-      const key = dateKeyLocal(d)
-      doneCounts.set(key, (doneCounts.get(key) ?? 0) + 1)
+    const hasEvents = Array.isArray(taskEvents) && taskEvents.length > 0
+
+    if (hasEvents) {
+      for (const ev of taskEvents) {
+        if (ev.event_type !== 'completed') continue
+        const d = new Date(ev.created_at)
+        const key = dateKeyLocal(d)
+        doneCounts.set(key, (doneCounts.get(key) ?? 0) + 1)
+      }
+    } else {
+      // Fallback: estimate using updated_at on tasks currently marked as done.
+      for (const task of allTasks) {
+        if (!task.is_done) continue
+        const d = new Date(task.updated_at)
+        const key = dateKeyLocal(d)
+        doneCounts.set(key, (doneCounts.get(key) ?? 0) + 1)
+      }
     }
 
     const counts = days.map((d) => ({ key: dateKeyLocal(d), date: d, count: doneCounts.get(dateKeyLocal(d)) ?? 0 }))
@@ -111,8 +130,8 @@ export function DashboardPage() {
       }
     }
 
-    return { counts, max, streak, best }
-  }, [allTasks, range])
+    return { counts, max, streak, best, source: hasEvents ? 'events' : 'estimated' as const }
+  }, [allTasks, taskEvents, range])
 
   const lastActivity = useMemo(() => {
     if (allTasks.length === 0) return null
@@ -302,7 +321,9 @@ export function DashboardPage() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="text-sm font-semibold">Actividad</div>
-              <div className={'text-xs ' + subtleText}>Checks por día (según el último cambio de la tarea)</div>
+              <div className={'text-xs ' + subtleText}>
+                Checks por día ({heatmap.source === 'events' ? 'historial real' : 'estimado'})
+              </div>
             </div>
             <div className={'text-xs ' + subtleText}>Rango: {range}</div>
           </div>
