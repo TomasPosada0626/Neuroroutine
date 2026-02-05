@@ -17,7 +17,9 @@ export function AppShell({ children }: PropsWithChildren) {
     ? 'sticky top-0 z-10 border-b border-slate-200 bg-white/70 backdrop-blur'
     : 'sticky top-0 z-10 border-b border-white/10 bg-slate-900/60 backdrop-blur'
   const subtleText = isDay ? 'text-slate-500' : 'text-slate-300'
-  const logoClass = isDay ? 'h-8 w-8 rounded-lg bg-slate-900' : 'h-8 w-8 rounded-lg bg-gradient-to-br from-cyan-400 to-violet-500'
+  const logoClass = isDay
+    ? 'grid h-8 w-8 place-items-center overflow-hidden rounded-lg bg-slate-900'
+    : 'grid h-8 w-8 place-items-center overflow-hidden rounded-lg bg-gradient-to-br from-cyan-400 to-violet-500'
 
   const handleSignOut = async () => {
     await signOut()
@@ -30,26 +32,23 @@ export function AppShell({ children }: PropsWithChildren) {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
             <div className={logoClass} aria-hidden="true">
-              <div className="grid h-full w-full place-items-center">
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-5 w-5"
-                  fill="none"
-                  stroke="white"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  {/* Brain-ish / focus icon */}
-                  <path d="M9 3a4 4 0 0 0-4 4v10a4 4 0 0 0 4 4" />
-                  <path d="M15 3a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4" />
-                  <path d="M9 7h.01" />
-                  <path d="M15 7h.01" />
-                  <path d="M9 11h.01" />
-                  <path d="M15 11h.01" />
-                  <path d="M12 7v10" />
-                </svg>
-              </div>
+              <svg
+                viewBox="0 0 24 24"
+                className="h-5 w-5"
+                fill="none"
+                stroke="white"
+                strokeWidth="2.25"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                {/* Checklist / habits icon */}
+                <path d="M9 6h11" />
+                <path d="M9 12h11" />
+                <path d="M9 18h11" />
+                <path d="M4 6l1 1 2-2" />
+                <path d="M4 12l1 1 2-2" />
+                <path d="M4 18l1 1 2-2" />
+              </svg>
             </div>
             <div className="leading-tight">
               <div className="text-sm font-semibold">NeuroRoutine</div>
