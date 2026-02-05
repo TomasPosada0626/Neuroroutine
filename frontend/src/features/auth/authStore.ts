@@ -9,6 +9,7 @@ type AuthState = {
 
   init: () => Promise<() => void>
   signInWithPassword: (identifier: string, password: string) => Promise<void>
+  signInWithGoogle: () => Promise<void>
   signUpWithPassword: (params: {
     email: string
     password: string
@@ -27,13 +28,21 @@ async function syncProfileFromUser(user: User) {
 
   if (!email) return
 
+  const { data: existing } = await supabase
+    .from('profiles')
+    .select('username')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  const resolvedUsername = username ?? existing?.username ?? `user_${user.id.slice(0, 8)}`
+
   await supabase
     .from('profiles')
     .upsert(
       {
         id: user.id,
         email,
-        username: username ?? email.split('@')[0],
+        username: resolvedUsername,
         first_name: firstName,
         last_name: lastName,
       },
@@ -92,6 +101,18 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
 
     const { error } = await supabase.auth.signInWithPassword({ email, password })
+    set({ loading: false })
+    if (error) throw error
+  },
+
+  signInWithGoogle: async () => {
+    set({ loading: true })
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/app`,
+      },
+    })
     set({ loading: false })
     if (error) throw error
   },

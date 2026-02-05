@@ -6,7 +6,7 @@ import { loginSchema, type LoginValues } from '@/features/auth/schemas'
 import { Button, Card, Input, PasswordInput } from '@/shared/ui'
 
 export function LoginPage() {
-  const { session, signInWithPassword } = useAuth()
+  const { session, signInWithPassword, signInWithGoogle } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const from = (location.state as { from?: string } | null)?.from ?? '/app'
@@ -37,6 +37,29 @@ export function LoginPage() {
 
         <Card>
           <form className="space-y-4" onSubmit={onSubmit}>
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full"
+              onClick={async () => {
+                try {
+                  await signInWithGoogle()
+                } catch (e) {
+                  form.setError('root', {
+                    message: e instanceof Error ? e.message : 'Google login failed',
+                  })
+                }
+              }}
+            >
+              Continuar con Google
+            </Button>
+
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-slate-200" />
+              <div className="text-xs text-slate-500">o</div>
+              <div className="h-px flex-1 bg-slate-200" />
+            </div>
+
             <div className="space-y-1">
               <label className="text-sm font-medium">Usuario o correo</label>
               <Input autoComplete="username" {...form.register('identifier')} />

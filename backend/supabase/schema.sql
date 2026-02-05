@@ -27,7 +27,7 @@ as $$
 declare
   v_username text;
 begin
-  v_username := coalesce(new.raw_user_meta_data->>'username', split_part(new.email, '@', 1));
+  v_username := coalesce(new.raw_user_meta_data->>'username', 'user_' || left(new.id::text, 8));
 
   insert into public.profiles (id, email, username, first_name, last_name)
   values (
