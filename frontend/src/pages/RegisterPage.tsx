@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/features/auth/authStore'
 import { registerSchema, type RegisterValues } from '@/features/auth/schemas'
-import { Button, Card, Input } from '@/shared/ui'
+import { Button, Card, Input, PasswordInput } from '@/shared/ui'
 
 export function RegisterPage() {
   const { session, signUpWithPassword } = useAuth()
@@ -88,7 +88,7 @@ export function RegisterPage() {
 
             <div className="space-y-1">
               <label className="text-sm font-medium">Contraseña</label>
-              <Input type="password" autoComplete="new-password" {...form.register('password')} />
+              <PasswordInput autoComplete="new-password" {...form.register('password')} />
               {form.formState.errors.password && (
                 <div className="text-xs text-rose-600">{form.formState.errors.password.message}</div>
               )}
@@ -96,7 +96,7 @@ export function RegisterPage() {
 
             <div className="space-y-1">
               <label className="text-sm font-medium">Confirmar contraseña</label>
-              <Input type="password" autoComplete="new-password" {...form.register('confirmPassword')} />
+              <PasswordInput autoComplete="new-password" {...form.register('confirmPassword')} />
               {form.formState.errors.confirmPassword && (
                 <div className="text-xs text-rose-600">
                   {form.formState.errors.confirmPassword.message}

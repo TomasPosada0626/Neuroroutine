@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/features/auth/authStore'
 import { loginSchema, type LoginValues } from '@/features/auth/schemas'
-import { Button, Card, Input } from '@/shared/ui'
+import { Button, Card, Input, PasswordInput } from '@/shared/ui'
 
 export function LoginPage() {
   const { session, signInWithPassword } = useAuth()
@@ -49,7 +49,7 @@ export function LoginPage() {
 
             <div className="space-y-1">
               <label className="text-sm font-medium">Contraseña</label>
-              <Input type="password" autoComplete="current-password" {...form.register('password')} />
+              <PasswordInput autoComplete="current-password" {...form.register('password')} />
               {form.formState.errors.password && (
                 <div className="text-xs text-rose-600">{form.formState.errors.password.message}</div>
               )}
