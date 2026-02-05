@@ -70,7 +70,6 @@ export function RegisterPage() {
               {form.formState.errors.username && (
                 <div className="text-xs text-rose-600">{form.formState.errors.username.message}</div>
               )}
-              <div className="text-xs text-slate-500">3-24 caracteres: letras, números, punto, guión o guión bajo.</div>
             </div>
 
             <div className="space-y-1">

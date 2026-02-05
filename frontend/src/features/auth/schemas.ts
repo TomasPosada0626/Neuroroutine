@@ -1,19 +1,18 @@
 import { z } from 'zod'
 
-const usernameRegex = /^[a-zA-Z0-9._-]{3,24}$/
-
 export const loginSchema = z.object({
   identifier: z
     .string()
-    .min(3)
+    .trim()
+    .min(1, 'Este campo es obligatorio')
     .refine(
       (v) => {
         const trimmed = v.trim()
         if (trimmed.includes('@')) return z.string().email().safeParse(trimmed).success
-        return usernameRegex.test(trimmed)
+        return trimmed.length > 0
       },
       {
-        message: 'Ingresa un correo válido o un usuario (3-24, letras/números/._-)'
+        message: 'Ingresa un correo válido o tu nombre de usuario',
       },
     ),
   password: z.string().min(6),
@@ -26,8 +25,8 @@ export const registerSchema = z
     username: z
       .string()
       .trim()
-      .toLowerCase()
-      .regex(usernameRegex, 'Usuario inválido (3-24, letras/números/._-)'),
+      .min(1, 'El usuario es obligatorio')
+      .refine((v) => !v.includes('@'), { message: 'El usuario no puede contener @' }),
     email: z.string().email(),
     password: z.string().min(6),
     confirmPassword: z.string().min(6),
