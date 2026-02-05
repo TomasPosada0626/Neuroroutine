@@ -98,7 +98,7 @@ export function LandingPage() {
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto max-w-6xl px-4 py-8">
+      <main className="relative z-10 mx-auto max-w-6xl px-4 py-5 sm:py-8">
         <div className="grid gap-6 lg:grid-cols-12 lg:items-stretch">
           {/* Left: pitch */}
           <div className="lg:col-span-7">
@@ -110,7 +110,7 @@ export function LandingPage() {
               <span className="text-white/90">Auth Supabase</span>
             </div>
 
-            <h1 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
+            <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-5xl">
               Rutinas inteligentes,
               <span className="bg-gradient-to-r from-cyan-300 to-violet-300 bg-clip-text text-transparent">
                 {' '}
@@ -118,12 +118,12 @@ export function LandingPage() {
               </span>
             </h1>
 
-            <p className="mt-4 max-w-xl text-base text-slate-300 sm:text-lg">
+            <p className="mt-3 max-w-xl text-sm text-slate-300 sm:mt-4 sm:text-lg">
               Diseñada para ayudarte a ejecutar lo importante: crea rutinas, desglósalas en tareas y mantén el foco.
               Todo con una UX simple y una arquitectura lista para producción.
             </p>
 
-            <div className="mt-6 flex flex-wrap items-center gap-3">
+            <div className="mt-5 flex flex-wrap items-center gap-3 sm:mt-6">
               <Link
                 to="/register"
                 className={
@@ -149,27 +149,27 @@ export function LandingPage() {
               </div>
             </div>
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <Card className="bg-white/5 p-4 ring-1 ring-white/10">
-                <div className="text-xs text-slate-300">Consistencia</div>
-                <div className="mt-1 text-lg font-semibold">+28%</div>
-                <div className="mt-2">
+            <div className="mt-5 grid grid-cols-3 gap-2 sm:mt-6 sm:gap-3">
+              <Card className="bg-white/5 p-3 ring-1 ring-white/10 sm:p-4">
+                <div className="text-[11px] text-slate-300 sm:text-xs">Consistencia</div>
+                <div className="mt-0.5 text-base font-semibold sm:mt-1 sm:text-lg">+28%</div>
+                <div className="mt-2 hidden sm:block">
                   <Sparkline />
                 </div>
               </Card>
 
-              <Card className="bg-white/5 p-4 ring-1 ring-white/10">
-                <div className="text-xs text-slate-300">Tareas completadas</div>
-                <div className="mt-1 text-lg font-semibold">12 hoy</div>
-                <div className="mt-3">
+              <Card className="bg-white/5 p-3 ring-1 ring-white/10 sm:p-4">
+                <div className="text-[11px] text-slate-300 sm:text-xs">Completadas</div>
+                <div className="mt-0.5 text-base font-semibold sm:mt-1 sm:text-lg">12</div>
+                <div className="mt-2 hidden sm:block">
                   <MiniBars />
                 </div>
               </Card>
 
-              <Card className="bg-white/5 p-4 ring-1 ring-white/10">
-                <div className="text-xs text-slate-300">Streak</div>
-                <div className="mt-1 text-lg font-semibold">7 días</div>
-                <div className="mt-3 flex items-center gap-3">
+              <Card className="bg-white/5 p-3 ring-1 ring-white/10 sm:p-4">
+                <div className="text-[11px] text-slate-300 sm:text-xs">Streak</div>
+                <div className="mt-0.5 text-base font-semibold sm:mt-1 sm:text-lg">7 días</div>
+                <div className="mt-2 hidden items-center gap-3 sm:flex">
                   <div
                     className="h-12 w-12 rounded-full"
                     style={{
@@ -185,7 +185,7 @@ export function LandingPage() {
               </Card>
             </div>
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            <div className="mt-5 hidden gap-3 sm:mt-6 sm:grid sm:grid-cols-2">
               <Card className="bg-white/5 p-4 ring-1 ring-white/10">
                 <div className="text-sm font-semibold">Privacidad real</div>
                 <div className="mt-1 text-sm text-slate-300">
