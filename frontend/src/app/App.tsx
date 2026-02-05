@@ -6,9 +6,11 @@ import { DashboardPage } from '@/pages/DashboardPage'
 import { LandingPage } from '../pages/LandingPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { RegisterPage } from '@/pages/RegisterPage'
+import { useUiStore } from '@/shared/state/uiStore'
 
 export function App() {
   const { init } = useAuth()
+  const theme = useUiStore((s) => s.theme)
 
   useEffect(() => {
     let unsubscribe: (() => void) | null = null
@@ -20,6 +22,13 @@ export function App() {
       unsubscribe?.()
     }
   }, [init])
+
+  useEffect(() => {
+    const isDay = theme === 'day'
+    document.documentElement.style.colorScheme = isDay ? 'light' : 'dark'
+    document.documentElement.classList.toggle('nr-day', isDay)
+    document.documentElement.classList.toggle('nr-night', !isDay)
+  }, [theme])
 
   return (
     <Routes>

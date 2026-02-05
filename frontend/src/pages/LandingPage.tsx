@@ -316,40 +316,68 @@ export function LandingPage() {
   const panelSoft = isDay ? 'bg-slate-50 ring-1 ring-slate-200' : 'bg-slate-950/40 ring-1 ring-white/10'
   const panelDivider = isDay ? 'bg-slate-200' : 'bg-white/10'
 
+  const rootClass = isDay ? 'h-dvh overflow-hidden bg-slate-50 text-slate-900' : 'h-dvh overflow-hidden bg-slate-950 text-slate-50'
+  const headerClass = isDay
+    ? 'relative z-10 border-b border-slate-200 bg-white/70 backdrop-blur'
+    : 'relative z-10 border-b border-white/10 bg-slate-950/50 backdrop-blur'
+  const subtleText = isDay ? 'text-slate-600' : 'text-slate-300'
+  const chipClass = isDay
+    ? 'inline-flex items-center gap-2 rounded-full bg-slate-900/5 px-3 py-1 text-xs ring-1 ring-slate-200'
+    : 'inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs ring-1 ring-white/15'
+  const badgePillClass = isDay
+    ? 'inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-xs text-slate-700 ring-1 ring-slate-200'
+    : 'inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-200 ring-1 ring-white/10'
+  const heroGradientClass = isDay
+    ? 'bg-gradient-to-r from-cyan-700 to-violet-700 bg-clip-text text-transparent'
+    : 'bg-gradient-to-r from-cyan-300 to-violet-300 bg-clip-text text-transparent'
+  const secondaryCtaClass = isDay
+    ? secondaryLinkClass + ' motion-safe:transition motion-safe:duration-300 hover:-translate-y-0.5'
+    : secondaryLinkClass +
+      ' bg-white/10 text-white ring-1 ring-white/15 hover:bg-white/15 motion-safe:transition motion-safe:duration-300 hover:-translate-y-0.5'
+  const headerLoginClass = isDay
+    ? secondaryLinkClass
+    : secondaryLinkClass + ' bg-white/10 text-white ring-1 ring-white/15 hover:bg-white/15 focus:ring-white/30'
+
   return (
-    <div className="h-dvh overflow-hidden bg-slate-950 text-slate-50">
+    <div className={rootClass}>
       {/* Background */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-24 left-1/2 h-72 w-[44rem] -translate-x-1/2 rounded-full bg-gradient-to-r from-cyan-500/30 via-violet-500/20 to-fuchsia-500/20 blur-3xl" />
-        <div className="absolute -bottom-24 left-10 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
-        <div className="absolute -bottom-24 right-10 h-72 w-72 rounded-full bg-violet-500/10 blur-3xl" />
+        <div
+          className={
+            'absolute -top-24 left-1/2 h-72 w-[44rem] -translate-x-1/2 rounded-full blur-3xl ' +
+            (isDay
+              ? 'bg-gradient-to-r from-cyan-500/15 via-violet-500/10 to-fuchsia-500/10'
+              : 'bg-gradient-to-r from-cyan-500/30 via-violet-500/20 to-fuchsia-500/20')
+          }
+        />
+        <div className={"absolute -bottom-24 left-10 h-72 w-72 rounded-full blur-3xl " + (isDay ? 'bg-cyan-500/6' : 'bg-cyan-500/10')} />
+        <div className={"absolute -bottom-24 right-10 h-72 w-72 rounded-full blur-3xl " + (isDay ? 'bg-violet-500/6' : 'bg-violet-500/10')} />
         <div
           className="absolute inset-0 opacity-[0.08]"
           style={{
             backgroundImage:
-              'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.6) 1px, transparent 0)',
+              isDay
+                ? 'radial-gradient(circle at 1px 1px, rgba(15,23,42,0.35) 1px, transparent 0)'
+                : 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.6) 1px, transparent 0)',
             backgroundSize: '18px 18px',
           }}
         />
       </div>
 
-      <header className="relative z-10 border-b border-white/10 bg-slate-950/50 backdrop-blur">
+      <header className={headerClass}>
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-cyan-400 to-violet-500" />
             <div className="leading-tight">
               <div className="text-sm font-semibold">NeuroRoutine</div>
-              <div className="text-xs text-slate-300">Rutinas simples, hábitos sostenibles</div>
+              <div className={"text-xs " + subtleText}>Rutinas simples, hábitos sostenibles</div>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <Link
               to="/login"
-              className={
-                secondaryLinkClass +
-                ' bg-white/10 text-white ring-1 ring-white/15 hover:bg-white/15 focus:ring-white/30'
-              }
+              className={headerLoginClass}
             >
               Iniciar sesión
             </Link>
@@ -370,16 +398,16 @@ export function LandingPage() {
         <div className="grid gap-6 lg:grid-cols-12 lg:items-stretch">
           {/* Left: pitch */}
           <div className="lg:col-span-7">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs ring-1 ring-white/15">
-              <span className="text-white/90">Simple</span>
-              <span className="text-white/30">•</span>
-              <span className="text-white/90">Solo tú lo ves</span>
-              <span className="text-white/30">•</span>
-              <span className="text-white/90">Tu progreso, claro</span>
+            <div className={chipClass}>
+              <span className={isDay ? 'text-slate-800' : 'text-white/90'}>Simple</span>
+              <span className={isDay ? 'text-slate-400' : 'text-white/30'}>•</span>
+              <span className={isDay ? 'text-slate-800' : 'text-white/90'}>Solo tú lo ves</span>
+              <span className={isDay ? 'text-slate-400' : 'text-white/30'}>•</span>
+              <span className={isDay ? 'text-slate-800' : 'text-white/90'}>Tu progreso, claro</span>
             </div>
 
             <div className="mt-3 flex flex-wrap items-center gap-3">
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-200 ring-1 ring-white/10">
+              <div className={badgePillClass}>
                 <span className="h-1.5 w-1.5 rounded-full bg-gradient-to-r from-cyan-400 to-violet-500" />
                 {content.badge}
               </div>
@@ -390,13 +418,13 @@ export function LandingPage() {
 
             <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-5xl">
               Rutinas inteligentes,
-              <span className="bg-gradient-to-r from-cyan-300 to-violet-300 bg-clip-text text-transparent">
+              <span className={heroGradientClass}>
                 {' '}
                 progreso visible.
               </span>
             </h1>
 
-            <p className="mt-3 max-w-xl text-sm text-slate-300 sm:mt-4 sm:text-lg">
+            <p className={"mt-3 max-w-xl text-sm sm:mt-4 sm:text-lg " + subtleText}>
               {content.subtitle}
             </p>
 
@@ -414,16 +442,12 @@ export function LandingPage() {
               </Link>
               <Link
                 to="/login"
-                className={
-                  secondaryLinkClass +
-                  ' bg-white/10 text-white ring-1 ring-white/15 hover:bg-white/15' +
-                  ' motion-safe:transition motion-safe:duration-300 hover:-translate-y-0.5'
-                }
+                className={secondaryCtaClass}
               >
                 Ver mi dashboard
               </Link>
 
-              <div className="flex items-center gap-2 text-xs text-slate-300">
+              <div className={"flex items-center gap-2 text-xs " + subtleText}>
                 <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400" />
                 Listo para empezar hoy
               </div>
