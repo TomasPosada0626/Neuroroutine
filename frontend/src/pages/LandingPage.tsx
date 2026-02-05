@@ -48,18 +48,37 @@ function MiniBars({ bars }: { bars: number[] }) {
 }
 
 type UseCase = 'study' | 'fitness' | 'work'
+type Preset = 'starter' | 'sprint' | 'light'
+type PreviewTheme = 'night' | 'day'
 
-function UseCaseTabs({ value, onChange }: { value: UseCase; onChange: (v: UseCase) => void }) {
+function UseCaseTabs({
+  value,
+  onChange,
+  theme,
+}: {
+  value: UseCase
+  onChange: (v: UseCase) => void
+  theme?: PreviewTheme
+}) {
+  const isDay = theme === 'day'
+  const wrapClass = isDay
+    ? 'inline-flex rounded-lg bg-slate-900/5 p-1 ring-1 ring-slate-200'
+    : 'inline-flex rounded-lg bg-white/5 p-1 ring-1 ring-white/10'
+  const selectedClass = isDay
+    ? 'bg-slate-900 text-white ring-1 ring-slate-900/15'
+    : 'bg-white/10 text-white ring-1 ring-white/15'
+  const unselectedClass = isDay
+    ? 'text-slate-600 hover:bg-slate-900/5 hover:text-slate-900'
+    : 'text-slate-300 hover:bg-white/5 hover:text-white'
+
   return (
-    <div className="inline-flex rounded-lg bg-white/5 p-1 ring-1 ring-white/10">
+    <div className={wrapClass}>
       <button
         type="button"
         onClick={() => onChange('study')}
         className={
           'rounded-md px-2.5 py-1 text-xs font-medium transition ' +
-          (value === 'study'
-            ? 'bg-white/10 text-white ring-1 ring-white/15'
-            : 'text-slate-300 hover:bg-white/5 hover:text-white')
+          (value === 'study' ? selectedClass : unselectedClass)
         }
       >
         Estudio
@@ -69,9 +88,7 @@ function UseCaseTabs({ value, onChange }: { value: UseCase; onChange: (v: UseCas
         onClick={() => onChange('fitness')}
         className={
           'rounded-md px-2.5 py-1 text-xs font-medium transition ' +
-          (value === 'fitness'
-            ? 'bg-white/10 text-white ring-1 ring-white/15'
-            : 'text-slate-300 hover:bg-white/5 hover:text-white')
+          (value === 'fitness' ? selectedClass : unselectedClass)
         }
       >
         Fitness
@@ -81,9 +98,7 @@ function UseCaseTabs({ value, onChange }: { value: UseCase; onChange: (v: UseCas
         onClick={() => onChange('work')}
         className={
           'rounded-md px-2.5 py-1 text-xs font-medium transition ' +
-          (value === 'work'
-            ? 'bg-white/10 text-white ring-1 ring-white/15'
-            : 'text-slate-300 hover:bg-white/5 hover:text-white')
+          (value === 'work' ? selectedClass : unselectedClass)
         }
       >
         Trabajo
@@ -92,8 +107,40 @@ function UseCaseTabs({ value, onChange }: { value: UseCase; onChange: (v: UseCas
   )
 }
 
+function ThemeToggle({ value, onChange }: { value: PreviewTheme; onChange: (v: PreviewTheme) => void }) {
+  const isDay = value === 'day'
+  const buttonClass = isDay
+    ? 'group inline-flex items-center gap-2 rounded-full bg-slate-900/5 px-2 py-1 text-xs text-slate-700 ring-1 ring-slate-200 hover:bg-slate-900/10 focus:outline-none focus:ring-2 focus:ring-slate-300'
+    : 'group inline-flex items-center gap-2 rounded-full bg-white/5 px-2 py-1 text-xs text-slate-200 ring-1 ring-white/10 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/30'
+  const labelClass = isDay ? 'text-slate-700' : 'text-slate-300'
+  const trackClass = isDay
+    ? 'relative inline-flex h-5 w-9 items-center rounded-full bg-slate-200 ring-1 ring-slate-300'
+    : 'relative inline-flex h-5 w-9 items-center rounded-full bg-slate-950/40 ring-1 ring-white/10'
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(isDay ? 'night' : 'day')}
+      className={buttonClass}
+      aria-pressed={isDay}
+      aria-label="Cambiar modo noche/día"
+    >
+      <span className={labelClass}>{isDay ? 'Día' : 'Noche'}</span>
+      <span className={trackClass}>
+        <span
+          className={
+            'inline-block h-4 w-4 rounded-full bg-gradient-to-br from-cyan-300 to-violet-400 shadow transition-transform duration-300 ' +
+            (isDay ? 'translate-x-4' : 'translate-x-1')
+          }
+        />
+      </span>
+    </button>
+  )
+}
+
 export function LandingPage() {
   const [useCase, setUseCase] = useState<UseCase>('study')
+  const [preset, setPreset] = useState<Preset>('starter')
+  const [previewTheme, setPreviewTheme] = useState<PreviewTheme>('night')
   const [isSwitching, setIsSwitching] = useState(false)
   const switchTimerRef = useRef<number | null>(null)
 
@@ -107,6 +154,7 @@ export function LandingPage() {
 
   const handleUseCaseChange = (next: UseCase) => {
     setUseCase(next)
+    setPreset('starter')
     setIsSwitching(true)
     if (switchTimerRef.current != null) {
       window.clearTimeout(switchTimerRef.current)
@@ -120,7 +168,6 @@ export function LandingPage() {
         badge: 'Para estudiar sin procrastinar',
         subtitle:
           'Organiza tu sesión en pasos cortos. Menos “¿por dónde empiezo?” y más avance real.',
-        metricPill: '10s para crear una rutina',
         stat1Label: 'Constancia',
         stat1Value: '+28%',
         stat2Label: 'Bloques hoy',
@@ -129,22 +176,38 @@ export function LandingPage() {
         stat3Value: '7 días',
         weeklyTargetPct: 72,
         bars: [6, 10, 14, 9, 18, 12, 20],
-        tableTitle: 'Plan rápido (Estudio)',
-        tableRows: [
-          { title: 'Repaso 10 min', tasks: 2, status: 'Listo', tone: 'emerald' as const },
-          { title: 'Problemas 25 min', tasks: 4, status: 'En progreso', tone: 'cyan' as const },
-          { title: 'Resumen 5 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
-        ],
-        testimonials: [
-          {
-            quote: '“Me quita fricción. Entro y ya sé qué hacer.”',
-            name: 'Andrea • estudiante',
+        presets: {
+          starter: {
+            label: 'Sesión rápida',
+            metricPill: '10s para armar tu sesión',
+            tableTitle: 'Sesión (Rápida)',
+            tableRows: [
+              { title: 'Repaso 10 min', tasks: 2, status: 'Listo', tone: 'emerald' as const },
+              { title: 'Problemas 25 min', tasks: 4, status: 'En progreso', tone: 'cyan' as const },
+              { title: 'Resumen 5 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
+            ],
           },
-          {
-            quote: '“Mi día dejó de ser una lista infinita: ahora son bloques claros.”',
-            name: 'Luis • autodidacta',
+          sprint: {
+            label: 'Sprint',
+            metricPill: 'Una meta, sin distracciones',
+            tableTitle: 'Sesión (Sprint)',
+            tableRows: [
+              { title: 'Preparar 2 min', tasks: 1, status: 'Listo', tone: 'emerald' as const },
+              { title: 'Deep study 35 min', tasks: 3, status: 'En progreso', tone: 'cyan' as const },
+              { title: 'Cierre 3 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
+            ],
           },
-        ],
+          light: {
+            label: 'Suave',
+            metricPill: 'Empieza pequeño, hoy cuenta',
+            tableTitle: 'Sesión (Suave)',
+            tableRows: [
+              { title: 'Lectura 10 min', tasks: 1, status: 'En progreso', tone: 'cyan' as const },
+              { title: 'Ejercicio 10 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
+              { title: 'Nota 2 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
+            ],
+          },
+        } satisfies Record<Preset, { label: string; metricPill: string; tableTitle: string; tableRows: { title: string; tasks: number; status: string; tone: 'emerald' | 'cyan' | 'neutral' }[] }>,
       }
     }
 
@@ -153,7 +216,6 @@ export function LandingPage() {
         badge: 'Para entrenar y no fallar',
         subtitle:
           'Convierte “tengo que entrenar” en un plan simple. Pequeñas acciones, gran consistencia.',
-        metricPill: 'Rutina lista en 30s',
         stat1Label: 'Constancia',
         stat1Value: '+19%',
         stat2Label: 'Sesiones',
@@ -162,22 +224,38 @@ export function LandingPage() {
         stat3Value: '5 días',
         weeklyTargetPct: 64,
         bars: [8, 12, 9, 14, 11, 16, 13],
-        tableTitle: 'Plan rápido (Fitness)',
-        tableRows: [
-          { title: 'Calentamiento', tasks: 3, status: 'Listo', tone: 'emerald' as const },
-          { title: 'Fuerza', tasks: 5, status: 'En progreso', tone: 'cyan' as const },
-          { title: 'Estiramiento', tasks: 2, status: 'Siguiente', tone: 'neutral' as const },
-        ],
-        testimonials: [
-          {
-            quote: '“Lo hago más seguido porque es simple y rápido.”',
-            name: 'Camila • fitness',
+        presets: {
+          starter: {
+            label: 'Rutina base',
+            metricPill: 'Rutina lista en 30s',
+            tableTitle: 'Rutina (Base)',
+            tableRows: [
+              { title: 'Calentamiento', tasks: 3, status: 'Listo', tone: 'emerald' as const },
+              { title: 'Fuerza', tasks: 5, status: 'En progreso', tone: 'cyan' as const },
+              { title: 'Estiramiento', tasks: 2, status: 'Siguiente', tone: 'neutral' as const },
+            ],
           },
-          {
-            quote: '“Me mantiene constante sin sentirlo pesado.”',
-            name: 'Diego • runner',
+          sprint: {
+            label: 'Express',
+            metricPill: 'Hoy cuenta, aunque sea poco',
+            tableTitle: 'Rutina (Express)',
+            tableRows: [
+              { title: 'Movilidad 4 min', tasks: 2, status: 'Listo', tone: 'emerald' as const },
+              { title: 'Circuito 12 min', tasks: 4, status: 'En progreso', tone: 'cyan' as const },
+              { title: 'Respira 2 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
+            ],
           },
-        ],
+          light: {
+            label: 'Suave',
+            metricPill: 'Sin presión, solo movimiento',
+            tableTitle: 'Rutina (Suave)',
+            tableRows: [
+              { title: 'Caminata 10 min', tasks: 1, status: 'En progreso', tone: 'cyan' as const },
+              { title: 'Estira 5 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
+              { title: 'Agua', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
+            ],
+          },
+        } satisfies Record<Preset, { label: string; metricPill: string; tableTitle: string; tableRows: { title: string; tasks: number; status: string; tone: 'emerald' | 'cyan' | 'neutral' }[] }>,
       }
     }
 
@@ -185,7 +263,6 @@ export function LandingPage() {
       badge: 'Para trabajar con calma',
       subtitle:
         'Define 3 prioridades, conviértelas en tareas y avanza sin ruido. Lo esencial, claro.',
-      metricPill: 'Plan del día en 1 min',
       stat1Label: 'Claridad',
       stat1Value: '+22%',
       stat2Label: 'Prioridades',
@@ -194,26 +271,49 @@ export function LandingPage() {
       stat3Value: '6 días',
       weeklyTargetPct: 68,
       bars: [10, 9, 13, 11, 15, 12, 18],
-      tableTitle: 'Plan rápido (Trabajo)',
-      tableRows: [
-        { title: 'Inbox 10 min', tasks: 2, status: 'Listo', tone: 'emerald' as const },
-        { title: 'Proyecto 45 min', tasks: 3, status: 'En progreso', tone: 'cyan' as const },
-        { title: 'Cierre 5 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
-      ],
-      testimonials: [
-        {
-          quote: '“Me ayuda a enfocarme sin sentirme abrumado.”',
-          name: 'Sofía • producto',
+      presets: {
+        starter: {
+          label: 'Día claro',
+          metricPill: 'Plan del día en 1 min',
+          tableTitle: 'Día (Claro)',
+          tableRows: [
+            { title: 'Inbox 10 min', tasks: 2, status: 'Listo', tone: 'emerald' as const },
+            { title: 'Proyecto 45 min', tasks: 3, status: 'En progreso', tone: 'cyan' as const },
+            { title: 'Cierre 5 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
+          ],
         },
-        {
-          quote: '“Ahora sí cierro el día con sensación de avance.”',
-          name: 'Julián • dev',
+        sprint: {
+          label: 'Deep work',
+          metricPill: '1 tarea importante, primero',
+          tableTitle: 'Día (Deep work)',
+          tableRows: [
+            { title: 'Prioridad #1', tasks: 1, status: 'En progreso', tone: 'cyan' as const },
+            { title: 'Reunión / update', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
+            { title: 'Cierre 5 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
+          ],
         },
-      ],
+        light: {
+          label: 'Suave',
+          metricPill: 'Haz lo mínimo, gana el día',
+          tableTitle: 'Día (Suave)',
+          tableRows: [
+            { title: '3 prioridades', tasks: 3, status: 'Listo', tone: 'emerald' as const },
+            { title: '1 pendiente fácil', tasks: 1, status: 'En progreso', tone: 'cyan' as const },
+            { title: 'Cierre 2 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
+          ],
+        },
+      } satisfies Record<Preset, { label: string; metricPill: string; tableTitle: string; tableRows: { title: string; tasks: number; status: string; tone: 'emerald' | 'cyan' | 'neutral' }[] }>,
     }
   }, [useCase])
 
-  const filledDays = Math.max(1, Math.min(7, Math.round((content.weeklyTargetPct / 100) * 7)))
+  const activePreset = content.presets[preset]
+  const isDay = previewTheme === 'day'
+  const panelClass = isDay
+    ? 'bg-white text-slate-900 ring-1 ring-slate-200'
+    : 'bg-white/5 text-slate-50 ring-1 ring-white/10'
+  const panelMutedText = isDay ? 'text-slate-600' : 'text-slate-300'
+  const panelSoft = isDay ? 'bg-slate-50 ring-1 ring-slate-200' : 'bg-slate-950/40 ring-1 ring-white/10'
+  const panelDivider = isDay ? 'bg-slate-200' : 'bg-white/10'
 
   return (
     <div className="h-dvh overflow-hidden bg-slate-950 text-slate-50">
@@ -283,7 +383,7 @@ export function LandingPage() {
                 {content.badge}
               </div>
               <div className="sm:hidden">
-                <UseCaseTabs value={useCase} onChange={handleUseCaseChange} />
+                <UseCaseTabs value={useCase} onChange={handleUseCaseChange} theme={previewTheme} />
               </div>
             </div>
 
@@ -329,7 +429,7 @@ export function LandingPage() {
 
               <div className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-200 ring-1 ring-white/10">
                 <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
-                {content.metricPill}
+                {activePreset.metricPill}
               </div>
             </div>
 
@@ -387,47 +487,68 @@ export function LandingPage() {
 
           {/* Right: dashboard preview (hidden on small screens to prevent scroll) */}
           <div className="hidden lg:col-span-5 lg:block">
-            <div className="h-full rounded-2xl bg-white/5 p-5 ring-1 ring-white/10">
+            <div className={"h-full rounded-2xl p-5 " + panelClass}>
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-sm font-semibold">Vista previa</div>
-                  <div className="text-xs text-slate-300">Elige un caso y mira cómo se ve</div>
+                  <div className={"text-xs " + panelMutedText}>Elige un caso y mira cómo se ve</div>
                 </div>
                 <UseCaseTabs value={useCase} onChange={handleUseCaseChange} />
               </div>
 
               <div className="mt-4 grid gap-3">
-                <div className="rounded-xl bg-slate-950/40 p-4 ring-1 ring-white/10">
+                <div className={"rounded-xl p-4 " + panelSoft}>
                   <div className="flex items-center justify-between">
-                    <div className="text-xs text-slate-300">{content.tableTitle}</div>
-                    <div className="text-xs text-slate-300">Hoy</div>
+                    <div className={"text-xs " + panelMutedText}>{activePreset.tableTitle}</div>
+                    <div className={"text-xs " + panelMutedText}>Hoy</div>
                   </div>
 
-                  <div className="mt-3 overflow-hidden rounded-lg ring-1 ring-white/10">
+                  <div className={"mt-3 overflow-hidden rounded-lg ring-1 " + (isDay ? 'ring-slate-200' : 'ring-white/10')}>
                     <table className="w-full text-left text-xs">
-                      <thead className="bg-white/5 text-slate-300">
+                      <thead className={isDay ? 'bg-slate-100 text-slate-600' : 'bg-white/5 text-slate-300'}>
                         <tr>
                           <th className="px-3 py-2 font-medium">Título</th>
                           <th className="px-3 py-2 font-medium">Tareas</th>
                           <th className="px-3 py-2 font-medium">Estado</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-white/10 text-slate-200">
-                        {content.tableRows.map((r) => (
+                      <tbody className={"divide-y " + (isDay ? 'divide-slate-200 text-slate-900' : 'divide-white/10 text-slate-200')}>
+                        {activePreset.tableRows.map((r) => (
                           <tr key={r.title} className={isSwitching ? 'opacity-70' : 'opacity-100'}>
                             <td className="px-3 py-2">{r.title}</td>
                             <td className="px-3 py-2">{r.tasks}</td>
                             <td className="px-3 py-2">
                               {r.tone === 'emerald' ? (
-                                <span className="rounded-full bg-emerald-400/15 px-2 py-0.5 text-emerald-200 ring-1 ring-emerald-400/20">
+                                <span
+                                  className={
+                                    'rounded-full px-2 py-0.5 ring-1 ' +
+                                    (isDay
+                                      ? 'bg-emerald-500/10 text-emerald-700 ring-emerald-500/20'
+                                      : 'bg-emerald-400/15 text-emerald-200 ring-emerald-400/20')
+                                  }
+                                >
                                   {r.status}
                                 </span>
                               ) : r.tone === 'cyan' ? (
-                                <span className="rounded-full bg-cyan-400/15 px-2 py-0.5 text-cyan-200 ring-1 ring-cyan-400/20">
+                                <span
+                                  className={
+                                    'rounded-full px-2 py-0.5 ring-1 ' +
+                                    (isDay
+                                      ? 'bg-cyan-500/10 text-cyan-700 ring-cyan-500/20'
+                                      : 'bg-cyan-400/15 text-cyan-200 ring-cyan-400/20')
+                                  }
+                                >
                                   {r.status}
                                 </span>
                               ) : (
-                                <span className="rounded-full bg-white/10 px-2 py-0.5 text-slate-200 ring-1 ring-white/10">
+                                <span
+                                  className={
+                                    'rounded-full px-2 py-0.5 ring-1 ' +
+                                    (isDay
+                                      ? 'bg-slate-900/5 text-slate-700 ring-slate-300'
+                                      : 'bg-white/10 text-slate-200 ring-white/10')
+                                  }
+                                >
                                   {r.status}
                                 </span>
                               )}
@@ -440,75 +561,63 @@ export function LandingPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-xl bg-slate-950/40 p-4 ring-1 ring-white/10">
-                    <div className="text-xs text-slate-300">Avance</div>
+                  <div className={"rounded-xl p-4 " + panelSoft}>
+                    <div className={"text-xs " + panelMutedText}>Avance</div>
                     <div className="mt-1 text-base font-semibold">Se siente mejor</div>
-                    <div className="mt-3 h-2 rounded-full bg-white/10">
+                    <div className={"mt-3 h-2 rounded-full " + panelDivider}>
                       <div
                         className="h-2 rounded-full bg-gradient-to-r from-cyan-400 to-violet-500 motion-safe:transition-all motion-safe:duration-300"
                         style={{ width: `${content.weeklyTargetPct}%` }}
                       />
                     </div>
-                    <div className="mt-2 text-xs text-slate-300">Más claridad con menos esfuerzo</div>
+                    <div className={"mt-2 text-xs " + panelMutedText}>Más claridad con menos esfuerzo</div>
                   </div>
-                  <div className="rounded-xl bg-slate-950/40 p-4 ring-1 ring-white/10">
-                    <div className="text-xs text-slate-300">Hoy</div>
+                  <div className={"rounded-xl p-4 " + panelSoft}>
+                    <div className={"text-xs " + panelMutedText}>Hoy</div>
                     <div className="mt-1 text-base font-semibold">Hecho es mejor</div>
                     <div className="mt-3 flex gap-2">
                       <div className="h-6 flex-1 rounded-md bg-cyan-400/25 ring-1 ring-cyan-400/20" />
                       <div className="h-6 flex-1 rounded-md bg-violet-400/25 ring-1 ring-violet-400/20" />
-                      <div className="h-6 flex-1 rounded-md bg-white/10 ring-1 ring-white/10" />
+                      <div className={"h-6 flex-1 rounded-md ring-1 " + (isDay ? 'bg-slate-900/5 ring-slate-200' : 'bg-white/10 ring-white/10')} />
                     </div>
-                    <div className="mt-2 text-xs text-slate-300">Pequeños pasos, gran progreso</div>
+                    <div className={"mt-2 text-xs " + panelMutedText}>Pequeños pasos, gran progreso</div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-xl bg-white/5 p-4 ring-1 ring-white/10">
-                    <div className="text-xs text-slate-300">En 3 pasos</div>
-                    <div className="mt-2 space-y-2 text-sm text-slate-200">
-                      <div className="flex items-start gap-2">
-                        <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-md bg-cyan-400/15 text-cyan-200 ring-1 ring-cyan-400/20">
-                          1
-                        </span>
-                        <div>
-                          Elige un objetivo <span className="text-slate-400">({useCase === 'study' ? 'estudiar' : useCase === 'fitness' ? 'entrenar' : 'trabajar'})</span>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-md bg-violet-400/15 text-violet-200 ring-1 ring-violet-400/20">
-                          2
-                        </span>
-                        <div>Divide en tareas pequeñas</div>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-md bg-emerald-400/15 text-emerald-200 ring-1 ring-emerald-400/20">
-                          3
-                        </span>
-                        <div>Marca lo hecho y sigue</div>
+                <div className={"rounded-xl p-3 " + (isDay ? 'bg-slate-50 ring-1 ring-slate-200' : 'bg-white/5 ring-1 ring-white/10')}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className={"text-xs " + panelMutedText}>Plantillas rápidas</div>
+                      <div className={"text-xs " + (isDay ? 'text-slate-500' : 'text-slate-400')}>
+                        Un clic para ajustar el plan
                       </div>
                     </div>
+                    <ThemeToggle value={previewTheme} onChange={setPreviewTheme} />
                   </div>
 
-                  <div className="rounded-xl bg-white/5 p-4 ring-1 ring-white/10">
-                    <div className="flex items-center justify-between">
-                      <div className="text-xs text-slate-300">Tu semana</div>
-                      <div className="text-xs text-slate-400">{content.weeklyTargetPct}%</div>
-                    </div>
-                    <div className="mt-2 grid grid-cols-7 gap-1.5" aria-hidden="true">
-                      {Array.from({ length: 7 }).map((_, idx) => (
-                        <div
-                          key={idx}
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {(Object.keys(content.presets) as Preset[]).map((key) => {
+                      const selected = preset === key
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setPreset(key)}
                           className={
-                            'h-6 rounded-md ring-1 ring-white/10 motion-safe:transition-all motion-safe:duration-300 ' +
-                            (idx < filledDays
-                              ? 'bg-gradient-to-br from-cyan-400/35 to-violet-500/25'
-                              : 'bg-slate-950/30')
+                            'rounded-full px-2.5 py-1 text-xs font-medium ring-1 motion-safe:transition motion-safe:duration-300 ' +
+                            (selected
+                              ? isDay
+                                ? 'bg-slate-900 text-white ring-slate-900/20'
+                                : 'bg-white/10 text-white ring-white/15'
+                              : isDay
+                                ? 'bg-white text-slate-700 ring-slate-200 hover:bg-slate-100'
+                                : 'bg-slate-950/30 text-slate-200 ring-white/10 hover:bg-white/10')
                           }
-                        />
-                      ))}
-                    </div>
-                    <div className="mt-2 text-xs text-slate-300">Pequeños pasos &gt; días perfectos</div>
+                        >
+                          {content.presets[key].label}
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
               </div>
