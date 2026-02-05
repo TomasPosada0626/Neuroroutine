@@ -58,6 +58,16 @@ export async function listTasks(routineId: string): Promise<RoutineTask[]> {
   return (data ?? []) as RoutineTask[]
 }
 
+export async function listAllTasks(): Promise<RoutineTask[]> {
+  const { data, error } = await supabase
+    .from('routine_tasks')
+    .select('*')
+    .order('updated_at', { ascending: false })
+
+  if (error) throw error
+  return (data ?? []) as RoutineTask[]
+}
+
 export async function createTask(input: {
   user_id: string
   routine_id: string

@@ -5,6 +5,7 @@ import {
   createTask,
   deleteRoutine,
   deleteTask,
+  listAllTasks,
   listRoutines,
   listTasks,
   toggleTaskDone,
@@ -18,8 +19,10 @@ type RoutinesState = {
   routines: Routine[]
   selectedRoutineId: string | null
   tasksByRoutineId: Record<string, RoutineTask[]>
+  allTasks: RoutineTask[]
 
   loadRoutines: () => Promise<void>
+  loadAllTasks: () => Promise<void>
   selectRoutine: (id: string | null) => void
 
   addRoutine: (input: { user_id: string; title: string; notes?: string | null }) => Promise<void>
@@ -39,6 +42,7 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
   routines: [],
   selectedRoutineId: null,
   tasksByRoutineId: {},
+  allTasks: [],
 
   loadRoutines: async () => {
     set({ loading: true, error: null })
@@ -51,6 +55,18 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
       }
     } catch (e) {
       set({ error: e instanceof Error ? e.message : 'Failed to load routines' })
+    } finally {
+      set({ loading: false })
+    }
+  },
+
+  loadAllTasks: async () => {
+    set({ loading: true, error: null })
+    try {
+      const allTasks = await listAllTasks()
+      set({ allTasks })
+    } catch (e) {
+      set({ error: e instanceof Error ? e.message : 'Failed to load tasks' })
     } finally {
       set({ loading: false })
     }
@@ -120,6 +136,7 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
     try {
       const created = await createTask(input)
       set((s) => ({
+        allTasks: [created, ...s.allTasks],
         tasksByRoutineId: {
           ...s.tasksByRoutineId,
           [input.routine_id]: [...(s.tasksByRoutineId[input.routine_id] ?? []), created],
@@ -137,6 +154,7 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
     try {
       const updated = await toggleTaskDone({ id: input.id, is_done: input.is_done })
       set((s) => ({
+        allTasks: s.allTasks.map((t) => (t.id === updated.id ? updated : t)),
         tasksByRoutineId: {
           ...s.tasksByRoutineId,
           [input.routine_id]: (s.tasksByRoutineId[input.routine_id] ?? []).map((t) =>
@@ -156,6 +174,7 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
     try {
       await deleteTask(input.id)
       set((s) => ({
+        allTasks: s.allTasks.filter((t) => t.id !== input.id),
         tasksByRoutineId: {
           ...s.tasksByRoutineId,
           [input.routine_id]: (s.tasksByRoutineId[input.routine_id] ?? []).filter(
