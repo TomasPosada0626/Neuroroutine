@@ -3,9 +3,30 @@ import { useAuth } from '@/features/auth/authStore'
 import { useRoutines } from '@/features/routines/routinesStore'
 import { RoutineFormModal } from '@/features/routines/components'
 import { Button, Card, Input } from '@/shared/ui'
+import { useUiStore } from '@/shared/state/uiStore'
 
 export function RoutinePanel() {
   const { user } = useAuth()
+  const theme = useUiStore((s) => s.theme)
+  const isDay = theme === 'day'
+
+  const subtleText = isDay ? 'text-slate-500' : 'text-slate-300'
+  const secondaryText = isDay ? 'text-slate-600' : 'text-slate-200'
+
+  const emptyStateClass = isDay
+    ? 'rounded-lg bg-slate-50 p-3 text-sm text-slate-600 ring-1 ring-slate-200'
+    : 'rounded-lg bg-white/5 p-3 text-sm text-slate-200 ring-1 ring-white/10'
+
+  const routineItemClass = (selected: boolean) => {
+    const base = 'w-full rounded-lg px-3 py-2 text-left text-sm ring-1 transition '
+    if (isDay) {
+      return (
+        base + (selected ? 'bg-slate-900 text-white ring-slate-900' : 'bg-white ring-slate-200 hover:bg-slate-50')
+      )
+    }
+
+    return base + (selected ? 'bg-white/12 text-white ring-white/20' : 'bg-white/5 text-slate-50 ring-white/10 hover:bg-white/7')
+  }
   const {
     loading,
     error,
@@ -86,7 +107,7 @@ export function RoutinePanel() {
         <div className="mb-3 flex items-center justify-between">
           <div>
             <div className="text-sm font-semibold">Rutinas</div>
-            <div className="text-xs text-slate-500">Solo las tuyas (RLS)</div>
+            <div className={'text-xs ' + subtleText}>Solo las tuyas (RLS)</div>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="secondary" onClick={() => setCreateOpen(true)} disabled={!user || loading}>
@@ -100,20 +121,13 @@ export function RoutinePanel() {
 
         <div className="space-y-2">
           {routines.length === 0 ? (
-            <div className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600 ring-1 ring-slate-200">
-              Aún no tienes rutinas.
-            </div>
+            <div className={emptyStateClass}>Aún no tienes rutinas.</div>
           ) : (
             <div className="space-y-2">
               {routines.map((r) => (
                 <button
                   key={r.id}
-                  className={
-                    'w-full rounded-lg px-3 py-2 text-left text-sm ring-1 transition ' +
-                    (r.id === selectedRoutineId
-                      ? 'bg-slate-900 text-white ring-slate-900'
-                      : 'bg-white ring-slate-200 hover:bg-slate-50')
-                  }
+                  className={routineItemClass(r.id === selectedRoutineId)}
                   onClick={() => selectRoutine(r.id)}
                 >
                   <div className="font-medium">{r.title}</div>
@@ -129,14 +143,14 @@ export function RoutinePanel() {
 
       <Card className="lg:col-span-2">
         {!selectedRoutine ? (
-          <div className="text-sm text-slate-600">Selecciona una rutina para ver tareas.</div>
+          <div className={'text-sm ' + secondaryText}>Selecciona una rutina para ver tareas.</div>
         ) : (
           <div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <div className="text-lg font-semibold">{selectedRoutine.title}</div>
                 {selectedRoutine.notes ? (
-                  <div className="text-sm text-slate-600">{selectedRoutine.notes}</div>
+                  <div className={'text-sm ' + secondaryText}>{selectedRoutine.notes}</div>
                 ) : null}
               </div>
               <div className="flex items-center gap-2">
@@ -185,14 +199,15 @@ export function RoutinePanel() {
 
               <div className="mt-3 space-y-2">
                 {tasks.length === 0 ? (
-                  <div className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600 ring-1 ring-slate-200">
-                    Aún no hay tareas.
-                  </div>
+                  <div className={emptyStateClass}>Aún no hay tareas.</div>
                 ) : (
                   tasks.map((t) => (
                     <div
                       key={t.id}
-                      className="flex items-center justify-between gap-3 rounded-lg bg-white p-3 ring-1 ring-slate-200"
+                      className={
+                        'flex items-center justify-between gap-3 rounded-lg p-3 ring-1 ' +
+                        (isDay ? 'bg-white ring-slate-200' : 'bg-white/5 ring-white/10')
+                      }
                     >
                       <label className="flex items-center gap-2 text-sm">
                         <input

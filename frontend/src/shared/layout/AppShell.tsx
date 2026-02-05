@@ -9,10 +9,11 @@ export function AppShell({ children }: PropsWithChildren) {
   const theme = useUiStore((s) => s.theme)
   const isDay = theme === 'day'
 
-  const rootClass = isDay ? 'min-h-dvh bg-slate-50 text-slate-900' : 'min-h-dvh bg-slate-950 text-slate-50'
+  // Slightly lighter than the landing page in night mode.
+  const rootClass = isDay ? 'min-h-dvh bg-slate-50 text-slate-900' : 'min-h-dvh bg-slate-900 text-slate-50'
   const headerClass = isDay
     ? 'sticky top-0 z-10 border-b border-slate-200 bg-white/70 backdrop-blur'
-    : 'sticky top-0 z-10 border-b border-white/10 bg-slate-950/50 backdrop-blur'
+    : 'sticky top-0 z-10 border-b border-white/10 bg-slate-900/60 backdrop-blur'
   const subtleText = isDay ? 'text-slate-500' : 'text-slate-300'
   const logoClass = isDay ? 'h-8 w-8 rounded-lg bg-slate-900' : 'h-8 w-8 rounded-lg bg-gradient-to-br from-cyan-400 to-violet-500'
 
