@@ -21,12 +21,8 @@ export function RegisterPage() {
   const dividerLineClass = isDay ? 'h-px flex-1 bg-slate-200' : 'h-px flex-1 bg-white/10'
   const dividerTextClass = isDay ? 'text-xs text-slate-500' : 'text-xs text-slate-300'
   const labelClass = isDay ? 'text-sm font-medium text-slate-800' : 'text-sm font-medium text-slate-200'
-  const inputClass = isDay
-    ? 'bg-white text-slate-900 ring-1 ring-slate-200 placeholder:text-slate-400 focus:ring-cyan-500/25'
-    : 'bg-slate-950/40 text-white ring-1 ring-white/10 placeholder:text-slate-400 focus:ring-cyan-400/40'
-  const toggleClass = isDay
-    ? 'text-slate-700 hover:bg-slate-900/5 focus:ring-slate-300'
-    : 'text-slate-200 hover:bg-white/10 focus:ring-white/30'
+  const inputClass = 'bg-white text-slate-900 ring-1 ring-slate-200 placeholder:text-slate-400 focus:ring-cyan-500/25'
+  const toggleClass = 'text-slate-700 hover:bg-slate-100 focus:ring-cyan-500/25'
   const helperTextClass = isDay ? 'text-xs text-slate-500' : 'text-xs text-slate-400'
   const linkClass = isDay
     ? 'text-slate-900 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-700'
