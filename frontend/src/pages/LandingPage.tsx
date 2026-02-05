@@ -9,6 +9,13 @@ const primaryLinkClass =
 const secondaryLinkClass =
   'inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50'
 
+const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
+
+const parseFirstInt = (value: string) => {
+  const m = value.match(/-?\d+/)
+  return m ? Number(m[0]) : 0
+}
+
 function Sparkline() {
   return (
     <svg viewBox="0 0 120 40" className="h-10 w-full" aria-hidden="true">
@@ -56,12 +63,6 @@ const presetForEnergy = (level: EnergyLevel): Preset => {
   if (level === 'low') return 'light'
   if (level === 'high') return 'sprint'
   return 'starter'
-}
-
-const energyForPreset = (preset: Preset): EnergyLevel => {
-  if (preset === 'light') return 'low'
-  if (preset === 'sprint') return 'high'
-  return 'medium'
 }
 
 function UseCaseTabs({
@@ -150,8 +151,9 @@ export function LandingPage() {
   }
 
   const content = useMemo(() => {
-    if (useCase === 'study') {
-      return {
+    const base = (() => {
+      if (useCase === 'study') {
+        return {
         badge: 'Para estudiar sin procrastinar',
         subtitle:
           'Organiza tu sesión en pasos cortos. Menos “¿por dónde empiezo?” y más avance real.',
@@ -180,7 +182,7 @@ export function LandingPage() {
             tableTitle: 'Sesión (Sprint)',
             tableRows: [
               { title: 'Preparar 2 min', tasks: 1, status: 'Listo', tone: 'emerald' as const },
-              { title: 'Deep study 35 min', tasks: 3, status: 'En progreso', tone: 'cyan' as const },
+              { title: 'Deep study 35 min', tasks: 3, status: 'Listo', tone: 'emerald' as const },
               { title: 'Cierre 3 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
             ],
           },
@@ -195,11 +197,11 @@ export function LandingPage() {
             ],
           },
         } satisfies Record<Preset, { label: string; metricPill: string; tableTitle: string; tableRows: { title: string; tasks: number; status: string; tone: 'emerald' | 'cyan' | 'neutral' }[] }>,
+        }
       }
-    }
 
-    if (useCase === 'fitness') {
-      return {
+      if (useCase === 'fitness') {
+        return {
         badge: 'Para entrenar y no fallar',
         subtitle:
           'Convierte “tengo que entrenar” en un plan simple. Pequeñas acciones, gran consistencia.',
@@ -228,7 +230,7 @@ export function LandingPage() {
             tableTitle: 'Rutina (Express)',
             tableRows: [
               { title: 'Movilidad 4 min', tasks: 2, status: 'Listo', tone: 'emerald' as const },
-              { title: 'Circuito 12 min', tasks: 4, status: 'En progreso', tone: 'cyan' as const },
+              { title: 'Circuito 12 min', tasks: 4, status: 'Listo', tone: 'emerald' as const },
               { title: 'Respira 2 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
             ],
           },
@@ -243,10 +245,10 @@ export function LandingPage() {
             ],
           },
         } satisfies Record<Preset, { label: string; metricPill: string; tableTitle: string; tableRows: { title: string; tasks: number; status: string; tone: 'emerald' | 'cyan' | 'neutral' }[] }>,
+        }
       }
-    }
 
-    return {
+      return {
       badge: 'Para trabajar con calma',
       subtitle:
         'Define 3 prioridades, conviértelas en tareas y avanza sin ruido. Lo esencial, claro.',
@@ -274,8 +276,8 @@ export function LandingPage() {
           metricPill: '1 tarea importante, primero',
           tableTitle: 'Día (Deep work)',
           tableRows: [
-            { title: 'Prioridad #1', tasks: 1, status: 'En progreso', tone: 'cyan' as const },
-            { title: 'Reunión / update', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
+            { title: 'Prioridad #1', tasks: 1, status: 'Listo', tone: 'emerald' as const },
+            { title: 'Reunión / update', tasks: 1, status: 'En progreso', tone: 'cyan' as const },
             { title: 'Cierre 5 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
           ],
         },
@@ -290,10 +292,36 @@ export function LandingPage() {
           ],
         },
       } satisfies Record<Preset, { label: string; metricPill: string; tableTitle: string; tableRows: { title: string; tasks: number; status: string; tone: 'emerald' | 'cyan' | 'neutral' }[] }>,
+      }
+    })()
+
+    const pct = parseFirstInt(base.stat1Value)
+    const count = parseFirstInt(base.stat2Value)
+    const days = parseFirstInt(base.stat3Value)
+
+    const pctDelta = energy === 'low' ? -12 : energy === 'high' ? 9 : 0
+    const countDelta = energy === 'low' ? -1 : energy === 'high' ? 1 : 0
+    const daysDelta = energy === 'low' ? -3 : energy === 'high' ? 4 : 0
+    const weeklyDelta = energy === 'low' ? -16 : energy === 'high' ? 12 : 0
+    const barScale = energy === 'low' ? 0.86 : energy === 'high' ? 1.12 : 1
+
+    return {
+      ...base,
+      stat1Value: `+${clamp(pct + pctDelta, 6, 60)}%`,
+      stat2Value: String(clamp(count + countDelta, 1, 6)),
+      stat3Value: `${clamp(days + daysDelta, 1, 30)} días`,
+      weeklyTargetPct: clamp(base.weeklyTargetPct + weeklyDelta, 35, 95),
+      bars: base.bars.map((v) => clamp(Math.round(v * barScale), 4, 22)),
     }
-  }, [useCase])
+  }, [useCase, energy])
 
   const activePreset = content.presets[preset]
+  const energyHint =
+    energy === 'high'
+      ? 'Alta energía: más impulso y más avance'
+      : energy === 'low'
+        ? 'Baja energía: lo esencial, sin presión'
+        : 'Energía media: ritmo constante'
   const demoItems = useMemo(
     () => activePreset.tableRows.map((r) => r.title).slice(0, 3),
     [activePreset.tableRows]
@@ -597,7 +625,7 @@ export function LandingPage() {
                         style={{ width: `${content.weeklyTargetPct}%` }}
                       />
                     </div>
-                    <div className={"mt-2 text-xs " + panelMutedText}>Más claridad con menos esfuerzo</div>
+                    <div className={"mt-2 text-xs " + panelMutedText}>{energyHint}</div>
                   </div>
                   <div className={"rounded-xl p-4 " + panelSoft}>
                     <div className={"text-xs " + panelMutedText}>Hoy</div>
@@ -607,7 +635,7 @@ export function LandingPage() {
                       <div className="h-6 flex-1 rounded-md bg-violet-400/25 ring-1 ring-violet-400/20" />
                       <div className={"h-6 flex-1 rounded-md ring-1 " + (isDay ? 'bg-slate-900/5 ring-slate-200' : 'bg-white/10 ring-white/10')} />
                     </div>
-                    <div className={"mt-2 text-xs " + panelMutedText}>Pequeños pasos, gran progreso</div>
+                    <div className={"mt-2 text-xs " + panelMutedText}>{energyHint}</div>
                   </div>
                 </div>
 
@@ -729,35 +757,6 @@ export function LandingPage() {
                         </div>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {(Object.keys(content.presets) as Preset[]).map((key) => {
-                      const selected = preset === key
-                      return (
-                        <button
-                          key={key}
-                          type="button"
-                          onClick={() => {
-                            setPreset(key)
-                            setEnergy(energyForPreset(key))
-                            setDemoStep(0)
-                          }}
-                          className={
-                            'rounded-full px-2.5 py-1 text-xs font-medium ring-1 motion-safe:transition motion-safe:duration-300 ' +
-                            (selected
-                              ? isDay
-                                ? 'bg-slate-900 text-white ring-slate-900/20'
-                                : 'bg-white/10 text-white ring-white/15'
-                              : isDay
-                                ? 'bg-white text-slate-700 ring-slate-200 hover:bg-slate-100'
-                                : 'bg-slate-950/30 text-slate-200 ring-white/10 hover:bg-white/10')
-                          }
-                        >
-                          {content.presets[key].label}
-                        </button>
-                      )
-                    })}
                   </div>
                 </div>
               </div>
