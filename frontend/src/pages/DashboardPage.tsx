@@ -3,11 +3,11 @@ import { useLocation } from 'react-router-dom'
 import { useAuth } from '@/features/auth/authStore'
 import { useDashboardPrefs, type DashboardWidgetId, type RoutineSchedule } from '@/features/dashboard/dashboardPrefsStore'
 import { computeDayActivitySet, computeStreaks, computeWeekCounts, formatTimeAgo } from '@/features/dashboard/dashboardUtils'
-import { clearDashboardDemoData, seedDashboardDemoData } from '@/features/dashboard/seedDemoData'
+import { clearDashboardDemoData, seedDashboardDemoData, seedFullDemoData } from '@/features/dashboard/seedDemoData'
 import { WidgetOrderEditor } from '@/features/dashboard/WidgetOrderEditor'
 import { RoutineWizardModal } from '@/features/routines/components/RoutineWizardModal'
 import { RoutinePanel } from '@/features/routines/components/RoutinePanel'
-import { useRoutines } from '@/features/routines/routinesStore'
+import { useRoutines, useRoutinesStore } from '@/features/routines/routinesStore'
 import { AppShell } from '@/shared/layout'
 import { cn } from '@/shared/lib/cn'
 import { useUiStore } from '@/shared/state/uiStore'
@@ -42,6 +42,27 @@ function startOfWeekMondayLocal(d: Date) {
   const day = x.getDay() // 0..6 (Sun..Sat)
   const diff = (day + 6) % 7 // Mon=0
   x.setDate(x.getDate() - diff)
+  return x
+}
+
+function startOfWeekLocal(d: Date, weekStartsOn: 0 | 1) {
+  if (weekStartsOn === 1) return startOfWeekMondayLocal(d)
+  const x = startOfDayLocal(d)
+  x.setDate(x.getDate() - x.getDay())
+  return x
+}
+
+function endOfWeekLocal(d: Date, weekStartsOn: 0 | 1) {
+  const start = startOfWeekLocal(d, weekStartsOn)
+  const end = new Date(start)
+  end.setDate(start.getDate() + 6)
+  end.setHours(0, 0, 0, 0)
+  return end
+}
+
+function addDaysLocal(d: Date, days: number) {
+  const x = new Date(d)
+  x.setDate(x.getDate() + days)
   return x
 }
 
@@ -131,6 +152,39 @@ export function DashboardPage() {
   const [reminderSaved, setReminderSaved] = useState(false)
   const [scheduleRoutineId, setScheduleRoutineId] = useState<string | null>(null)
 
+  const applyDemoScheduleDefaults = () => {
+    const hasAnySchedule = Object.keys(prefs.routineScheduleById ?? {}).length > 0
+    if (hasAnySchedule) return
+
+    const all = useRoutinesStore.getState().routines
+    if (!all || all.length === 0) return
+
+    // Prefer demo routines if present.
+    const demo = all.filter((r) => r.title?.startsWith('Demo:'))
+    const list = (demo.length ? demo : all).slice(0, 6)
+    if (list.length === 0) return
+
+    // Simple, sensible defaults so “Hoy”/“Próximo” aren't empty.
+    const daySets: number[][] = [
+      [1, 3, 5], // Mon/Wed/Fri
+      [2, 4], // Tue/Thu
+      [0, 6], // Sun/Sat
+      [1, 4],
+      [2, 5],
+      [3],
+    ]
+    list.forEach((r, idx) => {
+      prefs.setRoutineSchedule(r.id, { daysOfWeek: daySets[idx % daySets.length] ?? [1, 3, 5], hour: null })
+    })
+  }
+
+  useEffect(() => {
+    // For a better first impression (and demo), default to a routine so analytics aren't empty.
+    if (selectedRoutineId) return
+    if (routines.length === 0) return
+    selectRoutine(routines[0].id)
+  }, [selectedRoutineId, routines, selectRoutine])
+
   const showSeedTools = useMemo(() => {
     if (import.meta.env.DEV) return true
     const params = new URLSearchParams(location.search)
@@ -159,6 +213,7 @@ export function DashboardPage() {
   }, [hydrateFromCache, refreshAll])
 
   const seedSince = useMemo(() => new Date(Date.now() - 1000 * 60 * 60 * 24 * 120).toISOString(), [])
+  const seedSinceLong = useMemo(() => new Date(Date.now() - 1000 * 60 * 60 * 24 * 365).toISOString(), [])
 
   const onSeedDemo = async () => {
     if (!user) return
@@ -172,8 +227,33 @@ export function DashboardPage() {
     try {
       await seedDashboardDemoData(user.id)
       await refreshAll({ since: seedSince })
+      applyDemoScheduleDefaults()
     } catch (e) {
       setSeedError(e instanceof Error ? e.message : 'No se pudo poblar la demo')
+    } finally {
+      setSeedBusy(false)
+    }
+  }
+
+  const onSeedFullDemo = async () => {
+    if (!user) return
+    const ok = window.confirm(
+      `Esto creará un set DEMO más completo (rutinas/tareas + historial de meses) en TU cuenta.
+
+Incluye tareas con descripción/fecha/hora y muchos eventos para que el dashboard se vea “vivo”.
+
+Puedes eliminarlo con “Limpiar demo”. ¿Continuar?`,
+    )
+    if (!ok) return
+
+    setSeedBusy(true)
+    setSeedError(null)
+    try {
+      await seedFullDemoData(user.id, 'full')
+      await refreshAll({ since: seedSinceLong })
+      applyDemoScheduleDefaults()
+    } catch (e) {
+      setSeedError(e instanceof Error ? e.message : 'No se pudo poblar la demo completa')
     } finally {
       setSeedBusy(false)
     }
@@ -729,11 +809,19 @@ export function DashboardPage() {
     const end = new Date()
     end.setHours(0, 0, 0, 0)
 
-    const days: Date[] = []
-    for (let i = windowDays - 1; i >= 0; i--) {
-      const d = new Date(end)
-      d.setDate(end.getDate() - i)
-      days.push(d)
+    const start = new Date(end)
+    start.setDate(end.getDate() - (windowDays - 1))
+    start.setHours(0, 0, 0, 0)
+
+    // Render a stable week-aligned grid (GitHub-style): always show all boxes,
+    // then fill as counts arrive.
+    const weekStartsOn = prefs.weekStartsOn
+    const gridStart = startOfWeekLocal(start, weekStartsOn)
+    const gridEnd = endOfWeekLocal(end, weekStartsOn)
+
+    const gridDays: Date[] = []
+    for (let d = new Date(gridStart); d.getTime() <= gridEnd.getTime(); d = addDaysLocal(d, 1)) {
+      gridDays.push(d)
     }
 
     const doneCounts = new Map<string, number>()
@@ -756,8 +844,12 @@ export function DashboardPage() {
       }
     }
 
-    const counts = days.map((d) => ({ key: dateKeyLocal(d), date: d, count: doneCounts.get(dateKeyLocal(d)) ?? 0 }))
-    const max = counts.reduce((m, x) => Math.max(m, x.count), 0)
+    const counts = gridDays.map((d) => {
+      const key = dateKeyLocal(d)
+      const inRange = d.getTime() >= start.getTime() && d.getTime() <= end.getTime()
+      return { key, date: d, count: inRange ? doneCounts.get(key) ?? 0 : 0, inRange }
+    })
+    const max = counts.reduce((m, x) => (x.inRange ? Math.max(m, x.count) : m), 0)
 
     // Streak estimate: consecutive days with count > 0.
     let streak = 0
@@ -777,8 +869,8 @@ export function DashboardPage() {
       }
     }
 
-    return { counts, max, streak, best, source: hasEvents ? 'events' : 'estimated' as const }
-  }, [allTasks, taskEvents, range])
+    return { counts, max, streak, best, source: hasEvents ? 'events' : ('estimated' as const) }
+  }, [allTasks, taskEvents, range, prefs.weekStartsOn])
 
   const lastActivity = useMemo(() => {
     if (allTasks.length === 0) return null
@@ -944,6 +1036,7 @@ export function DashboardPage() {
     }
 
     if (id === 'upcoming') {
+      const hasSchedule = Object.keys(prefs.routineScheduleById ?? {}).length > 0
       return widgetCardShell(
         id,
         'Próximo',
@@ -971,6 +1064,13 @@ export function DashboardPage() {
           <div className={'text-xs ' + subtleText}>
             Tip: programa rutinas por días en “Personalizar”.
           </div>
+          {!hasSchedule && routines.length > 0 ? (
+            <div className="pt-1">
+              <Button variant="secondary" onClick={applyDemoScheduleDefaults}>
+                Autoprogramar
+              </Button>
+            </div>
+          ) : null}
         </div>,
       )
     }
@@ -1118,11 +1218,42 @@ export function DashboardPage() {
     }
 
     if (id === 'analytics') {
+      const totalChecks = heatmap.counts.reduce((s, x) => (x.inRange ? s + x.count : s), 0)
+      const activeDays = heatmap.counts.reduce((s, x) => (x.inRange && x.count > 0 ? s + 1 : s), 0)
       return widgetCardShell(
         id,
         'Analítica',
         'KPIs y tendencias.',
-        <div className={'text-sm ' + subtleText}>Desplázate hacia abajo para ver gráficos detallados.</div>,
+        loading ? (
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className={cn('h-16 animate-pulse rounded-lg ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')} />
+            <div className={cn('h-16 animate-pulse rounded-lg ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')} />
+          </div>
+        ) : (
+          <div className="grid gap-2">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+                <div className={'text-xs ' + subtleText}>Checks (rango)</div>
+                <div className={'mt-1 text-lg font-semibold ' + (isDay ? 'text-slate-900' : 'text-white')}>{totalChecks}</div>
+              </div>
+              <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+                <div className={'text-xs ' + subtleText}>Días activos</div>
+                <div className={'mt-1 text-lg font-semibold ' + (isDay ? 'text-slate-900' : 'text-white')}>{activeDays}</div>
+              </div>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+                <div className={'text-xs ' + subtleText}>Racha</div>
+                <div className={'mt-1 text-lg font-semibold ' + (isDay ? 'text-slate-900' : 'text-white')}>{heatmap.streak}d</div>
+              </div>
+              <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+                <div className={'text-xs ' + subtleText}>Mejor</div>
+                <div className={'mt-1 text-lg font-semibold ' + (isDay ? 'text-slate-900' : 'text-white')}>{heatmap.best}d</div>
+              </div>
+            </div>
+            <div className={'text-xs ' + subtleText}>Desplázate hacia abajo para ver gráficos detallados.</div>
+          </div>
+        ),
       )
     }
 
@@ -1131,12 +1262,58 @@ export function DashboardPage() {
       id,
       'Rutinas',
       'Acceso rápido.',
-      <div className="flex items-center justify-between gap-3">
-        <div className={'text-sm ' + panelText}>Gestiona tareas y marca completadas.</div>
-        <Button variant="secondary" onClick={() => onStartSession(null)}>
-          Ir
-        </Button>
-      </div>,
+      loading ? (
+        <div className="grid gap-2">
+          <div className={cn('h-12 animate-pulse rounded-lg ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')} />
+          <div className={cn('h-12 animate-pulse rounded-lg ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')} />
+        </div>
+      ) : routines.length === 0 ? (
+        <div className="flex items-center justify-between gap-3">
+          <div className={'text-sm ' + panelText}>Crea tu primera rutina para empezar.</div>
+          <Button variant="secondary" onClick={() => setCreateOpen(true)}>
+            Crear
+          </Button>
+        </div>
+      ) : (
+        <div className="grid gap-3">
+          <div className="space-y-2">
+            {routines.slice(0, 3).map((r) => {
+              const tasks = tasksByRoutineId[r.id] ?? []
+              const done = tasks.filter((t) => t.is_done).length
+              const pct = tasks.length ? Math.round((done / tasks.length) * 100) : 0
+              return (
+                <button
+                  key={r.id}
+                  type="button"
+                  className={
+                    'w-full rounded-lg p-3 text-left ring-1 transition ' +
+                    (isDay ? 'bg-white ring-slate-200 hover:bg-slate-50' : 'bg-white/5 ring-white/10 hover:bg-white/10')
+                  }
+                  onClick={() => onStartSession(r.id)}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className={'text-sm font-medium ' + panelText}>{r.title}</div>
+                    <div className={'text-xs ' + subtleText}>{pct}%</div>
+                  </div>
+                  <div className={'mt-1 text-xs ' + subtleText}>
+                    {tasks.length} tareas • {done} hechas
+                  </div>
+                  <div className={'mt-2 h-1.5 w-full rounded-full ' + (isDay ? 'bg-slate-200' : 'bg-white/10')}>
+                    <div className="h-1.5 rounded-full bg-gradient-to-r from-cyan-400 to-violet-500" style={{ width: `${pct}%` }} />
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="flex items-center justify-between gap-3">
+            <div className={'text-xs ' + subtleText}>Abre una rutina para marcar tareas.</div>
+            <Button variant="secondary" onClick={() => onStartSession(null)}>
+              Ver todas
+            </Button>
+          </div>
+        </div>
+      ),
     )
   }
 
@@ -1168,7 +1345,7 @@ export function DashboardPage() {
           <div className={'p-4 text-xs ' + subtleText}>{collapsed ? 'Mostrar' : 'Ocultar'}</div>
         </button>
 
-        <div className={cn('px-4 pb-4', collapsed ? 'hidden lg:block' : 'block')}>
+        <div className={cn('px-4 pb-4', collapsed ? 'hidden' : 'block')}>
           {body}
         </div>
       </Card>
@@ -1401,7 +1578,7 @@ export function DashboardPage() {
                 <select
                   className={
                     'rounded-full px-3 py-1 text-xs ring-1 ' +
-                    (isDay ? 'bg-white text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')
+                    (isDay ? 'bg-white text-slate-700 ring-slate-200' : 'bg-white/90 text-slate-900 ring-white/20')
                   }
                   value={selectedRoutineId ?? ''}
                   onChange={(e) => selectRoutine(e.target.value ? e.target.value : null)}
@@ -1460,9 +1637,9 @@ export function DashboardPage() {
         <Card className="mb-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <div className="text-sm font-semibold">Demo: poblar dashboard</div>
+              <div className="text-sm font-semibold">Demo: poblar datos</div>
               <div className={'mt-1 text-xs ' + subtleText}>
-                Crea rutinas/tareas “Demo:*” y eventos de completitud en esta cuenta.
+                Crea rutinas/tareas “Demo:*” + eventos para ver los módulos con datos realistas.
               </div>
               {seedError ? <div className="mt-2 text-xs text-rose-600">{seedError}</div> : null}
               <div className={'mt-2 text-[11px] ' + subtleText}>
@@ -1473,8 +1650,11 @@ export function DashboardPage() {
               <Button variant="secondary" onClick={() => void onClearDemo()} disabled={seedBusy || loading}>
                 Limpiar demo
               </Button>
-              <Button onClick={() => void onSeedDemo()} disabled={seedBusy || loading}>
-                Poblar demo
+              <Button variant="secondary" onClick={() => void onSeedDemo()} disabled={seedBusy || loading}>
+                Poblar rápido
+              </Button>
+              <Button onClick={() => void onSeedFullDemo()} disabled={seedBusy || loading}>
+                Poblar completo
               </Button>
             </div>
           </div>
@@ -1533,7 +1713,7 @@ export function DashboardPage() {
                 'h-9 max-w-[260px] rounded-lg px-3 text-sm ring-1 outline-none transition focus:ring-2',
                 isDay
                   ? 'bg-white text-slate-900 ring-slate-200 focus:ring-slate-400'
-                  : 'bg-white/10 text-slate-50 ring-white/15 focus:ring-white/30',
+                  : 'bg-white/90 text-slate-900 ring-white/20 focus:ring-white/40',
               )}
             >
               <option value="">Selecciona…</option>
@@ -2083,17 +2263,22 @@ export function DashboardPage() {
                 {heatmap.counts.map((c) => (
                   <div
                     key={c.key}
-                    onMouseMove={(e) => showHeatmapTooltip(e, { title: c.key, lines: [`Checks: ${c.count}`] })}
+                    onMouseMove={(e) => {
+                      if (!c.inRange) return
+                      showHeatmapTooltip(e, { title: c.key, lines: [`Checks: ${c.count}`] })
+                    }}
                     onPointerDown={(e) => {
+                      if (!c.inRange) return
                       if (e.pointerType === 'touch' || e.pointerType === 'pen') {
                         showHeatmapTooltip(e, { title: c.key, lines: [`Checks: ${c.count}`] })
                       }
                     }}
                     className={
-                      'h-3 w-3 rounded-sm ring-1 ' +
+                      'h-3 w-3 rounded-sm ring-1 transition-colors duration-500 ' +
                       heatCellClass(c.count) +
                       ' ' +
-                      (isDay ? 'ring-slate-200' : 'ring-white/10')
+                      (isDay ? 'ring-slate-200' : 'ring-white/10') +
+                      (c.inRange ? '' : ' opacity-25')
                     }
                   />
                 ))}
