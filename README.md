@@ -3,6 +3,7 @@
   <p><strong>Gestor inteligente de rutinas diarias (portfolio)</strong> enfocado en UX premium y buenas prácticas de SPA + Auth + RLS.</p>
   <p><em>React, TypeScript, Vite, Tailwind CSS, Supabase (Auth + Postgres + RLS), React Router, Zustand, React Hook Form, Zod, GitHub Actions, Vercel</em></p>
   <p><a href="https://neuroroutine.vercel.app/">Live demo: neuroroutine.vercel.app</a></p>
+  <p><a href="./README.es.md">Leer en Español</a></p>
 
   <p>
     <a href="https://github.com/TomasPosada0626/Neuroroutine/actions/workflows/ci.yml">
@@ -16,11 +17,11 @@
 
   <p>
     <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white" />
-    <img alt="React" src="https://img.shields.io/badge/React-18.x-61DAFB?logo=react&logoColor=0B1320" />
-    <img alt="Vite" src="https://img.shields.io/badge/Vite-5.x-646CFF?logo=vite&logoColor=white" />
+    <img alt="React" src="https://img.shields.io/badge/React-19.x-61DAFB?logo=react&logoColor=0B1320" />
+    <img alt="Vite" src="https://img.shields.io/badge/Vite-7.x-646CFF?logo=vite&logoColor=white" />
     <img alt="TailwindCSS" src="https://img.shields.io/badge/TailwindCSS-3.x-06B6D4?logo=tailwindcss&logoColor=white" />
     <img alt="Supabase" src="https://img.shields.io/badge/Supabase-Auth%20%2B%20Postgres%20%2B%20RLS-3ECF8E?logo=supabase&logoColor=0B1320" />
-    <img alt="React Router" src="https://img.shields.io/badge/React%20Router-6.x-CA4245?logo=reactrouter&logoColor=white" />
+    <img alt="React Router" src="https://img.shields.io/badge/React%20Router-7.x-CA4245?logo=reactrouter&logoColor=white" />
     <img alt="Zustand" src="https://img.shields.io/badge/Zustand-State%20Management-111827" />
     <img alt="React Hook Form" src="https://img.shields.io/badge/React%20Hook%20Form-Forms-EC5990" />
     <img alt="Zod" src="https://img.shields.io/badge/Zod-Validation-3E67B1" />
@@ -233,6 +234,44 @@ Checklist:
   - OK in frontend: `VITE_SUPABASE_ANON_KEY` (public) + RLS.
   - Never in frontend: Supabase `service_role` key.
 
+### Security proof (RLS)
+
+You can reproduce RLS behavior in the Supabase SQL Editor by simulating authenticated requests (JWT claims).
+
+> Replace `USER_A_UUID` and `USER_B_UUID` with real `auth.users.id` values.
+
+**Query 1 — user A inserts, user B cannot read**
+
+```sql
+-- As user A
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.sub', 'USER_A_UUID', true);
+
+insert into public.routines (user_id, title)
+values (auth.uid(), 'Rutina de A')
+returning id, user_id, title;
+
+-- As user B
+select set_config('request.jwt.claim.sub', 'USER_B_UUID', true);
+
+-- This will return 0 rows due to RLS (user B cannot see user A data)
+select id, user_id, title
+from public.routines
+where title = 'Rutina de A';
+```
+
+**Query 2 — user B cannot insert on behalf of user A**
+
+```sql
+-- As user B
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.sub', 'USER_B_UUID', true);
+
+-- This should fail with an RLS violation (cannot write rows owned by another user)
+insert into public.routines (user_id, title)
+values ('USER_A_UUID', 'Intento malicioso');
+```
+
 ## Testing & Quality
 
 - **CI**: GitHub Actions runs `npm ci`, `npm run lint`, `npm run test`, `npm run build`, and a Playwright E2E smoke suite.
@@ -243,8 +282,11 @@ Useful commands (from `frontend/`):
 
 ```bash
 npm run test
+npm run test:coverage
 npm run e2e
 ```
+
+Coverage (local run on 2026-02-06): **52.6% statements**, **34.44% branches**, **48.14% functions**, **53.52% lines**.
 
 Note: the authenticated E2E test is skipped unless you set `E2E_USER_IDENTIFIER` and `E2E_USER_PASSWORD`.
 

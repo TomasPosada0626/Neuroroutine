@@ -16,6 +16,9 @@ dist-ssr
 test-results/
 playwright-report/
 
+# Vitest
+frontend/coverage/
+
 # Env
 .env
 .env.*
