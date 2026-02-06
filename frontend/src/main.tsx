@@ -8,6 +8,18 @@ if (!rootEl) throw new Error('Root element #root not found')
 
 const root = createRoot(rootEl)
 
+function setBuildMarker() {
+  const sha = import.meta.env.VITE_BUILD_SHA as string | undefined
+  const runNumber = import.meta.env.VITE_BUILD_RUN_NUMBER as string | undefined
+  const shortSha = sha ? sha.slice(0, 7) : undefined
+  const marker = [shortSha, runNumber].filter(Boolean).join('-') || 'dev'
+
+  const el = document.querySelector('meta[name="x-build"]')
+  el?.setAttribute('content', marker)
+}
+
+setBuildMarker()
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 
