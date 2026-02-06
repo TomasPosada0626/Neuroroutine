@@ -406,9 +406,9 @@ Puedes eliminarlo con “Limpiar demo”. ¿Continuar?`,
   )
 
   const selectedRoutineTasks = useMemo(() => {
-    if (!selectedRoutineId) return []
+    if (!selectedRoutineId) return allTasks
     return tasksByRoutineId[selectedRoutineId] ?? []
-  }, [selectedRoutineId, tasksByRoutineId])
+  }, [selectedRoutineId, tasksByRoutineId, allTasks])
 
   const hasEvents = Array.isArray(taskEvents) && taskEvents.length > 0
 
@@ -418,10 +418,9 @@ Puedes eliminarlo con “Limpiar demo”. ¿Continuar?`,
     const start = new Date(end)
     start.setDate(end.getDate() - (windowDays - 1))
 
-    const selectedId = selectedRoutineId
-    const events = selectedId && hasEvents
+    const events = hasEvents
       ? taskEvents
-          .filter((ev) => ev.routine_id === selectedId)
+          .filter((ev) => (selectedRoutineId ? ev.routine_id === selectedRoutineId : true))
           .filter((ev) => {
             const t = new Date(ev.created_at).getTime()
             return t >= start.getTime() && t < end.getTime() + 1000 * 60 * 60 * 24
@@ -684,8 +683,9 @@ Puedes eliminarlo con “Limpiar demo”. ¿Continuar?`,
   }, [hasEvents, taskEvents, routines, range])
 
   const selectedRoutineInsight = useMemo(() => {
-    if (!selectedRoutine) return 'Selecciona una rutina para ver insights automáticos.'
-    if (selectedRoutineAnalytics.source !== 'events') return 'Activa el historial real para generar insights.'
+    if (selectedRoutineAnalytics.source !== 'events') {
+      return selectedRoutine ? 'Activa el historial real para generar insights.' : 'Activa el historial real para generar insights globales.'
+    }
 
     const weekdayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
     const bestDayName = weekdayNames[selectedRoutineAnalytics.bestWeekday] ?? '—'
@@ -727,7 +727,8 @@ Puedes eliminarlo con “Limpiar demo”. ¿Continuar?`,
           ? `Mejor: ${bestDayName}. Cae los ${worstDayName}.`
           : `Mejor: ${bestDayName}. Más bajo: ${worstDayName}.`
 
-    return `Rinde mejor ${bestWindow}. ${weekdayText} ${consistencyText}. ${trendText}.`
+    const prefix = selectedRoutine ? '' : 'Vista global: '
+    return `${prefix}Rinde mejor ${bestWindow}. ${weekdayText} ${consistencyText}. ${trendText}.`
   }, [selectedRoutine, selectedRoutineAnalytics])
 
   const complianceTooltip = usePopoverTooltip()
@@ -758,9 +759,9 @@ Puedes eliminarlo con “Limpiar demo”. ¿Continuar?`,
 
     const doneCounts = new Map<string, number>()
 
-    if (selectedRoutineId && hasEvents) {
+    if (hasEvents) {
       for (const ev of taskEvents) {
-        if (ev.routine_id !== selectedRoutineId) continue
+        if (selectedRoutineId && ev.routine_id !== selectedRoutineId) continue
         if (ev.event_type !== 'completed') continue
         const d = new Date(ev.created_at)
         const key = dateKeyLocal(d)
@@ -1376,6 +1377,9 @@ Puedes eliminarlo con “Limpiar demo”. ¿Continuar?`,
             <Button variant="secondary" onClick={() => setCustomizeOpen(false)}>
               Cerrar
             </Button>
+            <Button onClick={() => setCustomizeOpen(false)}>
+              Aplicar
+            </Button>
           </>
         }
       >
@@ -1755,59 +1759,53 @@ Puedes eliminarlo con “Limpiar demo”. ¿Continuar?`,
             <div className={'text-xs ' + subtleText}>Métricas puntuales por rutina</div>
           </div>
 
-          {selectedRoutine ? (
-            <div className="mt-4">
-              <div className={'text-sm font-semibold ' + panelText}>{selectedRoutine.title}</div>
-              <div className={'mt-2 grid grid-cols-3 gap-2'}>
-                <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
-                  <div className={'text-xs ' + subtleText}>Tareas</div>
-                  <div className={'mt-1 text-lg font-semibold ' + kpiValueClass}>{selectedRoutineKpis.total}</div>
-                </div>
-                <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
-                  <div className={'text-xs ' + subtleText}>Hechas</div>
-                  <div className={'mt-1 text-lg font-semibold ' + kpiValueClass}>{selectedRoutineKpis.done}</div>
-                </div>
-                <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
-                  <div className={'text-xs ' + subtleText}>Cumpl.</div>
-                  <div className={'mt-1 text-lg font-semibold ' + kpiValueClass}>{formatPct(selectedRoutineKpis.pct)}</div>
-                </div>
+          <div className="mt-4">
+            <div className={'text-sm font-semibold ' + panelText}>{selectedRoutine ? selectedRoutine.title : 'Todas las rutinas'}</div>
+            <div className={'mt-2 grid grid-cols-3 gap-2'}>
+              <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+                <div className={'text-xs ' + subtleText}>Tareas</div>
+                <div className={'mt-1 text-lg font-semibold ' + kpiValueClass}>{selectedRoutineKpis.total}</div>
               </div>
+              <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+                <div className={'text-xs ' + subtleText}>Hechas</div>
+                <div className={'mt-1 text-lg font-semibold ' + kpiValueClass}>{selectedRoutineKpis.done}</div>
+              </div>
+              <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+                <div className={'text-xs ' + subtleText}>Cumpl.</div>
+                <div className={'mt-1 text-lg font-semibold ' + kpiValueClass}>{formatPct(selectedRoutineKpis.pct)}</div>
+              </div>
+            </div>
 
-              <div className={'mt-3 rounded-lg p-3 ring-1 ' + (isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
-                <div className={'text-xs ' + subtleText}>Consistencia (rango seleccionado)</div>
-                <div className={'mt-1 text-sm font-medium ' + panelText}>
-                  {selectedRoutineAnalytics.source === 'events' ? (
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <div className={'text-xs ' + subtleText}>Racha</div>
-                        <div className={'text-sm font-semibold ' + panelText}>{selectedRoutineAnalytics.streak}d</div>
-                      </div>
-                      <div>
-                        <div className={'text-xs ' + subtleText}>Mejor</div>
-                        <div className={'text-sm font-semibold ' + panelText}>{selectedRoutineAnalytics.best}d</div>
-                      </div>
-                      <div>
-                        <div className={'text-xs ' + subtleText}>Días activos</div>
-                        <div className={'text-sm font-semibold ' + panelText}>{formatPct(selectedRoutineAnalytics.activeDaysPct)}</div>
-                      </div>
+            <div className={'mt-3 rounded-lg p-3 ring-1 ' + (isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+              <div className={'text-xs ' + subtleText}>Consistencia (rango seleccionado)</div>
+              <div className={'mt-1 text-sm font-medium ' + panelText}>
+                {selectedRoutineAnalytics.source === 'events' ? (
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <div className={'text-xs ' + subtleText}>Racha</div>
+                      <div className={'text-sm font-semibold ' + panelText}>{selectedRoutineAnalytics.streak}d</div>
                     </div>
-                  ) : (
-                    'Activa el historial real para ver consistencia y gráficas.'
-                  )}
-                </div>
+                    <div>
+                      <div className={'text-xs ' + subtleText}>Mejor</div>
+                      <div className={'text-sm font-semibold ' + panelText}>{selectedRoutineAnalytics.best}d</div>
+                    </div>
+                    <div>
+                      <div className={'text-xs ' + subtleText}>Días activos</div>
+                      <div className={'text-sm font-semibold ' + panelText}>{formatPct(selectedRoutineAnalytics.activeDaysPct)}</div>
+                    </div>
+                  </div>
+                ) : (
+                  'Activa el historial real para ver consistencia y gráficas.'
+                )}
               </div>
+            </div>
 
-              {selectedRoutineKpis.total === 0 ? (
-                <div className={'mt-3 rounded-lg p-3 text-sm ring-1 ' + (isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')}>
-                  Esta rutina aún no tiene tareas. Añade tareas para empezar a medir.
-                </div>
-              ) : null}
-            </div>
-          ) : (
-            <div className={'mt-4 rounded-lg p-3 text-sm ring-1 ' + (isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')}>
-              Selecciona una rutina para ver sus métricas.
-            </div>
-          )}
+            {selectedRoutineKpis.total === 0 ? (
+              <div className={'mt-3 rounded-lg p-3 text-sm ring-1 ' + (isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')}>
+                {selectedRoutine ? 'Esta rutina aún no tiene tareas. Añade tareas para empezar a medir.' : 'Aún no tienes tareas. Crea una rutina y añade tareas para empezar.'}
+              </div>
+            ) : null}
+          </div>
         </Card>
 
         <Card className="lg:col-span-2">
@@ -1817,15 +1815,11 @@ Puedes eliminarlo con “Limpiar demo”. ¿Continuar?`,
               <div className={'text-xs ' + subtleText}>Completed vs uncompleted (rango seleccionado)</div>
             </div>
             <div className={'text-xs ' + subtleText}>
-              {selectedRoutine ? (selectedRoutineAnalytics.source === 'events' ? 'historial real' : 'sin historial') : '—'}
+              {selectedRoutineAnalytics.source === 'events' ? 'historial real' : 'sin historial'}
             </div>
           </div>
 
-          {!selectedRoutine ? (
-            <div className={'mt-4 rounded-lg p-3 text-sm ring-1 ' + (isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')}>
-              Selecciona una rutina para ver su gráfica.
-            </div>
-          ) : selectedRoutineAnalytics.source !== 'events' ? (
+          {selectedRoutineAnalytics.source !== 'events' ? (
             <div className={'mt-4 rounded-lg p-3 text-sm ring-1 ' + (isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')}>
               Aún no hay historial real para graficar (ejecuta el SQL en Supabase y marca tareas como completadas).
             </div>
@@ -2110,11 +2104,7 @@ Puedes eliminarlo con “Limpiar demo”. ¿Continuar?`,
             <div className={'text-xs ' + subtleText}>Tiempo entre completados</div>
           </div>
 
-          {!selectedRoutine ? (
-            <div className={'mt-4 rounded-lg p-3 text-sm ring-1 ' + (isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')}>
-              Selecciona una rutina para ver regularidad.
-            </div>
-          ) : selectedRoutineAnalytics.source !== 'events' ? (
+          {selectedRoutineAnalytics.source !== 'events' ? (
             <div className={'mt-4 rounded-lg p-3 text-sm ring-1 ' + (isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')}>
               Sin historial real aún.
             </div>
@@ -2176,11 +2166,7 @@ Puedes eliminarlo con “Limpiar demo”. ¿Continuar?`,
             <div className={'text-xs ' + subtleText}>Más completadas, re-open y desmarcadas</div>
           </div>
 
-          {!selectedRoutine ? (
-            <div className={'mt-4 rounded-lg p-3 text-sm ring-1 ' + (isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')}>
-              Selecciona una rutina para ver top tareas.
-            </div>
-          ) : selectedRoutineAnalytics.source !== 'events' ? (
+          {selectedRoutineAnalytics.source !== 'events' ? (
             <div className={'mt-4 rounded-lg p-3 text-sm ring-1 ' + (isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')}>
               Sin historial real aún.
             </div>
