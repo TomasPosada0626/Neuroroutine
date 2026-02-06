@@ -32,6 +32,21 @@ vi.mock('@/features/auth/authStore', () => {
 })
 
 describe('RoutineWizardModal', () => {
+  it('requires a routine title before enabling submit', async () => {
+    const user = userEvent.setup()
+
+    addRoutine.mockResolvedValueOnce({ id: 'r1' })
+    addTasksBulk.mockResolvedValueOnce(undefined)
+
+    render(<RoutineWizardModal open onClose={() => {}} />)
+
+    const submit = screen.getByRole('button', { name: 'Crear rutina' })
+    expect(submit).toBeDisabled()
+
+    await user.type(screen.getByPlaceholderText('Ej: Mañana enfocada'), 'Mi rutina')
+    expect(submit).toBeEnabled()
+  })
+
   it('creates a routine and bulk-creates normalized tasks', async () => {
     const user = userEvent.setup()
 

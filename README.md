@@ -224,6 +224,56 @@ Checklist:
   - OK in frontend: `VITE_SUPABASE_ANON_KEY` (public) + RLS.
   - Never in frontend: Supabase `service_role` key.
 
+### SQL injection & safe SQL functions
+
+In this architecture, the frontend does **not** build raw SQL strings; it uses `supabase-js` query builders and RPC calls, and the database enforces RLS. That makes classic SQL injection much less likely.
+
+The main SQLi risk surface is:
+
+- Custom SQL functions (RPC), especially if they use dynamic SQL.
+- Any place you concatenate user input into SQL.
+
+Guidelines used here:
+
+- Prefer static SQL (no dynamic `EXECUTE`).
+- Validate/sanitize inputs (length + allowed characters) at the function boundary.
+- For `SECURITY DEFINER` functions: set a safe `search_path` and grant the minimum required privileges.
+
+Example (safe helper function shape):
+
+```sql
+create or replace function public.get_email_by_username(p_username text)
+returns text
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  v_username text := lower(trim(p_username));
+  v_email text;
+begin
+  if v_username is null or v_username = '' then
+    return null;
+  end if;
+
+  -- Allow only [a-z0-9_], 3..30 chars.
+  if v_username !~ '^[a-z0-9_]{3,30}$' then
+    raise exception 'invalid username';
+  end if;
+
+  select email into v_email
+  from public.profiles
+  where username = v_username
+  limit 1;
+
+  return v_email;
+end;
+$$;
+
+revoke all on function public.get_email_by_username(text) from public;
+grant execute on function public.get_email_by_username(text) to anon, authenticated;
+```
+
 ### Security proof (RLS)
 
 You can reproduce RLS behavior in the Supabase SQL Editor by simulating authenticated requests (JWT claims).

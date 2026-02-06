@@ -146,7 +146,13 @@ export function RoutineWizardModal({ open, onClose, onCreated }: Props) {
             <div className="text-sm font-semibold">Nombre de la rutina</div>
             <div className={cn('text-xs', subtleText)}>Ej: Mañana, Gym, Estudio</div>
           </div>
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ej: Mañana enfocada" />
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Ej: Mañana enfocada"
+            aria-label="Nombre de la rutina"
+            data-autofocus
+          />
         </div>
 
         <div className="space-y-2">
@@ -154,7 +160,12 @@ export function RoutineWizardModal({ open, onClose, onCreated }: Props) {
             <div className="text-sm font-semibold">Notas (opcional)</div>
             <div className={cn('text-xs', subtleText)}>Reglas, intención, recordatorios.</div>
           </div>
-          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Pequeñas reglas, intención, recordatorios…" />
+          <Textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Pequeñas reglas, intención, recordatorios…"
+            aria-label="Notas"
+          />
         </div>
 
         <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
@@ -187,6 +198,7 @@ export function RoutineWizardModal({ open, onClose, onCreated }: Props) {
                         setTasks((prev) => prev.map((x, i) => (i === idx ? { ...x, title: e.target.value } : x)))
                       }
                       placeholder="Ej: Tomar agua"
+                      aria-label={`Nombre de la tarea ${idx + 1}`}
                     />
                   </div>
 
@@ -198,6 +210,7 @@ export function RoutineWizardModal({ open, onClose, onCreated }: Props) {
                         setTasks((prev) => prev.map((x, i) => (i === idx ? { ...x, description: e.target.value } : x)))
                       }
                       placeholder="Ej: 2 litros"
+                      aria-label={`Descripción de la tarea ${idx + 1}`}
                     />
                   </div>
 
@@ -209,6 +222,7 @@ export function RoutineWizardModal({ open, onClose, onCreated }: Props) {
                       onChange={(e) =>
                         setTasks((prev) => prev.map((x, i) => (i === idx ? { ...x, due_date: e.target.value } : x)))
                       }
+                      aria-label={`Fecha de la tarea ${idx + 1}`}
                     />
                   </div>
 
@@ -220,6 +234,7 @@ export function RoutineWizardModal({ open, onClose, onCreated }: Props) {
                       onChange={(e) =>
                         setTasks((prev) => prev.map((x, i) => (i === idx ? { ...x, due_time: e.target.value } : x)))
                       }
+                      aria-label={`Hora de la tarea ${idx + 1}`}
                     />
                   </div>
 
@@ -230,10 +245,14 @@ export function RoutineWizardModal({ open, onClose, onCreated }: Props) {
                       </div>
                       <button
                         type="button"
-                        className={cn('text-xs underline', isDay ? 'text-slate-700' : 'text-slate-200')}
+                        className={cn(
+                          'text-xs underline focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white',
+                          isDay ? 'text-slate-700' : 'text-slate-200 focus-visible:ring-offset-slate-950',
+                        )}
                         onClick={() => setTasks((prev) => prev.filter((_, i) => i !== idx))}
                         disabled={tasks.length === 1}
                         title={tasks.length === 1 ? 'Debe existir al menos una fila' : 'Eliminar'}
+                        aria-label={tasks.length === 1 ? 'Debe existir al menos una fila' : `Eliminar tarea ${idx + 1}`}
                       >
                         Eliminar
                       </button>

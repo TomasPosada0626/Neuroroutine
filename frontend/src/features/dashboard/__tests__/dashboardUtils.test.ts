@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   addDaysLocal,
+  computeDayActivitySet,
   computeStreaks,
   computeWeekCounts,
   dateKeyLocal,
@@ -93,5 +94,67 @@ describe('dashboardUtils', () => {
     expect(res.thisWeekCompleted).toBe(2)
     expect(res.prevWeekCompleted).toBe(1)
     expect(Math.round(res.consistencyThis)).toBe(Math.round((2 / 7) * 100))
+  })
+
+  it('computeDayActivitySet filters by routineId and only counts completed events', () => {
+    const userId = 'u1'
+    const r1 = 'r1'
+    const r2 = 'r2'
+
+    const events: RoutineTaskEvent[] = [
+      {
+        id: 'ev-1',
+        user_id: userId,
+        routine_id: r1,
+        routine_task_id: 't1',
+        event_type: 'completed',
+        created_at: isoFromLocal(2025, 0, 10),
+      },
+      {
+        id: 'ev-2',
+        user_id: userId,
+        routine_id: r2,
+        routine_task_id: 't2',
+        event_type: 'completed',
+        created_at: isoFromLocal(2025, 0, 10),
+      },
+      {
+        id: 'ev-3',
+        user_id: userId,
+        routine_id: r1,
+        routine_task_id: 't1',
+        event_type: 'uncompleted',
+        created_at: isoFromLocal(2025, 0, 11),
+      },
+    ]
+
+    const all = computeDayActivitySet(events)
+    expect(all.has('2025-01-10')).toBe(true)
+    expect(all.has('2025-01-11')).toBe(false)
+
+    const onlyR1 = computeDayActivitySet(events, { routineId: r1 })
+    expect(Array.from(onlyR1.values())).toEqual(['2025-01-10'])
+  })
+
+  it('computeWeekCounts deltaPct handles prev=0', () => {
+    const now = new Date(2025, 0, 8, 12, 0, 0)
+    const routineId = 'r1'
+    const userId = 'u1'
+
+    const events: RoutineTaskEvent[] = [
+      {
+        id: 'ev-1',
+        user_id: userId,
+        routine_id: routineId,
+        routine_task_id: 't1',
+        event_type: 'completed',
+        created_at: isoFromLocal(2025, 0, 7),
+      },
+    ]
+
+    const res = computeWeekCounts(events, { weekStartsOn: 1, routineId, now })
+    expect(res.prevWeekCompleted).toBe(0)
+    expect(res.thisWeekCompleted).toBe(1)
+    expect(res.deltaPct).toBe(100)
   })
 })
