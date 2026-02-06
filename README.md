@@ -1,9 +1,9 @@
 <div align="center">
   <h1>NeuroRoutine</h1>
-  <p><strong>Gestor inteligente de rutinas diarias (portfolio)</strong> enfocado en UX premium y buenas prácticas de SPA + Auth + RLS.</p>
+  <p><strong>Smart daily routines manager (portfolio)</strong> focused on premium UX and solid SPA + Auth + RLS practices.</p>
   <p><em>React, TypeScript, Vite, Tailwind CSS, Supabase (Auth + Postgres + RLS), React Router, Zustand, React Hook Form, Zod, GitHub Actions, Vercel</em></p>
   <p><a href="https://neuroroutine.vercel.app/">Live demo: neuroroutine.vercel.app</a></p>
-  <p><a href="./README.es.md">Leer en Español</a></p>
+  <p><a href="./README.es.md">Read in Spanish</a></p>
 
   <p>
     <a href="https://github.com/TomasPosada0626/Neuroroutine/actions/workflows/ci.yml">
@@ -248,7 +248,7 @@ select set_config('request.jwt.claim.role', 'authenticated', true);
 select set_config('request.jwt.claim.sub', 'USER_A_UUID', true);
 
 insert into public.routines (user_id, title)
-values (auth.uid(), 'Rutina de A')
+values (auth.uid(), 'Routine A')
 returning id, user_id, title;
 
 -- As user B
@@ -257,7 +257,7 @@ select set_config('request.jwt.claim.sub', 'USER_B_UUID', true);
 -- This will return 0 rows due to RLS (user B cannot see user A data)
 select id, user_id, title
 from public.routines
-where title = 'Rutina de A';
+where title = 'Routine A';
 ```
 
 **Query 2 — user B cannot insert on behalf of user A**
@@ -269,7 +269,7 @@ select set_config('request.jwt.claim.sub', 'USER_B_UUID', true);
 
 -- This should fail with an RLS violation (cannot write rows owned by another user)
 insert into public.routines (user_id, title)
-values ('USER_A_UUID', 'Intento malicioso');
+values ('USER_A_UUID', 'Malicious attempt');
 ```
 
 ## Testing & Quality
