@@ -152,6 +152,9 @@ export function DashboardPage() {
   const [reminderSaved, setReminderSaved] = useState(false)
   const [scheduleRoutineId, setScheduleRoutineId] = useState<string | null>(null)
 
+  const didAutoPickRoutineRef = useRef(false)
+  const didManualPickRoutineRef = useRef(false)
+
   const applyDemoScheduleDefaults = () => {
     const hasAnySchedule = Object.keys(prefs.routineScheduleById ?? {}).length > 0
     if (hasAnySchedule) return
@@ -180,8 +183,11 @@ export function DashboardPage() {
 
   useEffect(() => {
     // For a better first impression (and demo), default to a routine so analytics aren't empty.
+    if (didAutoPickRoutineRef.current) return
+    if (didManualPickRoutineRef.current) return
     if (selectedRoutineId) return
     if (routines.length === 0) return
+    didAutoPickRoutineRef.current = true
     selectRoutine(routines[0].id)
   }, [selectedRoutineId, routines, selectRoutine])
 
@@ -1581,7 +1587,10 @@ Puedes eliminarlo con “Limpiar demo”. ¿Continuar?`,
                     (isDay ? 'bg-white text-slate-700 ring-slate-200' : 'bg-white/90 text-slate-900 ring-white/20')
                   }
                   value={selectedRoutineId ?? ''}
-                  onChange={(e) => selectRoutine(e.target.value ? e.target.value : null)}
+                  onChange={(e) => {
+                    didManualPickRoutineRef.current = true
+                    selectRoutine(e.target.value ? e.target.value : null)
+                  }}
                 >
                   <option value="">Todas las rutinas</option>
                   {routines.map((r) => (
@@ -1708,7 +1717,10 @@ Puedes eliminarlo con “Limpiar demo”. ¿Continuar?`,
             <div className={'text-xs ' + subtleText}>Rutina</div>
             <select
               value={selectedRoutineId ?? ''}
-              onChange={(e) => selectRoutine(e.target.value ? e.target.value : null)}
+              onChange={(e) => {
+                didManualPickRoutineRef.current = true
+                selectRoutine(e.target.value ? e.target.value : null)
+              }}
               className={cn(
                 'h-9 max-w-[260px] rounded-lg px-3 text-sm ring-1 outline-none transition focus:ring-2',
                 isDay
