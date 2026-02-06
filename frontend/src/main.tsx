@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import './index.css'
+import { initSentry } from '@/shared/observability/initSentry'
 
 const rootEl = document.getElementById('root')
 if (!rootEl) throw new Error('Root element #root not found')
@@ -19,6 +20,8 @@ function setBuildMarker() {
 }
 
 setBuildMarker()
+
+initSentry()
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined

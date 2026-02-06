@@ -504,7 +504,7 @@ export function LandingPage() {
                 to="/login"
                 className={secondaryCtaClass}
               >
-                Ver mi dashboard
+                Ya tengo cuenta
               </Link>
 
               <div className={"flex items-center gap-2 text-xs " + subtleText}>
@@ -536,7 +536,7 @@ export function LandingPage() {
               </Card>
 
               <Card className={statCardClass}>
-                <div className={statLabelClass}>Streak</div>
+                <div className={statLabelClass}>Racha</div>
                 <div className="mt-0.5 text-base font-semibold sm:mt-1 sm:text-lg">{content.stat3Value}</div>
                 <div className="mt-2 hidden items-center gap-3 sm:flex">
                   <div

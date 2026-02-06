@@ -12,6 +12,7 @@ import {
   toggleTaskDone,
   updateRoutine,
 } from './routinesService'
+import { logAppEvent } from '@/shared/observability/eventLog'
 
 type RoutinesState = {
   loading: boolean
@@ -176,6 +177,13 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
     try {
       const created = await createRoutine(input)
       set((s) => ({ routines: [created, ...s.routines], selectedRoutineId: created.id }))
+
+      void logAppEvent({
+        user_id: input.user_id,
+        event_name: 'routine_created',
+        routine_id: created.id,
+      })
+
       return created
     } catch (e) {
       set({ error: e instanceof Error ? e.message : 'Failed to create routine' })
@@ -201,6 +209,12 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
     set({ loading: true, error: null })
     try {
       await deleteRoutine(id)
+
+      const userId = get().routines.find((r) => r.id === id)?.user_id
+      if (userId) {
+        void logAppEvent({ user_id: userId, event_name: 'routine_deleted', routine_id: id })
+      }
+
       set((s) => {
         const nextRoutines = s.routines.filter((r) => r.id !== id)
         const restTasks = { ...s.tasksByRoutineId }
@@ -249,6 +263,15 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
       }
 
       if (createdTasks.length) {
+        void logAppEvent({
+          user_id: input.user_id,
+          event_name: 'tasks_created_bulk',
+          routine_id: input.routine_id,
+          meta: { count: createdTasks.length },
+        })
+      }
+
+      if (createdTasks.length) {
         set((s) => ({
           allTasks: [...createdTasks.slice().reverse(), ...s.allTasks],
           tasksByRoutineId: {
@@ -275,6 +298,13 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
           [input.routine_id]: [...(s.tasksByRoutineId[input.routine_id] ?? []), created],
         },
       }))
+
+      void logAppEvent({
+        user_id: input.user_id,
+        event_name: 'task_created',
+        routine_id: input.routine_id,
+        routine_task_id: created.id,
+      })
     } catch (e) {
       set({ error: e instanceof Error ? e.message : 'Failed to create task' })
     } finally {
@@ -306,6 +336,13 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
           ),
         },
       }))
+
+      void logAppEvent({
+        user_id: (updated as RoutineTask).user_id,
+        event_name: input.is_done ? 'task_completed' : 'task_uncompleted',
+        routine_id: input.routine_id,
+        routine_task_id: updated.id,
+      })
     } catch (e) {
       set({ error: e instanceof Error ? e.message : 'Failed to update task' })
     } finally {
@@ -317,6 +354,17 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
     set({ loading: true, error: null })
     try {
       await deleteTask(input.id)
+
+      const userId = get().allTasks.find((t) => t.id === input.id)?.user_id
+      if (userId) {
+        void logAppEvent({
+          user_id: userId,
+          event_name: 'task_deleted',
+          routine_id: input.routine_id,
+          routine_task_id: input.id,
+        })
+      }
+
       set((s) => ({
         allTasks: s.allTasks.filter((t) => t.id !== input.id),
         tasksByRoutineId: {

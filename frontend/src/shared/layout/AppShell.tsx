@@ -1,15 +1,29 @@
 import type { PropsWithChildren } from 'react'
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/features/auth/authStore'
 import { Button } from '@/shared/ui'
 import { useUiStore } from '@/shared/state/uiStore'
 import { ThemeToggle } from '@/shared/ui/ThemeToggle'
+import { SchemaBanner } from '@/shared/schema/SchemaBanner'
+import { useSchemaStore } from '@/shared/schema/schemaStore'
 
 export function AppShell({ children }: PropsWithChildren) {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
   const theme = useUiStore((s) => s.theme)
   const isDay = theme === 'day'
+  const hydrateSchema = useSchemaStore((s) => s.hydrateFromCache)
+  const refreshSchema = useSchemaStore((s) => s.refresh)
+
+  useEffect(() => {
+    hydrateSchema()
+  }, [hydrateSchema])
+
+  useEffect(() => {
+    if (!user?.id) return
+    void refreshSchema()
+  }, [user?.id, refreshSchema])
 
   // Slightly lighter than the landing page in night mode.
   const rootClass = isDay
@@ -71,7 +85,12 @@ export function AppShell({ children }: PropsWithChildren) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
+      <main className="mx-auto max-w-6xl px-4 py-6">
+        <div className="space-y-4">
+          <SchemaBanner />
+          {children}
+        </div>
+      </main>
     </div>
   )
 }

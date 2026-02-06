@@ -1327,18 +1327,6 @@ export function DashboardPage() {
               <Button variant="secondary" onClick={() => setCustomizeOpen(true)}>
                 Personalizar
               </Button>
-              {routines.length > 0 ? (
-                <Button
-                  className={cn(
-                    'bg-gradient-to-r from-cyan-400 to-violet-500 text-slate-950 hover:from-cyan-300 hover:to-violet-400 focus:ring-cyan-300',
-                    !isDay ? 'ring-1 ring-white/10' : '',
-                  )}
-                  onClick={() => setCreateOpen(true)}
-                  disabled={!user || loading}
-                >
-                  Nueva rutina
-                </Button>
-              ) : null}
             </div>
           </div>
 
@@ -1395,7 +1383,7 @@ export function DashboardPage() {
                   )}
                   onClick={() => setCreateOpen(true)}
                 >
-                  Crear rutina
+                  Nueva rutina
                 </Button>
               </div>
             </div>
@@ -1418,41 +1406,7 @@ export function DashboardPage() {
         </Card>
       ) : null}
 
-      {routines.length === 0 ? (
-        <Card className="mb-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <div className="text-base font-semibold">Empieza en 2 minutos</div>
-              <div className={'mt-1 text-sm ' + subtleText}>Crea tu primera rutina y añade 3 tareas.</div>
-              <ol className={'mt-3 list-decimal pl-5 text-sm ' + panelText}>
-                <li>Crea una rutina (ej. Mañana, Gym, Estudio)</li>
-                <li>Añade 3 tareas pequeñas</li>
-                <li>Marca una como completada</li>
-              </ol>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                onClick={() => {
-                  setCreateOpen(true)
-                }}
-                className={cn(
-                  'w-full bg-gradient-to-r from-cyan-400 to-violet-500 text-slate-950 hover:from-cyan-300 hover:to-violet-400 focus:ring-cyan-300 sm:w-auto',
-                  !isDay ? 'ring-1 ring-white/10' : '',
-                )}
-              >
-                Crear rutina
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => void refreshAll({ since: new Date(Date.now() - 1000 * 60 * 60 * 24 * 120).toISOString() })}
-                className="w-full sm:w-auto"
-              >
-                Refrescar
-              </Button>
-            </div>
-          </div>
-        </Card>
-      ) : null}
+
 
       <div className="mb-8" ref={routinePanelRef}>
         <RoutinePanel />

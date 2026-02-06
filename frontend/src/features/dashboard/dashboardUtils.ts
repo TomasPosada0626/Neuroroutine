@@ -91,9 +91,9 @@ export function computeStreaks(dayKeys: Set<string>, today = new Date()) {
 
 export function computeWeekCounts(
   events: RoutineTaskEvent[],
-  opts: { weekStartsOn: WeekStartsOn; routineId?: string | null },
+  opts: { weekStartsOn: WeekStartsOn; routineId?: string | null; now?: Date },
 ) {
-  const now = new Date()
+  const now = opts.now ?? new Date()
   const startThis = startOfWeekLocal(now, opts.weekStartsOn)
   const startPrev = addDaysLocal(startThis, -7)
   const endThis = addDaysLocal(startThis, 7)

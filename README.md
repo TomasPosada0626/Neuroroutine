@@ -235,11 +235,18 @@ Checklist:
 
 ## Testing & Quality
 
-- **Current CI**: GitHub Actions runs `npm ci`, `npm run lint`, and `npm run build` on each PR and push to `main`.
-- **Quality bar**: TypeScript + Zod validation + consistent styling (Tailwind).
-- **Recommended next steps**:
-  - Unit tests: Vitest + Testing Library (components + store logic).
-  - E2E: Playwright (auth flow, protected routes, CRUD).
+- **CI**: GitHub Actions runs `npm ci`, `npm run lint`, `npm run test`, `npm run build`, and a Playwright E2E smoke suite.
+- **Unit/store tests**: Vitest (examples live under `frontend/src/**/__tests__`).
+- **E2E**: Playwright (smoke test runs with dummy Supabase env; an optional real-auth test can be enabled via env vars).
+
+Useful commands (from `frontend/`):
+
+```bash
+npm run test
+npm run e2e
+```
+
+Note: the authenticated E2E test is skipped unless you set `E2E_USER_IDENTIFIER` and `E2E_USER_PASSWORD`.
 
 ## Performance & UX
 
@@ -249,14 +256,22 @@ Checklist:
 
 ## Database Migrations
 
-The **source of truth** for the database schema and RLS policies is the versioned SQL file:
+This repo keeps both:
+
+- A **full schema** for bootstrapping a fresh Supabase project.
+- A **migrations folder** for incremental changes.
 
 - `backend/supabase/schema.sql`
+- `backend/supabase/migrations/`
 
 How updates are applied:
 
 - For this project, schema changes are applied by running the SQL in Supabase (SQL Editor).
-- When the schema evolves, the SQL file is updated in the repo so the full database setup remains reproducible.
+- When the schema evolves, a new migration is added and `schema.sql` stays up-to-date so the full database setup remains reproducible.
+
+Schema version / capability check:
+
+- The backend exposes `get_nr_schema_status()` so the frontend can detect missing migrations and show a non-blocking warning banner.
 
 Note: analytics features (streaks/consistency/charts) rely on `routine_task_events` and the trigger defined in `backend/supabase/schema.sql`.
 
@@ -270,6 +285,7 @@ Note: analytics features (streaks/consistency/charts) rely on `routine_task_even
 │  └─ ...
 ├─ backend/                  # Supabase SQL/RLS + docs
 │  └─ supabase/
+│     ├─ migrations/
 │     └─ schema.sql
 ├─ docs/
 │  ├─ diagrams/
@@ -302,6 +318,12 @@ Frontend requires (example in `frontend/.env.example`):
 |---|---|
 | `VITE_SUPABASE_URL` | Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | Public anon key |
+| `VITE_SENTRY_DSN` | (Optional) Sentry DSN for frontend error tracking |
+
+## Observability
+
+- **Sentry (frontend)**: optional. When `VITE_SENTRY_DSN` is set, the app initializes Sentry with `sendDefaultPii: false`.
+- **Event log (DB)**: `public.app_events` stores minimal, no-PII product events (routine/task actions). Inserts are best-effort and never block UX.
 
 ## Local Development
 

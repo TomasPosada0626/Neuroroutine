@@ -79,9 +79,14 @@ export function LoginPage() {
           </div>
 
           <div className="space-y-1">
-            <label className={labelClass}>Usuario o correo</label>
+            <label className={labelClass} htmlFor="login-identifier">
+              Usuario o correo
+            </label>
             <Input
+              id="login-identifier"
               autoComplete="username"
+              aria-label="Usuario o correo"
+              data-testid="login-identifier"
               className={inputClass}
               {...form.register('identifier')}
             />
@@ -91,9 +96,14 @@ export function LoginPage() {
           </div>
 
           <div className="space-y-1">
-            <label className={labelClass}>Contraseña</label>
+            <label className={labelClass} htmlFor="login-password">
+              Contraseña
+            </label>
             <PasswordInput
+              id="login-password"
               autoComplete="current-password"
+              aria-label="Contraseña"
+              data-testid="login-password"
               className={inputClass}
               toggleClassName={toggleClass}
               {...form.register('password')}
@@ -111,6 +121,7 @@ export function LoginPage() {
 
           <Button
             type="submit"
+            data-testid="login-submit"
             className="w-full bg-gradient-to-r from-cyan-400 to-violet-500 text-slate-950 hover:opacity-95 focus:ring-white/30 motion-safe:transition motion-safe:duration-300 hover:-translate-y-0.5"
           >
             Entrar

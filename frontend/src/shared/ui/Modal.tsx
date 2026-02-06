@@ -25,6 +25,28 @@ export function Modal({ open, title, description, onClose, footer, className, ch
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [open, onClose])
 
+  useEffect(() => {
+    if (!open) return
+
+    const body = document.body
+    const html = document.documentElement
+    const prevBodyOverflow = body.style.overflow
+    const prevHtmlOverflow = html.style.overflow
+    const prevBodyPaddingRight = body.style.paddingRight
+
+    // Prevent the background (dashboard) from scrolling while the modal is open.
+    const scrollbarWidth = window.innerWidth - html.clientWidth
+    body.style.overflow = 'hidden'
+    html.style.overflow = 'hidden'
+    if (scrollbarWidth > 0) body.style.paddingRight = `${scrollbarWidth}px`
+
+    return () => {
+      body.style.overflow = prevBodyOverflow
+      html.style.overflow = prevHtmlOverflow
+      body.style.paddingRight = prevBodyPaddingRight
+    }
+  }, [open])
+
   if (!open) return null
 
   const dialogBase = isDay
@@ -41,7 +63,7 @@ export function Modal({ open, title, description, onClose, footer, className, ch
           role="dialog"
           aria-modal="true"
           className={cn(
-            'w-full max-w-lg rounded-2xl p-4 shadow-xl ring-1',
+            'w-full max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl p-4 shadow-xl ring-1',
             dialogBase,
             className,
           )}

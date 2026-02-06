@@ -15,6 +15,10 @@ cp .env.example .env
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 
+Opcional:
+
+- `VITE_SENTRY_DSN` (error tracking en frontend)
+
 3. Instala y ejecuta:
 
 ```bash
@@ -24,7 +28,24 @@ npm run dev
 
 ## CI
 
-En GitHub Actions se corre `npm run lint` y `npm run build` (desde la carpeta `frontend/`).
+En GitHub Actions se corre `npm run lint`, `npm run test`, `npm run build` y un smoke suite de Playwright (desde la carpeta `frontend/`).
+
+## Tests
+
+```bash
+npm run test
+```
+
+## E2E (Playwright)
+
+```bash
+npm run e2e
+```
+
+El test de login real se omite a menos que configures:
+
+- `E2E_USER_IDENTIFIER`
+- `E2E_USER_PASSWORD`
 
 ## Rutas
 

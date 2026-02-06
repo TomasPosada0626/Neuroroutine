@@ -35,12 +35,13 @@ export function RoutineWizardModal({ open, onClose, onCreated }: Props) {
   const isDay = theme === 'day'
   const subtleText = isDay ? 'text-slate-600' : 'text-slate-300'
 
-  const { loading, offline, addRoutine, addTasksBulk } = useRoutines()
+  const { offline, addRoutine, addTasksBulk } = useRoutines()
 
   const [title, setTitle] = useState('')
   const [notes, setNotes] = useState('')
   const [tasks, setTasks] = useState<TaskDraft[]>([{ title: '', description: '', due_date: '', due_time: '' }])
   const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   const canSubmit = useMemo(() => {
     if (!user) return false
@@ -65,15 +66,16 @@ export function RoutineWizardModal({ open, onClose, onCreated }: Props) {
           onClose()
           reset()
         }}
-        disabled={loading}
+        disabled={submitting}
       >
         Cancelar
       </Button>
       <Button
         type="button"
-        disabled={!canSubmit || loading}
+        disabled={!canSubmit || submitting}
         onClick={async () => {
           setError(null)
+          setSubmitting(true)
           try {
             if (!user) throw new Error('Debes iniciar sesión')
             if (offline) throw new Error('Estás en modo offline')
@@ -111,6 +113,8 @@ export function RoutineWizardModal({ open, onClose, onCreated }: Props) {
             reset()
           } catch (e) {
             setError(e instanceof Error ? e.message : 'No se pudo crear la rutina')
+          } finally {
+            setSubmitting(false)
           }
         }}
       >
