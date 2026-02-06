@@ -83,23 +83,21 @@ No-objetivos (trade-offs intencionales de este MVP para portfolio):
 
 ## Galería
 
-> (Agrega screenshots más adelante — se renderizarán aquí en GitHub)
+Las capturas de tema claro/oscuro están en `docs/screenshots/`:
 
-Guarda las imágenes en `docs/screenshots/` con estos nombres:
+- `0-1landing.png` / `0-1landing2.png`
+- `0-2login.png` / `0-2login2.png`
+- `0-3register.png` / `0-3register2.png`
+- `0-4dashboard.png` / `0-4dashboard2.png`
+- `0-5routines.png` / `0-5routines2.png`
 
-- `01-landing.png`
-- `02-login.png`
-- `03-register.png`
-- `04-dashboard.png`
-- `05-routines.png`
-
-| Paso | Vista previa |
-|---|---|
-| Inicio | ![Landing](docs/screenshots/01-landing.png) |
-| Iniciar sesión | ![Login](docs/screenshots/02-login.png) |
-| Registro | ![Register](docs/screenshots/03-register.png) |
-| Dashboard | ![Dashboard](docs/screenshots/04-dashboard.png) |
-| Rutinas/Tareas | ![Routines](docs/screenshots/05-routines.png) |
+| Paso | Claro | Oscuro |
+|---|---|---|
+| Inicio | ![Landing (light)](docs/screenshots/0-1landing.png) | ![Landing (dark)](docs/screenshots/0-1landing2.png) |
+| Iniciar sesión | ![Login (light)](docs/screenshots/0-2login.png) | ![Login (dark)](docs/screenshots/0-2login2.png) |
+| Registro | ![Register (light)](docs/screenshots/0-3register.png) | ![Register (dark)](docs/screenshots/0-3register2.png) |
+| Dashboard | ![Dashboard (light)](docs/screenshots/0-4dashboard.png) | ![Dashboard (dark)](docs/screenshots/0-4dashboard2.png) |
+| Rutinas/Tareas | ![Routines (light)](docs/screenshots/0-5routines.png) | ![Routines (dark)](docs/screenshots/0-5routines2.png) |
 
 ## Funcionalidades
 
