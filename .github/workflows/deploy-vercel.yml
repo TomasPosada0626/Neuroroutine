@@ -12,6 +12,7 @@ concurrency:
 jobs:
   deploy:
     name: Deploy frontend to Vercel
+    if: ${{ secrets.VERCEL_TOKEN && secrets.VERCEL_ORG_ID && secrets.VERCEL_PROJECT_ID }}
     runs-on: ubuntu-latest
 
     defaults:
