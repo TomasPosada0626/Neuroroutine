@@ -756,7 +756,7 @@ export function DashboardPage() {
         </Card>
       ) : null}
 
-      <div className="mb-6 lg:hidden">
+      <div className="mb-8">
         <RoutinePanel />
       </div>
 
@@ -1500,9 +1500,6 @@ export function DashboardPage() {
         </Card>
       </div>
 
-      <div className="hidden lg:block">
-        <RoutinePanel />
-      </div>
     </AppShell>
   )
 }
