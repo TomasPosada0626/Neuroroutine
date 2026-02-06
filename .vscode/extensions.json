@@ -2,6 +2,11 @@
   "recommendations": [
     "dbaeumer.vscode-eslint",
     "bradlc.vscode-tailwindcss",
+    "redhat.vscode-yaml",
+    "github.vscode-github-actions",
+    "github.vscode-pull-request-github"
+  ],
+  "unwantedRecommendations": [
     "ms-vscode.vscode-typescript-next"
   ]
 }
