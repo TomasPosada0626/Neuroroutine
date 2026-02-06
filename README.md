@@ -83,21 +83,13 @@ Non-goals (intentional trade-offs for this portfolio MVP):
 
 ## Gallery
 
-Light/Dark theme screenshots live under `docs/screenshots/`:
-
-- `0-1landing.png` / `0-1landing2.png`
-- `0-2login.png` / `0-2login2.png`
-- `0-3register.png` / `0-3register2.png`
-- `0-4dashboard.png` / `0-4dashboard2.png`
-- `0-5routines.png` / `0-5routines2.png`
-
 | Step | Light | Dark |
 |---|---|---|
-| Landing | ![Landing (light)](docs/screenshots/0-1landing.png) | ![Landing (dark)](docs/screenshots/0-1landing2.png) |
-| Login | ![Login (light)](docs/screenshots/0-2login.png) | ![Login (dark)](docs/screenshots/0-2login2.png) |
-| Register | ![Register (light)](docs/screenshots/0-3register.png) | ![Register (dark)](docs/screenshots/0-3register2.png) |
-| Dashboard | ![Dashboard (light)](docs/screenshots/0-4dashboard.png) | ![Dashboard (dark)](docs/screenshots/0-4dashboard2.png) |
-| Routines/Tasks | ![Routines (light)](docs/screenshots/0-5routines.png) | ![Routines (dark)](docs/screenshots/0-5routines2.png) |
+| Landing | ![Landing (light)](docs/screenshots/01-landing-light.png) | ![Landing (dark)](docs/screenshots/01-landing-dark.png) |
+| Login | ![Login (light)](docs/screenshots/02-login-light.png) | ![Login (dark)](docs/screenshots/02-login-dark.png) |
+| Register | ![Register (light)](docs/screenshots/03-register-light.png) | ![Register (dark)](docs/screenshots/03-register-dark.png) |
+| Dashboard | ![Dashboard (light)](docs/screenshots/04-dashboard-light.png) | ![Dashboard (dark)](docs/screenshots/04-dashboard-dark.png) |
+| Routines/Tasks | ![Routines (light)](docs/screenshots/05-routines-light.png) | ![Routines (dark)](docs/screenshots/05-routines-dark.png) |
 
 ## Features
 
