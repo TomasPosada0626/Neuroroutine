@@ -1,4 +1,5 @@
 import { supabase } from '@/shared/api'
+import { assertDemoFeature } from '@/shared/config/appVariant'
 import { fetchNrSchemaStatus } from '@/shared/schema/schemaService'
 
 type CreatedRoutine = { id: string; title: string }
@@ -60,6 +61,7 @@ async function bestEffortDeleteAppEvents(params: {
 }
 
 export async function clearDashboardDemoData(userId: string) {
+  assertDemoFeature('demo seeding')
   const { data: routines, error: listError } = await supabase
     .from('routines')
     .select('id')
@@ -92,6 +94,7 @@ type FullSeedTask = {
 }
 
 export async function seedFullDemoData(userId: string, scope: SeedScope = 'full') {
+  assertDemoFeature('demo seeding')
   // Make it idempotent-ish for the current user.
   await clearDashboardDemoData(userId)
 
@@ -444,5 +447,6 @@ export async function seedFullDemoData(userId: string, scope: SeedScope = 'full'
 }
 
 export async function seedDashboardDemoData(userId: string) {
+  assertDemoFeature('demo seeding')
   await seedFullDemoData(userId, 'dashboard')
 }
