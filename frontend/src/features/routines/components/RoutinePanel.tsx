@@ -2,13 +2,16 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@/features/auth/authStore'
 import { useRoutines } from '@/features/routines/routinesStore'
 import { RoutineFormModal } from '@/features/routines/components'
-import { Button, Card, Input } from '@/shared/ui'
+import { useDashboardPrefs, type RoutineSchedule } from '@/features/dashboard/dashboardPrefsStore'
+import { Button, Card, Input, Textarea } from '@/shared/ui'
 import { useUiStore } from '@/shared/state/uiStore'
 
 export function RoutinePanel() {
   const { user } = useAuth()
   const theme = useUiStore((s) => s.theme)
   const isDay = theme === 'day'
+
+  const prefs = useDashboardPrefs()
 
   const subtleText = isDay ? 'text-slate-500' : 'text-slate-300'
   const secondaryText = isDay ? 'text-slate-600' : 'text-slate-200'
@@ -30,6 +33,7 @@ export function RoutinePanel() {
   const {
     loading,
     error,
+    offline,
     routines,
     selectedRoutineId,
     tasksByRoutineId,
@@ -44,7 +48,18 @@ export function RoutinePanel() {
   } = useRoutines()
 
   const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [bulkMode, setBulkMode] = useState(false)
+  const [bulkText, setBulkText] = useState('')
   const [routineQuery, setRoutineQuery] = useState('')
+
+  const [scheduleOpen, setScheduleOpen] = useState(false)
+  const [panelCollapsed, setPanelCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('nr-routine-panel-collapsed') === '1'
+    } catch {
+      return false
+    }
+  })
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => {
     try {
       const raw = localStorage.getItem('nr-fav-routines')
@@ -56,6 +71,31 @@ export function RoutinePanel() {
   })
 
   const [editOpen, setEditOpen] = useState(false)
+
+  const persistPanelCollapsed = (next: boolean) => {
+    setPanelCollapsed(next)
+    try {
+      localStorage.setItem('nr-routine-panel-collapsed', next ? '1' : '0')
+    } catch {
+      // ignore
+    }
+  }
+
+  const dayPillClass = (active: boolean) => {
+    const base = 'rounded-lg px-2 py-1 text-xs font-medium ring-1 transition'
+    if (isDay) return base + (active ? ' bg-slate-900 text-white ring-slate-900' : ' bg-white text-slate-700 ring-slate-200 hover:bg-slate-50')
+    return base + (active ? ' bg-white/15 text-white ring-white/25' : ' bg-white/5 text-slate-200 ring-white/10 hover:bg-white/10')
+  }
+
+  const scheduleSummary = (sched: RoutineSchedule | undefined) => {
+    const days = sched?.daysOfWeek ?? []
+    const hour = sched?.hour ?? null
+    if (days.length === 0 && hour === null) return 'Sin programación'
+    const labels = ['D', 'L', 'M', 'X', 'J', 'V', 'S']
+    const daysText = days.length ? days.sort((a, b) => a - b).map((d) => labels[d] ?? String(d)).join(' ') : 'Sin días'
+    const hourText = hour === null ? '' : ` · ${String(hour).padStart(2, '0')}:00`
+    return `${daysText}${hourText}`
+  }
 
   useEffect(() => {
     void loadRoutines()
@@ -96,8 +136,30 @@ export function RoutinePanel() {
     })
   }
 
+  if (panelCollapsed) {
+    return (
+      <Card>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="text-sm font-semibold">Rutinas y tareas</div>
+            <div className={'text-xs ' + subtleText}>Panel minimizado. Vuelve a abrirlo cuando lo necesites.</div>
+          </div>
+          <Button variant="secondary" onClick={() => persistPanelCollapsed(false)}>
+            Abrir panel
+          </Button>
+        </div>
+      </Card>
+    )
+  }
+
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div>
+      <div className="mb-3">
+        <div className="text-sm font-semibold">Rutinas y tareas</div>
+        <div className={'text-xs ' + subtleText}>Las tareas pertenecen a una rutina. La fecha/hora se define en cada tarea.</div>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
       <RoutineFormModal
         open={editOpen}
         title="Editar rutina"
@@ -117,7 +179,6 @@ export function RoutinePanel() {
           })
         }}
       />
-
       <Card className="lg:col-span-1">
         <div className="mb-3 flex items-center justify-between">
           <div>
@@ -194,9 +255,83 @@ export function RoutinePanel() {
                 {selectedRoutine.notes ? (
                   <div className={'text-sm ' + secondaryText}>{selectedRoutine.notes}</div>
                 ) : null}
+
+                <div className="mt-2">
+                  <div className={'text-xs ' + subtleText}>Programación (para “Hoy/Próximo”)</div>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <div
+                      className={
+                        'rounded-lg px-2 py-1 text-xs ring-1 ' +
+                        (isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')
+                      }
+                    >
+                      {scheduleSummary(prefs.routineScheduleById[selectedRoutine.id])}
+                    </div>
+                    <button
+                      type="button"
+                      className={'text-xs underline ' + (isDay ? 'text-slate-700' : 'text-slate-200')}
+                      onClick={() => setScheduleOpen((v) => !v)}
+                    >
+                      {scheduleOpen ? 'Ocultar' : 'Editar'}
+                    </button>
+                  </div>
+
+                  {scheduleOpen ? (
+                    <div className={isDay ? 'mt-2 rounded-lg bg-slate-50 p-3 ring-1 ring-slate-200' : 'mt-2 rounded-lg bg-white/5 p-3 ring-1 ring-white/10'}>
+                      <div className={'text-xs ' + subtleText}>Días</div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {['D', 'L', 'M', 'X', 'J', 'V', 'S'].map((label, dow) => {
+                          const current = prefs.routineScheduleById[selectedRoutine.id] as RoutineSchedule | undefined
+                          const days = current?.daysOfWeek ?? []
+                          const active = days.includes(dow)
+                          return (
+                            <button
+                              key={dow}
+                              type="button"
+                              className={dayPillClass(active)}
+                              onClick={() => {
+                                const nextDays = active ? days.filter((x) => x !== dow) : [...days, dow].sort((a, b) => a - b)
+                                prefs.setRoutineSchedule(selectedRoutine.id, { daysOfWeek: nextDays, hour: current?.hour ?? null })
+                              }}
+                            >
+                              {label}
+                            </button>
+                          )
+                        })}
+                      </div>
+
+                      <div className={'mt-3 text-xs ' + subtleText}>Hora (opcional)</div>
+                      <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={23}
+                          placeholder="0-23"
+                          value={prefs.routineScheduleById[selectedRoutine.id]?.hour ?? ''}
+                          onChange={(e) => {
+                            const raw = e.target.value.trim()
+                            const nextHour = raw === '' ? null : Math.max(0, Math.min(23, Number(raw)))
+                            const current = prefs.routineScheduleById[selectedRoutine.id] as RoutineSchedule | undefined
+                            prefs.setRoutineSchedule(selectedRoutine.id, { daysOfWeek: current?.daysOfWeek ?? [], hour: nextHour })
+                          }}
+                        />
+                        <Button
+                          variant="secondary"
+                          onClick={() => {
+                            const current = prefs.routineScheduleById[selectedRoutine.id] as RoutineSchedule | undefined
+                            prefs.setRoutineSchedule(selectedRoutine.id, { daysOfWeek: current?.daysOfWeek ?? [], hour: null })
+                          }}
+                        >
+                          Limpiar
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <Button
+                  disabled={offline}
                   variant="secondary"
                   onClick={() => {
                     setEditOpen(true)
@@ -205,6 +340,7 @@ export function RoutinePanel() {
                   Editar
                 </Button>
                 <Button
+                  disabled={offline}
                   variant="danger"
                   onClick={() => {
                     if (confirm('¿Eliminar esta rutina?')) {
@@ -220,14 +356,67 @@ export function RoutinePanel() {
 
             <div className="mt-4">
               <div className="mb-2 text-sm font-semibold">Tareas</div>
+              <div className={'mb-2 text-xs ' + subtleText}>
+                Estas tareas viven dentro de esta rutina. Si pones fecha/hora, aparecen como planificadas.
+              </div>
+
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <button
+                  type="button"
+                  className={'text-xs underline ' + (isDay ? 'text-slate-700' : 'text-slate-200')}
+                  onClick={() => {
+                    setBulkMode((v) => !v)
+                    setBulkText('')
+                  }}
+                >
+                  {bulkMode ? 'Volver a una sola' : 'Añadir varias'}
+                </button>
+              </div>
+
+              {bulkMode ? (
+                <div className="space-y-2">
+                  <Textarea
+                    placeholder={"Escribe una tarea por línea\nEj: Tomar agua\nEj: 10 min estiramiento\nEj: Revisar agenda"}
+                    value={bulkText}
+                    onChange={(e) => setBulkText(e.target.value)}
+                    className={isDay ? '' : 'bg-slate-950/40 ring-white/10'}
+                  />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      disabled={offline || !user || !selectedRoutineId || loading || bulkText.trim().length === 0}
+                      onClick={async () => {
+                        if (!user) return
+                        if (!selectedRoutineId) return
+                        if (offline) return
+                        const lines = bulkText
+                          .split(/\r?\n/)
+                          .map((x) => x.trim())
+                          .filter(Boolean)
+                          .slice(0, 20)
+
+                        for (const title of lines) {
+                          await addTask({ user_id: user.id, routine_id: selectedRoutineId, title })
+                        }
+                        setBulkText('')
+                      }}
+                    >
+                      Añadir tareas
+                    </Button>
+                    <Button variant="secondary" onClick={() => setBulkText('')}>
+                      Limpiar
+                    </Button>
+                  </div>
+                  <div className={'text-xs ' + subtleText}>Tip: máximo 20 tareas por batch.</div>
+                </div>
+              ) : (
               <div className="flex gap-2">
                 <Input
-                  placeholder="Nueva tarea…"
+                  placeholder="Nueva tarea (paso pequeño)…"
                   value={newTaskTitle}
                   onChange={(e) => setNewTaskTitle(e.target.value)}
                 />
                 <Button
-                  disabled={!user || !newTaskTitle.trim() || loading}
+                  disabled={offline || !user || !newTaskTitle.trim() || loading}
                   onClick={() => {
                     if (!user) return
                     if (!selectedRoutineId) return
@@ -238,6 +427,7 @@ export function RoutinePanel() {
                   Añadir
                 </Button>
               </div>
+              )}
 
               <div className="mt-3 space-y-2">
                 {tasks.length === 0 ? (
@@ -255,8 +445,10 @@ export function RoutinePanel() {
                         <input
                           type="checkbox"
                           checked={t.is_done}
+                          disabled={offline}
                           onChange={(e) => {
                             if (!selectedRoutineId) return
+                            if (offline) return
                             void setTaskDone({
                               id: t.id,
                               routine_id: selectedRoutineId,
@@ -264,13 +456,25 @@ export function RoutinePanel() {
                             })
                           }}
                         />
-                        <span className={t.is_done ? 'line-through text-slate-400' : ''}>{t.title}</span>
+                        <span className={t.is_done ? 'line-through text-slate-400' : ''}>
+                          {t.title}
+                          {(t.due_date || t.due_time || t.description) ? (
+                            <span className={'ml-2 text-xs ' + subtleText}>
+                              {t.description ? `· ${t.description}` : ''}
+                              {t.due_date ? ` · ${t.due_date}` : ''}
+                              {t.due_time ? ` · ${String(t.due_time).slice(0, 5)}` : ''}
+                            </span>
+                          ) : null}
+                        </span>
                       </label>
                       <Button
-                        variant="secondary"
+                        variant="danger"
+                        disabled={offline}
                         onClick={() => {
                           if (!selectedRoutineId) return
-                          void removeTask({ id: t.id, routine_id: selectedRoutineId })
+                          if (confirm('¿Eliminar esta tarea?')) {
+                            void removeTask({ id: t.id, routine_id: selectedRoutineId })
+                          }
                         }}
                       >
                         Quitar
@@ -283,6 +487,7 @@ export function RoutinePanel() {
           </div>
         )}
       </Card>
+      </div>
     </div>
   )
 }

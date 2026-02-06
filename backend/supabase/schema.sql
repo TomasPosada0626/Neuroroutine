@@ -79,6 +79,16 @@ create table if not exists public.routine_tasks (
 alter table public.routine_tasks
   add column if not exists completed_at timestamptz;
 
+-- Task details: optional description and scheduling
+alter table public.routine_tasks
+  add column if not exists description text;
+
+alter table public.routine_tasks
+  add column if not exists due_date date;
+
+alter table public.routine_tasks
+  add column if not exists due_time time;
+
 -- Analytics-grade history: task completion events
 create table if not exists public.routine_task_events (
   id uuid primary key default gen_random_uuid(),

@@ -87,15 +87,46 @@ export async function createTask(input: {
   user_id: string
   routine_id: string
   title: string
+  description?: string | null
+  due_date?: string | null
+  due_time?: string | null
 }): Promise<RoutineTask> {
-  const { data, error } = await supabase
+  // Insert minimal columns first so the app keeps working even if the DB hasn't been migrated.
+  const { data: created, error: insertError } = await supabase
     .from('routine_tasks')
     .insert({ user_id: input.user_id, routine_id: input.routine_id, title: input.title })
     .select('*')
     .single()
 
-  if (error) throw error
-  return data as RoutineTask
+  if (insertError) throw insertError
+  const base = created as RoutineTask
+
+  const hasMeta =
+    (typeof input.description === 'string' && input.description.trim().length > 0) ||
+    (typeof input.due_date === 'string' && input.due_date.trim().length > 0) ||
+    (typeof input.due_time === 'string' && input.due_time.trim().length > 0)
+
+  if (!hasMeta) return base
+
+  try {
+    const patch = {
+      description: input.description?.trim() ? input.description.trim() : null,
+      due_date: input.due_date?.trim() ? input.due_date.trim() : null,
+      due_time: input.due_time?.trim() ? input.due_time.trim() : null,
+    }
+
+    const { data: updated, error: updateError } = await supabase
+      .from('routine_tasks')
+      .update(patch)
+      .eq('id', base.id)
+      .select('*')
+      .single()
+
+    if (updateError) return base
+    return updated as RoutineTask
+  } catch {
+    return base
+  }
 }
 
 export async function toggleTaskDone(input: {

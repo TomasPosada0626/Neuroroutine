@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import type { ReactNode } from 'react'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { routineSchema, type RoutineValues } from '@/features/routines/schemas'
@@ -10,6 +11,7 @@ type Props = {
   initialValues?: Partial<RoutineValues>
   confirmLabel: string
   loading?: boolean
+  children?: ReactNode
   onClose: () => void
   onConfirm: (values: RoutineValues) => Promise<void> | void
 }
@@ -20,6 +22,7 @@ export function RoutineFormModal({
   initialValues,
   confirmLabel,
   loading,
+  children,
   onClose,
   onConfirm,
 }: Props) {
@@ -52,7 +55,7 @@ export function RoutineFormModal({
     <Modal
       open={open}
       title={title}
-      description="Mantén tus rutinas claras y simples."
+      description="Una rutina es un checklist reutilizable. Después puedes programarla (días/hora) para verla en Hoy/Próximo."
       onClose={onClose}
       footer={
         <>
@@ -81,6 +84,8 @@ export function RoutineFormModal({
             <div className="text-xs text-rose-600">{form.formState.errors.notes.message}</div>
           ) : null}
         </div>
+
+        {children ? <div className="pt-1">{children}</div> : null}
 
         {form.formState.errors.root ? (
           <div className="text-sm text-rose-600">{form.formState.errors.root.message}</div>

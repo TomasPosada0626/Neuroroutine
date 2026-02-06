@@ -24,8 +24,12 @@ export function AppShell({ children }: PropsWithChildren) {
     : 'grid h-8 w-8 place-items-center overflow-hidden rounded-lg bg-gradient-to-br from-cyan-400 to-violet-500'
 
   const handleSignOut = async () => {
-    await signOut()
-    navigate('/')
+    // Navigate immediately so the user sees the landing page instantly,
+    // even if network/logout takes a moment.
+    navigate('/', { replace: true })
+    void signOut().catch(() => {
+      // ignore; landing page doesn't require auth
+    })
   }
 
   return (

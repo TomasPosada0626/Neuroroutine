@@ -17,23 +17,30 @@ type RoutinesState = {
   loading: boolean
   error: string | null
 
+  offline: boolean
+  lastSyncedAt: string | null
+
   routines: Routine[]
   selectedRoutineId: string | null
   tasksByRoutineId: Record<string, RoutineTask[]>
   allTasks: RoutineTask[]
   taskEvents: RoutineTaskEvent[]
 
+  hydrateFromCache: () => void
+  refreshAll: (params?: { since?: string }) => Promise<void>
+
   loadRoutines: () => Promise<void>
   loadAllTasks: () => Promise<void>
   loadTaskEvents: (params?: { since?: string }) => Promise<void>
   selectRoutine: (id: string | null) => void
 
-  addRoutine: (input: { user_id: string; title: string; notes?: string | null }) => Promise<void>
+  addRoutine: (input: { user_id: string; title: string; notes?: string | null }) => Promise<Routine>
   editRoutine: (input: { id: string; title: string; notes?: string | null }) => Promise<void>
   removeRoutine: (id: string) => Promise<void>
 
   loadTasks: (routineId: string) => Promise<void>
-  addTask: (input: { user_id: string; routine_id: string; title: string }) => Promise<void>
+  addTask: (input: { user_id: string; routine_id: string; title: string; description?: string | null; due_date?: string | null; due_time?: string | null }) => Promise<void>
+  addTasksBulk: (input: { user_id: string; routine_id: string; tasks: Array<{ title: string; description?: string | null; due_date?: string | null; due_time?: string | null }> }) => Promise<void>
   setTaskDone: (input: { id: string; routine_id: string; is_done: boolean }) => Promise<void>
   removeTask: (input: { id: string; routine_id: string }) => Promise<void>
 }
@@ -42,11 +49,85 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
   loading: false,
   error: null,
 
+  offline: false,
+  lastSyncedAt: null,
+
   routines: [],
   selectedRoutineId: null,
   tasksByRoutineId: {},
   allTasks: [],
   taskEvents: [],
+
+  hydrateFromCache: () => {
+    try {
+      const raw = localStorage.getItem('nr-cache-routines-v1')
+      if (!raw) return
+      const parsed = JSON.parse(raw) as {
+        ts?: string
+        routines?: Routine[]
+        allTasks?: RoutineTask[]
+        taskEvents?: RoutineTaskEvent[]
+        selectedRoutineId?: string | null
+      }
+
+      const routines = Array.isArray(parsed.routines) ? parsed.routines : []
+      const allTasks = Array.isArray(parsed.allTasks) ? parsed.allTasks : []
+      const taskEvents = Array.isArray(parsed.taskEvents) ? parsed.taskEvents : []
+
+      const tasksByRoutineId: Record<string, RoutineTask[]> = {}
+      for (const t of allTasks) {
+        const list = tasksByRoutineId[t.routine_id] ?? []
+        list.push(t)
+        tasksByRoutineId[t.routine_id] = list
+      }
+
+      set({
+        routines,
+        allTasks,
+        taskEvents,
+        tasksByRoutineId,
+        selectedRoutineId: typeof parsed.selectedRoutineId === 'string' ? parsed.selectedRoutineId : null,
+        lastSyncedAt: typeof parsed.ts === 'string' ? parsed.ts : null,
+      })
+    } catch {
+      // ignore cache errors
+    }
+  },
+
+  refreshAll: async (params) => {
+    set({ loading: true, error: null })
+    try {
+      const [routines, allTasks, taskEvents] = await Promise.all([
+        listRoutines(),
+        listAllTasks(),
+        listTaskEvents({ since: params?.since }),
+      ])
+
+      const tasksByRoutineId: Record<string, RoutineTask[]> = {}
+      for (const t of allTasks) {
+        const list = tasksByRoutineId[t.routine_id] ?? []
+        list.push(t)
+        tasksByRoutineId[t.routine_id] = list
+      }
+
+      const ts = new Date().toISOString()
+      set({ routines, allTasks, taskEvents, tasksByRoutineId, offline: false, lastSyncedAt: ts })
+
+      try {
+        localStorage.setItem(
+          'nr-cache-routines-v1',
+          JSON.stringify({ ts, routines, allTasks, taskEvents, selectedRoutineId: get().selectedRoutineId }),
+        )
+      } catch {
+        // ignore
+      }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to refresh'
+      set({ error: message, offline: typeof navigator !== 'undefined' ? !navigator.onLine : false })
+    } finally {
+      set({ loading: false })
+    }
+  },
 
   loadRoutines: async () => {
     set({ loading: true, error: null })
@@ -95,8 +176,10 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
     try {
       const created = await createRoutine(input)
       set((s) => ({ routines: [created, ...s.routines], selectedRoutineId: created.id }))
+      return created
     } catch (e) {
       set({ error: e instanceof Error ? e.message : 'Failed to create routine' })
+      throw e
     } finally {
       set({ loading: false })
     }
@@ -142,6 +225,40 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
       set((s) => ({ tasksByRoutineId: { ...s.tasksByRoutineId, [routineId]: tasks } }))
     } catch (e) {
       set({ error: e instanceof Error ? e.message : 'Failed to load tasks' })
+    } finally {
+      set({ loading: false })
+    }
+  },
+
+  addTasksBulk: async (input) => {
+    set({ loading: true, error: null })
+    try {
+      const createdTasks: RoutineTask[] = []
+      for (const t of input.tasks) {
+        const title = t.title.trim()
+        if (!title) continue
+        const created = await createTask({
+          user_id: input.user_id,
+          routine_id: input.routine_id,
+          title,
+          description: t.description ?? null,
+          due_date: t.due_date ?? null,
+          due_time: t.due_time ?? null,
+        })
+        createdTasks.push(created)
+      }
+
+      if (createdTasks.length) {
+        set((s) => ({
+          allTasks: [...createdTasks.slice().reverse(), ...s.allTasks],
+          tasksByRoutineId: {
+            ...s.tasksByRoutineId,
+            [input.routine_id]: [...(s.tasksByRoutineId[input.routine_id] ?? []), ...createdTasks],
+          },
+        }))
+      }
+    } catch (e) {
+      set({ error: e instanceof Error ? e.message : 'Failed to create tasks' })
     } finally {
       set({ loading: false })
     }

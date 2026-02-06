@@ -1,12 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useAuth } from '@/features/auth/authStore'
-import { RoutineFormModal } from '@/features/routines/components'
+import { useDashboardPrefs, type DashboardWidgetId, type RoutineSchedule } from '@/features/dashboard/dashboardPrefsStore'
+import { computeDayActivitySet, computeStreaks, computeWeekCounts, formatTimeAgo } from '@/features/dashboard/dashboardUtils'
+import { WidgetOrderEditor } from '@/features/dashboard/WidgetOrderEditor'
+import { RoutineWizardModal } from '@/features/routines/components/RoutineWizardModal'
 import { RoutinePanel } from '@/features/routines/components/RoutinePanel'
 import { useRoutines } from '@/features/routines/routinesStore'
 import { AppShell } from '@/shared/layout'
 import { cn } from '@/shared/lib/cn'
 import { useUiStore } from '@/shared/state/uiStore'
-import { Button, Card, Tooltip } from '@/shared/ui'
+import { Button, Card, Input, Modal, Tooltip } from '@/shared/ui'
 
 type RangeKey = '7d' | '28d' | '90d'
 type BucketGranularity = 'day' | 'week'
@@ -100,41 +103,71 @@ export function DashboardPage() {
   const subtleText = isDay ? 'text-slate-600' : 'text-slate-300'
   const panelText = isDay ? 'text-slate-700' : 'text-slate-200'
 
+  const prefs = useDashboardPrefs()
+
   const {
     loading,
     error,
+    offline,
+    lastSyncedAt,
     routines,
     selectedRoutineId,
     tasksByRoutineId,
     allTasks,
     taskEvents,
-    loadRoutines,
-    loadAllTasks,
-    loadTaskEvents,
+    hydrateFromCache,
+    refreshAll,
     loadTasks,
     selectRoutine,
-    addRoutine,
     setTaskDone,
   } = useRoutines()
 
   const [range, setRange] = useState<RangeKey>('28d')
   const [createOpen, setCreateOpen] = useState(false)
+  const [customizeOpen, setCustomizeOpen] = useState(false)
+  const [reminderSaved, setReminderSaved] = useState(false)
+  const [scheduleRoutineId, setScheduleRoutineId] = useState<string | null>(null)
+
+  const routinePanelRef = useRef<HTMLDivElement | null>(null)
   const [routineGranularity, setRoutineGranularity] = useState<BucketGranularity>(() => (range === '90d' ? 'week' : 'day'))
   const effectiveRoutineGranularity: BucketGranularity = range === '90d' ? 'week' : routineGranularity
 
   useEffect(() => {
-    void loadRoutines()
-    void loadAllTasks()
-    // Pro analytics path: task completion history (heatmap/streak).
-    // If the table isn't deployed yet, this will fail and we fall back to updated_at estimation.
-    void loadTaskEvents({
-      since: new Date(Date.now() - 1000 * 60 * 60 * 24 * 120).toISOString(),
-    })
-  }, [loadRoutines, loadAllTasks, loadTaskEvents])
+    if (scheduleRoutineId) return
+    if (selectedRoutineId) {
+      setScheduleRoutineId(selectedRoutineId)
+      return
+    }
+    if (routines.length > 0) setScheduleRoutineId(routines[0].id)
+  }, [scheduleRoutineId, selectedRoutineId, routines])
+
+  useEffect(() => {
+    hydrateFromCache()
+    void refreshAll({ since: new Date(Date.now() - 1000 * 60 * 60 * 24 * 120).toISOString() })
+  }, [hydrateFromCache, refreshAll])
+
+  // Map the top-level scope to the analytics range for a coherent experience.
+  useEffect(() => {
+    if (prefs.scope === 'month' && range !== '28d') setRange('28d')
+    if (prefs.scope === 'week' && range !== '7d') setRange('7d')
+    if (prefs.scope === 'today' && range !== '7d') setRange('7d')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefs.scope])
 
   useEffect(() => {
     if (selectedRoutineId) void loadTasks(selectedRoutineId)
   }, [selectedRoutineId, loadTasks])
+
+  const onStartSession = (routineId?: string | null) => {
+    const id = routineId ?? selectedRoutineId ?? (routines[0]?.id ?? null)
+    if (id) selectRoutine(id)
+    routinePanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  const onCreatedRoutine = (routineId: string) => {
+    selectRoutine(routineId)
+    routinePanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   const name = useMemo(() => {
     const meta = (user?.user_metadata ?? {}) as Record<string, unknown>
@@ -169,6 +202,67 @@ export function DashboardPage() {
   const tasksTotal = allTasks.length
   const tasksDone = useMemo(() => allTasks.filter((t) => t.is_done).length, [allTasks])
   const completionRate = tasksTotal ? (tasksDone / tasksTotal) * 100 : 0
+
+  const activitySet = useMemo(() => computeDayActivitySet(taskEvents, { routineId: selectedRoutineId }), [taskEvents, selectedRoutineId])
+  const streaks = useMemo(() => computeStreaks(activitySet), [activitySet])
+  const weekCounts = useMemo(
+    () => computeWeekCounts(taskEvents, { weekStartsOn: prefs.weekStartsOn, routineId: selectedRoutineId }),
+    [taskEvents, prefs.weekStartsOn, selectedRoutineId],
+  )
+
+  const weeklyProgressPct = prefs.weeklyGoal ? Math.min(100, (weekCounts.thisWeekCompleted / prefs.weeklyGoal) * 100) : 0
+
+  const achievements: { id: string; title: string; desc: string; earned: boolean }[] = [
+    { id: 'streak3', title: '3 días seguidos', desc: 'Mantén el impulso inicial.', earned: streaks.best >= 3 },
+    { id: 'streak7', title: 'Semana completa', desc: '7 días con actividad.', earned: streaks.best >= 7 },
+    {
+      id: 'goal',
+      title: 'Meta semanal',
+      desc: `Completa ${prefs.weeklyGoal} tareas esta semana.`,
+      earned: weekCounts.thisWeekCompleted >= prefs.weeklyGoal,
+    },
+  ]
+
+  const riskText =
+    streaks.current <= 0
+      ? 'Empieza hoy con una tarea pequeña.'
+      : !streaks.hasToday
+        ? 'Riesgo: hoy aún vas en 0. Completa 1 tarea para mantener la racha.'
+        : 'Vas bien: ya sumaste actividad hoy.'
+
+  const next7Days = useMemo(() => {
+    const now = new Date()
+    const days: { key: string; date: Date; label: string }[] = []
+    const weekdayShort = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(now)
+      d.setDate(now.getDate() + i)
+      const k = dateKeyLocal(d)
+      const label = i === 0 ? 'Hoy' : `${weekdayShort[d.getDay()]} ${d.getDate()}`
+      days.push({ key: k, date: d, label })
+    }
+    return days
+  }, [])
+
+  const scheduledRoutinesByDow = useMemo(() => {
+    const byDow = new Map<number, string[]>()
+    for (const r of routines) {
+      const sched = prefs.routineScheduleById[r.id]
+      if (!sched || !Array.isArray(sched.daysOfWeek) || sched.daysOfWeek.length === 0) continue
+      for (const dow of sched.daysOfWeek) {
+        const list = byDow.get(dow) ?? []
+        list.push(r.id)
+        byDow.set(dow, list)
+      }
+    }
+    return byDow
+  }, [routines, prefs.routineScheduleById])
+
+  const todayDow = new Date().getDay()
+  const scheduledToday = useMemo(() => {
+    const ids = scheduledRoutinesByDow.get(todayDow) ?? []
+    return ids.map((id) => routines.find((r) => r.id === id)).filter(Boolean)
+  }, [scheduledRoutinesByDow, todayDow, routines])
 
   const selectedRoutine = useMemo(
     () => routines.find((r) => r.id === selectedRoutineId) ?? null,
@@ -665,64 +759,662 @@ export function DashboardPage() {
     return isDay ? 'bg-cyan-600' : 'bg-cyan-300/70'
   }
 
-  return (
-    <AppShell>
-      <RoutineFormModal
-        open={createOpen}
-        title="Nueva rutina"
-        confirmLabel="Crear"
-        loading={loading}
-        initialValues={{ title: '', notes: '' }}
-        onClose={() => setCreateOpen(false)}
-        onConfirm={async (values) => {
-          if (!user) throw new Error('Debes iniciar sesión')
-          await addRoutine({
-            user_id: user.id,
-            title: values.title,
-            notes: values.notes?.trim() ? values.notes.trim() : null,
-          })
-          setCreateOpen(false)
-        }}
-      />
+  const widgetOrder = prefs.widgetOrder.filter((id) => !prefs.widgetHidden[id])
 
-      <div className="mb-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="text-2xl font-semibold">Mi progreso</div>
-            <div className={'text-sm ' + subtleText}>
-              {name ? `Hola, ${name}. ` : 'Hola. '}
-              ¿Estás listo para seguir de cerca tus rutinas y tareas?
+  const struggleTasks = useMemo(() => {
+    if (!taskEvents || taskEvents.length === 0) return [] as { taskId: string; title: string; score: number; hint: string }[]
+    const windowDays = windowDaysFromRange(range)
+    const end = startOfDayLocal(new Date())
+    const start = new Date(end)
+    start.setDate(end.getDate() - (windowDays - 1))
+
+    const map = new Map<string, { completed: number; uncompleted: number; reopens: number; prev: 'completed' | 'uncompleted' | null }>()
+    const filtered = taskEvents
+      .filter((ev) => (!selectedRoutineId ? true : ev.routine_id === selectedRoutineId))
+      .filter((ev) => {
+        const t = new Date(ev.created_at).getTime()
+        return t >= start.getTime() && t < end.getTime() + 1000 * 60 * 60 * 24
+      })
+      .slice()
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+
+    for (const ev of filtered) {
+      const c = map.get(ev.routine_task_id) ?? { completed: 0, uncompleted: 0, reopens: 0, prev: null }
+      if (c.prev === 'completed' && ev.event_type === 'uncompleted') c.reopens += 1
+      c.prev = ev.event_type
+      if (ev.event_type === 'completed') c.completed += 1
+      else c.uncompleted += 1
+      map.set(ev.routine_task_id, c)
+    }
+
+    return Array.from(map.entries())
+      .map(([taskId, c]) => {
+        const score = c.uncompleted + c.reopens * 2
+        const title = taskTitleById.get(taskId) ?? 'Tarea'
+        const hint = c.reopens > 0 ? 'Sugerencia: divídela en 2 pasos.' : 'Sugerencia: reduce la dificultad (hazlo más pequeño).'
+        return { taskId, title, score, hint }
+      })
+      .filter((x) => x.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 2)
+  }, [taskEvents, selectedRoutineId, range, taskTitleById])
+
+  const renderWidget = (id: DashboardWidgetId) => {
+    if (id === 'today') {
+      return widgetCardShell(
+        id,
+        'Hoy',
+        'Tu foco inmediato: sesión + 1 tarea.',
+        <div className="space-y-3">
+          <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+            <div className={'text-xs ' + subtleText}>Riesgo</div>
+            <div className={'mt-1 text-sm font-medium ' + panelText}>{riskText}</div>
+          </div>
+
+          <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+            <div className={'text-xs ' + subtleText}>Última actividad</div>
+            <div className={'mt-1 text-sm font-medium ' + panelText}>
+              {lastActivity ? lastActivity.toLocaleString() : '—'}
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
-            <button type="button" className={rangeButtonClass(range === '7d')} onClick={() => setRange('7d')}>
-              7 días
-            </button>
-            <button type="button" className={rangeButtonClass(range === '28d')} onClick={() => setRange('28d')}>
-              28 días
-            </button>
-            <button type="button" className={rangeButtonClass(range === '90d')} onClick={() => setRange('90d')}>
-              90 días
-            </button>
-            {routines.length > 0 ? (
+
+          {scheduledToday.length > 0 ? (
+            <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+              <div className={'text-xs ' + subtleText}>Rutinas programadas</div>
+              <div className="mt-2 space-y-2">
+                {scheduledToday.map((r) => {
+                  if (!r) return null
+                  const tasks = tasksByRoutineId[r.id] ?? []
+                  const done = tasks.filter((t) => t.is_done).length
+                  return (
+                    <div key={r.id} className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className={'text-sm font-medium ' + panelText}>{r.title}</div>
+                        <div className={'text-xs ' + subtleText}>{tasks.length} tareas • {done} hechas</div>
+                      </div>
+                      <Button variant="secondary" onClick={() => onStartSession(r.id)}>
+                        Empezar
+                      </Button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+              <div className={'text-xs ' + subtleText}>Rutinas programadas</div>
+              <div className={'mt-1 text-sm ' + panelText}>Aún no has programado rutinas para hoy.</div>
+              <div className="mt-2">
+                <Button variant="secondary" onClick={() => setCustomizeOpen(true)}>
+                  Programar
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {todayFocus.length === 0 ? (
+            <div className={'rounded-lg p-3 ring-1 ' + (isDay ? 'bg-white ring-slate-200' : 'bg-white/5 ring-white/10')}>
+              <div className={'text-sm ' + panelText}>
+                {routines.length === 0
+                  ? 'Crea tu primera rutina para empezar.'
+                  : 'No hay pendientes recientes. Puedes abrir una rutina y marcar una tarea para sumar hoy.'}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {todayFocus.slice(0, 6).map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className={
+                    'flex w-full items-center justify-between gap-3 rounded-lg p-3 text-left ring-1 transition ' +
+                    (isDay ? 'bg-white ring-slate-200 hover:bg-slate-50' : 'bg-white/5 ring-white/10 hover:bg-white/7')
+                  }
+                  onClick={() => {
+                    if (offline) return
+                    void setTaskDone({ id: t.id, routine_id: t.routine_id, is_done: !t.is_done })
+                  }}
+                  disabled={offline}
+                >
+                  <div className="flex items-center gap-3">
+                    <input type="checkbox" checked={t.is_done} readOnly className={isDay ? '' : 'accent-cyan-300'} />
+                    <div>
+                      <div className={'text-sm font-medium ' + panelText}>{t.title}</div>
+                      <div className={'text-xs ' + subtleText}>{routineTitleById.get(t.routine_id) ?? 'Rutina'}</div>
+                    </div>
+                  </div>
+                  <div className={'text-xs ' + subtleText}>{offline ? 'Offline' : 'Tocar'}</div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>,
+        { className: 'lg:col-span-2' },
+      )
+    }
+
+    if (id === 'upcoming') {
+      return widgetCardShell(
+        id,
+        'Próximo',
+        'Agenda simple (7 días).',
+        <div className="grid gap-3">
+          <div className="grid grid-cols-7 gap-2">
+            {next7Days.map((d) => {
+              const list = scheduledRoutinesByDow.get(d.date.getDay()) ?? []
+              const count = list.length
+              return (
+                <div
+                  key={d.key}
+                  className={
+                    'rounded-lg p-2 text-center ring-1 ' +
+                    (isDay ? 'bg-white ring-slate-200' : 'bg-white/5 ring-white/10')
+                  }
+                >
+                  <div className={'text-[10px] ' + subtleText}>{d.label}</div>
+                  <div className={'mt-1 text-sm font-semibold ' + (isDay ? 'text-slate-900' : 'text-white')}>{count}</div>
+                  <div className={'text-[10px] ' + subtleText}>rutinas</div>
+                </div>
+              )
+            })}
+          </div>
+          <div className={'text-xs ' + subtleText}>
+            Tip: programa rutinas por días en “Personalizar”.
+          </div>
+        </div>,
+      )
+    }
+
+    if (id === 'streaks') {
+      return widgetCardShell(
+        id,
+        'Rachas',
+        'Consistencia en días con actividad.',
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+            <div className={'text-xs ' + subtleText}>Racha actual</div>
+            <div className={'mt-1 text-2xl font-semibold ' + (isDay ? 'text-slate-900' : 'text-white')}>{streaks.current}</div>
+            <div className={'mt-1 text-xs ' + subtleText}>{streaks.hasToday ? 'Ya sumaste hoy' : 'Aún no sumas hoy'}</div>
+          </div>
+          <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+            <div className={'text-xs ' + subtleText}>Mejor racha</div>
+            <div className={'mt-1 text-2xl font-semibold ' + (isDay ? 'text-slate-900' : 'text-white')}>{streaks.best}</div>
+            <div className={'mt-1 text-xs ' + subtleText}>Tu récord histórico</div>
+          </div>
+        </div>,
+      )
+    }
+
+    if (id === 'goal') {
+      return widgetCardShell(
+        id,
+        'Meta semanal',
+        `Objetivo: ${prefs.weeklyGoal} tareas/semana.`,
+        <div className="space-y-3">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <div className={'text-xs ' + subtleText}>Esta semana</div>
+              <div className={'mt-1 text-xl font-semibold ' + (isDay ? 'text-slate-900' : 'text-white')}>
+                {weekCounts.thisWeekCompleted} / {prefs.weeklyGoal}
+              </div>
+            </div>
+            <div className={'text-xs ' + subtleText}>
+              vs anterior: {weekCounts.prevWeekCompleted} ({Math.round(weekCounts.deltaPct)}%)
+            </div>
+          </div>
+
+          <div className={'h-2 w-full rounded-full ' + (isDay ? 'bg-slate-200' : 'bg-white/10')}>
+            <div
+              className={'h-2 rounded-full bg-gradient-to-r from-cyan-400 to-violet-500'}
+              style={{ width: `${Math.max(0, Math.min(100, weeklyProgressPct))}%` }}
+            />
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+              <div className={'text-xs ' + subtleText}>Consistencia</div>
+              <div className={'mt-1 text-sm font-medium ' + panelText}>{Math.round(weekCounts.consistencyThis)}% de días activos</div>
+            </div>
+            <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+              <div className={'text-xs ' + subtleText}>Recomendación</div>
+              <div className={'mt-1 text-sm font-medium ' + panelText}>
+                {weekCounts.thisWeekCompleted === 0 ? 'Haz 1 tarea hoy para arrancar.' : 'Mantén el ritmo con una sesión corta.'}
+              </div>
+            </div>
+          </div>
+        </div>,
+      )
+    }
+
+    if (id === 'achievements') {
+      return widgetCardShell(
+        id,
+        'Logros',
+        'Pequeñas victorias que suman.',
+        <div className="grid gap-2">
+          {achievements.map((a) => (
+            <div
+              key={a.id}
+              className={
+                'flex items-center justify-between gap-3 rounded-lg p-3 ring-1 ' +
+                (isDay ? 'bg-white ring-slate-200' : 'bg-white/5 ring-white/10')
+              }
+            >
+              <div>
+                <div className={'text-sm font-medium ' + panelText}>{a.title}</div>
+                <div className={'text-xs ' + subtleText}>{a.desc}</div>
+              </div>
+              <div className={'text-xs ' + (a.earned ? (isDay ? 'text-emerald-600' : 'text-emerald-300') : subtleText)}>
+                {a.earned ? 'Logrado' : 'Pendiente'}
+              </div>
+            </div>
+          ))}
+        </div>,
+      )
+    }
+
+    if (id === 'insights') {
+      return widgetCardShell(
+        id,
+        'Insights accionables',
+        'Qué hacer ahora + dónde mejorar.',
+        <div className="space-y-3">
+          <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+            <div className={'text-xs ' + subtleText}>Comparativa semanal</div>
+            <div className={'mt-1 text-sm font-medium ' + panelText}>
+              {weekCounts.thisWeekCompleted} completadas esta semana • {weekCounts.prevWeekCompleted} la anterior
+            </div>
+          </div>
+
+          <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+            <div className={'text-xs ' + subtleText}>Mejor ventana horaria</div>
+            <div className={'mt-1 text-sm font-medium ' + panelText}>
+              {selectedRoutineAnalytics.source === 'events' ? `${formatHour(selectedRoutineAnalytics.bestWindowStart)}–${formatHour((selectedRoutineAnalytics.bestWindowStart + 2) % 24)}` : 'Activa historial real para calcularlo.'}
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
               <Button
-                className={cn(
-                  'w-full bg-gradient-to-r from-cyan-400 to-violet-500 text-slate-950 hover:from-cyan-300 hover:to-violet-400 focus:ring-cyan-300 sm:ml-2 sm:w-auto',
-                  !isDay ? 'ring-1 ring-white/10' : '',
-                )}
-                onClick={() => setCreateOpen(true)}
-                disabled={!user || loading}
+                variant="secondary"
+                onClick={() => {
+                  if (selectedRoutineAnalytics.source !== 'events') return
+                  prefs.setReminderHour(selectedRoutineAnalytics.bestWindowStart)
+                  setReminderSaved(true)
+                  window.setTimeout(() => setReminderSaved(false), 1500)
+                }}
+                disabled={selectedRoutineAnalytics.source !== 'events'}
               >
-                Nueva rutina
+                Programar recordatorio en mi mejor hora
               </Button>
-            ) : null}
+              {reminderSaved ? <div className={'text-xs ' + (isDay ? 'text-emerald-600' : 'text-emerald-300')}>Guardado</div> : null}
+            </div>
+          </div>
+
+          <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+            <div className={'text-xs ' + subtleText}>Qué te está frenando</div>
+            {struggleTasks.length === 0 ? (
+              <div className={'mt-1 text-sm ' + panelText}>Aún no hay suficientes señales. Completa/uncompleta tareas para generar insights.</div>
+            ) : (
+              <div className="mt-2 space-y-2">
+                {struggleTasks.map((t) => (
+                  <div key={t.taskId}>
+                    <div className={'text-sm font-medium ' + panelText}>{t.title}</div>
+                    <div className={'text-xs ' + subtleText}>{t.hint}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>,
+      )
+    }
+
+    if (id === 'analytics') {
+      return widgetCardShell(
+        id,
+        'Analítica',
+        'KPIs y tendencias.',
+        <div className={'text-sm ' + subtleText}>Desplázate hacia abajo para ver gráficos detallados.</div>,
+      )
+    }
+
+    // routines
+    return widgetCardShell(
+      id,
+      'Rutinas',
+      'Acceso rápido.',
+      <div className="flex items-center justify-between gap-3">
+        <div className={'text-sm ' + panelText}>Gestiona tareas y marca completadas.</div>
+        <Button variant="secondary" onClick={() => onStartSession(null)}>
+          Ir
+        </Button>
+      </div>,
+    )
+  }
+
+  function widgetCardShell(
+    id: DashboardWidgetId,
+    title: string,
+    subtitle: string | null,
+    body: ReactNode,
+    opts?: { className?: string },
+  ) {
+    const collapsed = prefs.widgetCollapsed[id]
+    const shellClass = 'overflow-hidden'
+    const headerClass = cn(
+      'flex w-full items-center justify-between gap-3 text-left',
+      'rounded-lg px-0 py-0',
+    )
+
+    return (
+      <Card key={id} className={cn(shellClass, opts?.className)}>
+        <button
+          type="button"
+          className={headerClass}
+          onClick={() => prefs.toggleWidgetCollapsed(id)}
+        >
+          <div className="p-4">
+            <div className="text-sm font-semibold">{title}</div>
+            {subtitle ? <div className={'text-xs ' + subtleText}>{subtitle}</div> : null}
+          </div>
+          <div className={'p-4 text-xs ' + subtleText}>{collapsed ? 'Mostrar' : 'Ocultar'}</div>
+        </button>
+
+        <div className={cn('px-4 pb-4', collapsed ? 'hidden lg:block' : 'block')}>
+          {body}
+        </div>
+      </Card>
+    )
+  }
+
+  return (
+    <AppShell>
+      <RoutineWizardModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={(id) => onCreatedRoutine(id)}
+      />
+
+      <Modal
+        open={customizeOpen}
+        title="Personaliza tu dashboard"
+        description="Configura metas, filtros y qué secciones ves primero."
+        onClose={() => setCustomizeOpen(false)}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setCustomizeOpen(false)}>
+              Cerrar
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-5">
+          <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+            <div className="text-sm font-semibold">Preferencias</div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div>
+                <div className={'text-xs ' + subtleText}>Meta semanal (tareas)</div>
+                <Input
+                  type="number"
+                  min={1}
+                  value={prefs.weeklyGoal}
+                  onChange={(e) => prefs.setWeeklyGoal(Number(e.target.value || 1))}
+                />
+              </div>
+
+              <div>
+                <div className={'text-xs ' + subtleText}>Semana inicia</div>
+                <div className="mt-1 flex items-center gap-2">
+                  <button
+                    type="button"
+                    className={rangeButtonClass(prefs.weekStartsOn === 1)}
+                    onClick={() => prefs.setWeekStartsOn(1)}
+                  >
+                    Lunes
+                  </button>
+                  <button
+                    type="button"
+                    className={rangeButtonClass(prefs.weekStartsOn === 0)}
+                    onClick={() => prefs.setWeekStartsOn(0)}
+                  >
+                    Domingo
+                  </button>
+                </div>
+              </div>
+
+              <div className="sm:col-span-2">
+                <div className={'text-xs ' + subtleText}>Hora típica de recordatorio</div>
+                <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={23}
+                    placeholder="0-23"
+                    value={prefs.reminderHour ?? ''}
+                    onChange={(e) => {
+                      const v = e.target.value.trim()
+                      prefs.setReminderHour(v === '' ? null : Math.max(0, Math.min(23, Number(v))))
+                    }}
+                  />
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      prefs.setReminderHour(null)
+                      setReminderSaved(false)
+                    }}
+                  >
+                    Limpiar
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+            <div className="text-sm font-semibold">Programación por rutina</div>
+            <div className={'mt-1 text-xs ' + subtleText}>Define qué rutinas quieres ver en “Hoy” y “Próximo”.</div>
+
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <div className={'text-xs ' + subtleText}>Rutina</div>
+                <select
+                  className={
+                    'mt-1 w-full rounded-lg px-3 py-2 text-sm ring-1 ' +
+                    (isDay ? 'bg-white ring-slate-200' : 'bg-slate-950/40 ring-white/10')
+                  }
+                  value={scheduleRoutineId ?? ''}
+                  onChange={(e) => setScheduleRoutineId(e.target.value || null)}
+                >
+                  {routines.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {scheduleRoutineId ? (
+                <>
+                  <div className="sm:col-span-2">
+                    <div className={'text-xs ' + subtleText}>Días</div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {['D', 'L', 'M', 'X', 'J', 'V', 'S'].map((label, dow) => {
+                        const current = prefs.routineScheduleById[scheduleRoutineId] as RoutineSchedule | undefined
+                        const days = current?.daysOfWeek ?? []
+                        const active = days.includes(dow)
+                        return (
+                          <button
+                            key={dow}
+                            type="button"
+                            className={rangeButtonClass(active)}
+                            onClick={() => {
+                              const nextDays = active ? days.filter((x) => x !== dow) : [...days, dow].sort((a, b) => a - b)
+                              prefs.setRoutineSchedule(scheduleRoutineId, { daysOfWeek: nextDays, hour: current?.hour ?? null })
+                            }}
+                          >
+                            {label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <div className={'text-xs ' + subtleText}>Hora (opcional)</div>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={23}
+                      placeholder="0-23"
+                      value={prefs.routineScheduleById[scheduleRoutineId]?.hour ?? ''}
+                      onChange={(e) => {
+                        const raw = e.target.value.trim()
+                        const nextHour = raw === '' ? null : Math.max(0, Math.min(23, Number(raw)))
+                        const current = prefs.routineScheduleById[scheduleRoutineId] as RoutineSchedule | undefined
+                        prefs.setRoutineSchedule(scheduleRoutineId, { daysOfWeek: current?.daysOfWeek ?? [], hour: nextHour })
+                      }}
+                    />
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </div>
+
+          <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+            <div className="text-sm font-semibold">Secciones</div>
+            <div className={'mt-1 text-xs ' + subtleText}>Oculta widgets o reordénalos arrastrando.</div>
+
+            <div className="mt-3">
+              <WidgetOrderEditor
+                isDay={isDay}
+                order={prefs.widgetOrder}
+                hidden={prefs.widgetHidden}
+                titleForId={(id) =>
+                  id === 'today'
+                    ? 'Hoy'
+                    : id === 'upcoming'
+                      ? 'Próximo'
+                      : id === 'streaks'
+                        ? 'Rachas'
+                        : id === 'goal'
+                          ? 'Meta semanal'
+                          : id === 'achievements'
+                            ? 'Logros'
+                            : id === 'insights'
+                              ? 'Insights'
+                              : id === 'analytics'
+                                ? 'Analítica'
+                                : 'Rutinas'
+                }
+                onOrderChange={(next) => prefs.setWidgetOrder(next)}
+                onToggleHidden={(id) => prefs.toggleWidgetHidden(id)}
+              />
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+      <div className="mb-6">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <div className="text-2xl font-semibold">Mi progreso</div>
+              <div className={'text-sm ' + subtleText}>
+                {name ? `Hola, ${name}. ` : 'Hola. '}
+                Hoy cuenta: una tarea pequeña ya es progreso.
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="secondary" onClick={() => setCustomizeOpen(true)}>
+                Personalizar
+              </Button>
+              {routines.length > 0 ? (
+                <Button
+                  className={cn(
+                    'bg-gradient-to-r from-cyan-400 to-violet-500 text-slate-950 hover:from-cyan-300 hover:to-violet-400 focus:ring-cyan-300',
+                    !isDay ? 'ring-1 ring-white/10' : '',
+                  )}
+                  onClick={() => setCreateOpen(true)}
+                  disabled={!user || loading}
+                >
+                  Nueva rutina
+                </Button>
+              ) : null}
+            </div>
+          </div>
+
+          <div
+            className={cn(
+              'sticky top-[58px] z-10 -mx-4 border-b px-4 py-2 backdrop-blur',
+              isDay ? 'border-slate-200 bg-white/70' : 'border-white/10 bg-slate-900/60',
+            )}
+          >
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" className={rangeButtonClass(prefs.scope === 'today')} onClick={() => prefs.setScope('today')}>
+                  Hoy
+                </button>
+                <button type="button" className={rangeButtonClass(prefs.scope === 'week')} onClick={() => prefs.setScope('week')}>
+                  Semana
+                </button>
+                <button type="button" className={rangeButtonClass(prefs.scope === 'month')} onClick={() => prefs.setScope('month')}>
+                  Mes
+                </button>
+
+                <select
+                  className={
+                    'rounded-full px-3 py-1 text-xs ring-1 ' +
+                    (isDay ? 'bg-white text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')
+                  }
+                  value={selectedRoutineId ?? ''}
+                  onChange={(e) => selectRoutine(e.target.value ? e.target.value : null)}
+                >
+                  <option value="">Todas las rutinas</option>
+                  {routines.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <div className={'text-xs ' + subtleText}>
+                  {offline ? 'Modo offline (solo lectura)' : formatTimeAgo(lastSyncedAt) ? `Sincronizado ${formatTimeAgo(lastSyncedAt)}` : '—'}
+                </div>
+                <Button
+                  variant="secondary"
+                  onClick={() => void refreshAll({ since: new Date(Date.now() - 1000 * 60 * 60 * 24 * 120).toISOString() })}
+                  disabled={loading}
+                >
+                  Reintentar
+                </Button>
+                <Button
+                  className={cn(
+                    'bg-gradient-to-r from-cyan-400 to-violet-500 text-slate-950 hover:from-cyan-300 hover:to-violet-400 focus:ring-cyan-300',
+                    !isDay ? 'ring-1 ring-white/10' : '',
+                  )}
+                  onClick={() => setCreateOpen(true)}
+                >
+                  Crear rutina
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       {error ? (
         <Card className="mb-6">
-          <div className="text-sm text-rose-600">{error}</div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-sm text-rose-600">{error}</div>
+            <Button
+              variant="secondary"
+              onClick={() => void refreshAll({ since: new Date(Date.now() - 1000 * 60 * 60 * 24 * 120).toISOString() })}
+              disabled={loading}
+            >
+              Reintentar
+            </Button>
+          </div>
         </Card>
       ) : null}
 
@@ -740,7 +1432,9 @@ export function DashboardPage() {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Button
-                onClick={() => setCreateOpen(true)}
+                onClick={() => {
+                  setCreateOpen(true)
+                }}
                 className={cn(
                   'w-full bg-gradient-to-r from-cyan-400 to-violet-500 text-slate-950 hover:from-cyan-300 hover:to-violet-400 focus:ring-cyan-300 sm:w-auto',
                   !isDay ? 'ring-1 ring-white/10' : '',
@@ -748,7 +1442,11 @@ export function DashboardPage() {
               >
                 Crear rutina
               </Button>
-              <Button variant="secondary" onClick={() => void loadRoutines()} className="w-full sm:w-auto">
+              <Button
+                variant="secondary"
+                onClick={() => void refreshAll({ since: new Date(Date.now() - 1000 * 60 * 60 * 24 * 120).toISOString() })}
+                className="w-full sm:w-auto"
+              >
                 Refrescar
               </Button>
             </div>
@@ -756,9 +1454,11 @@ export function DashboardPage() {
         </Card>
       ) : null}
 
-      <div className="mb-8">
+      <div className="mb-8" ref={routinePanelRef}>
         <RoutinePanel />
       </div>
+
+      {widgetOrder.length > 0 ? <div className="mb-6 grid gap-4 lg:grid-cols-3">{widgetOrder.map(renderWidget)}</div> : null}
 
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
         <Card>
@@ -784,85 +1484,6 @@ export function DashboardPage() {
               className={'h-2 rounded-full bg-gradient-to-r from-cyan-400 to-violet-500'}
               style={{ width: `${Math.min(100, Math.max(0, completionRate))}%` }}
             />
-          </div>
-        </Card>
-      </div>
-
-      <div className="mb-6 grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="text-sm font-semibold">Hoy</div>
-              <div className={'text-xs ' + subtleText}>Tu foco inmediato (pendientes recientes)</div>
-            </div>
-          </div>
-
-          {todayFocus.length === 0 ? (
-            <div className={'mt-4 rounded-lg p-3 ring-1 ' + (isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')}>
-              {routines.length === 0
-                ? 'Aún no hay tareas porque no tienes rutinas. Crea tu primera rutina para empezar.'
-                : 'No hay tareas pendientes. Crea o edita tareas dentro de una rutina para ver tu “Hoy” aquí.'}
-            </div>
-          ) : (
-            <div className="mt-4 space-y-2">
-              {todayFocus.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  className={
-                    'flex w-full items-center justify-between gap-3 rounded-lg p-3 text-left ring-1 transition ' +
-                    (isDay ? 'bg-white ring-slate-200 hover:bg-slate-50' : 'bg-white/5 ring-white/10 hover:bg-white/7')
-                  }
-                  onClick={() => void setTaskDone({ id: t.id, routine_id: t.routine_id, is_done: !t.is_done })}
-                >
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={t.is_done}
-                      readOnly
-                      className={isDay ? '' : 'accent-cyan-300'}
-                    />
-                    <div>
-                      <div className={'text-sm font-medium ' + panelText}>{t.title}</div>
-                      <div className={'text-xs ' + subtleText}>
-                        {routineTitleById.get(t.routine_id) ?? 'Rutina'}
-                        {selectedRoutineId === t.routine_id ? ' • seleccionada' : ''}
-                      </div>
-                    </div>
-                  </div>
-                  <div className={'text-xs ' + subtleText}>Tocar para marcar</div>
-                </button>
-              ))}
-            </div>
-          )}
-        </Card>
-
-        <Card>
-          <div>
-            <div className="text-sm font-semibold">Insights</div>
-            <div className={'text-xs ' + subtleText}>Lecturas rápidas (estimadas)</div>
-          </div>
-
-          <div className="mt-4 grid gap-3">
-            <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
-              <div className={'text-xs ' + subtleText}>Racha</div>
-              <div className={'mt-1 text-lg font-semibold ' + kpiValueClass}>
-                {heatmap.streak} días
-                <span className={'ml-2 text-xs font-normal ' + subtleText}>(mejor: {heatmap.best})</span>
-              </div>
-            </div>
-
-            <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
-              <div className={'text-xs ' + subtleText}>Última actividad</div>
-              <div className={'mt-1 text-sm font-medium ' + panelText}>
-                {lastActivity ? lastActivity.toLocaleString() : '—'}
-              </div>
-            </div>
-
-            <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
-              <div className={'text-xs ' + subtleText}>Privacidad</div>
-              <div className={'mt-1 text-sm font-medium ' + panelText}>Solo tú ves tus datos (RLS)</div>
-            </div>
           </div>
         </Card>
       </div>
