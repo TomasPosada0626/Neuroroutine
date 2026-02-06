@@ -78,7 +78,7 @@ Non-goals (intentional trade-offs for this portfolio MVP):
 
 - No custom backend server (the frontend talks directly to Supabase).
 - No notifications/cron jobs yet.
-- No full test suite yet (CI enforces lint + build; tests are a recommended next step).
+- Not an exhaustive test suite (CI enforces lint + unit/store tests + build + Playwright smoke E2E).
 
 ## Gallery
 
