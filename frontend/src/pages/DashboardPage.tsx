@@ -1044,6 +1044,29 @@ Puedes eliminarlo con “Limpiar demo”. ¿Continuar?`,
 
     if (id === 'upcoming') {
       const hasSchedule = Object.keys(prefs.routineScheduleById ?? {}).length > 0
+
+      const upcomingItems = next7Days
+        .flatMap((d, idx) => {
+          const ids = scheduledRoutinesByDow.get(d.date.getDay()) ?? []
+          return ids
+            .map((id) => {
+              const r = routines.find((x) => x.id === id)
+              if (!r) return null
+              const sched = prefs.routineScheduleById[r.id]
+              const hour = sched?.hour ?? null
+              return { key: `${d.key}:${r.id}`, dayKey: d.key, dayLabel: d.label, dayIndex: idx, hour, title: r.title }
+            })
+            .filter(Boolean) as Array<{ key: string; dayKey: string; dayLabel: string; dayIndex: number; hour: number | null; title: string }>
+        })
+        .sort((a, b) => {
+          if (a.dayIndex !== b.dayIndex) return a.dayIndex - b.dayIndex
+          const ah = a.hour ?? 99
+          const bh = b.hour ?? 99
+          if (ah !== bh) return ah - bh
+          return a.title.localeCompare(b.title)
+        })
+
+      const totalNext7 = upcomingItems.length
       return widgetCardShell(
         id,
         'Próximo',
@@ -1071,6 +1094,43 @@ Puedes eliminarlo con “Limpiar demo”. ¿Continuar?`,
           <div className={'text-xs ' + subtleText}>
             Tip: programa rutinas por días en “Personalizar”.
           </div>
+
+          {totalNext7 === 0 ? (
+            <div className={cn('rounded-lg p-3 text-sm ring-1', isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')}>
+              <div className={'text-xs ' + subtleText}>Sin agenda por ahora</div>
+              <div className={'mt-1 text-sm font-medium ' + panelText}>No hay rutinas programadas para los próximos 7 días.</div>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {!hasSchedule && routines.length > 0 ? (
+                  <Button variant="secondary" onClick={applyDemoScheduleDefaults}>
+                    Autoprogramar
+                  </Button>
+                ) : null}
+                <Button variant="secondary" onClick={() => setCustomizeOpen(true)}>
+                  Personalizar
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className={cn('rounded-lg p-3 ring-1', isDay ? 'bg-slate-50 ring-slate-200' : 'bg-white/5 ring-white/10')}>
+              <div className="flex items-center justify-between gap-3">
+                <div className={'text-xs ' + subtleText}>Próximas rutinas</div>
+                <div className={'text-xs ' + subtleText}>{totalNext7} en 7 días</div>
+              </div>
+              <div className="mt-2 space-y-2">
+                {upcomingItems.slice(0, 6).map((it) => (
+                  <div key={it.key} className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className={'text-sm font-medium ' + panelText}>{it.title}</div>
+                      <div className={'text-[11px] ' + subtleText}>{it.dayLabel}</div>
+                    </div>
+                    <div className={'text-xs ' + subtleText}>{it.hour == null ? '—' : formatHour(it.hour)}</div>
+                  </div>
+                ))}
+                {upcomingItems.length > 6 ? <div className={'text-[11px] ' + subtleText}>+{upcomingItems.length - 6} más</div> : null}
+              </div>
+            </div>
+          )}
+
           {!hasSchedule && routines.length > 0 ? (
             <div className="pt-1">
               <Button variant="secondary" onClick={applyDemoScheduleDefaults}>
