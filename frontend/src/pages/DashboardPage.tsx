@@ -136,10 +136,23 @@ export function DashboardPage() {
     if (selectedRoutineId) void loadTasks(selectedRoutineId)
   }, [selectedRoutineId, loadTasks])
 
-  const name =
-    (user?.user_metadata?.first_name as string | undefined) ||
-    (user?.user_metadata?.username as string | undefined) ||
-    'tu'
+  const name = useMemo(() => {
+    const meta = (user?.user_metadata ?? {}) as Record<string, unknown>
+    const raw =
+      (typeof meta.first_name === 'string' ? meta.first_name : undefined) ||
+      (typeof meta.full_name === 'string' ? meta.full_name : undefined) ||
+      (typeof meta.name === 'string' ? meta.name : undefined) ||
+      (typeof meta.username === 'string' ? meta.username : undefined)
+
+    const email = user?.email
+    const fromEmail = email ? email.split('@')[0] : ''
+
+    const base = (raw || fromEmail || '').trim()
+    if (!base) return ''
+
+    const token = base.split(/[._\-\s]+/).filter(Boolean)[0] ?? base
+    return token ? token.charAt(0).toUpperCase() + token.slice(1) : ''
+  }, [user])
 
   const routineTitleById = useMemo(() => {
     const map = new Map<string, string>()
@@ -676,7 +689,10 @@ export function DashboardPage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="text-2xl font-semibold">Mi progreso</div>
-            <div className={'text-sm ' + subtleText}>Hola, {name}. ¿Estás listo para seguir de cerca tus rutinas y tareas?</div>
+            <div className={'text-sm ' + subtleText}>
+              {name ? `Hola, ${name}. ` : 'Hola. '}
+              ¿Estás listo para seguir de cerca tus rutinas y tareas?
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
             <button type="button" className={rangeButtonClass(range === '7d')} onClick={() => setRange('7d')}>

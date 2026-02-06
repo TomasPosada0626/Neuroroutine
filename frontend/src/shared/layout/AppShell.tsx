@@ -12,7 +12,9 @@ export function AppShell({ children }: PropsWithChildren) {
   const isDay = theme === 'day'
 
   // Slightly lighter than the landing page in night mode.
-  const rootClass = isDay ? 'min-h-dvh bg-slate-50 text-slate-900' : 'min-h-dvh bg-slate-900 text-slate-50'
+  const rootClass = isDay
+    ? 'min-h-dvh overflow-x-hidden bg-slate-50 text-slate-900'
+    : 'min-h-dvh overflow-x-hidden bg-slate-900 text-slate-50'
   const headerClass = isDay
     ? 'sticky top-0 z-10 border-b border-slate-200 bg-white/70 backdrop-blur'
     : 'sticky top-0 z-10 border-b border-white/10 bg-slate-900/60 backdrop-blur'

@@ -572,6 +572,63 @@ export function LandingPage() {
             </div>
           </div>
 
+          {/* Mobile: compact preview to make the page feel richer */}
+          <div className="lg:hidden">
+            <Card className={panelClass + ' p-4'}>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold">Vista previa</div>
+                  <div className={"text-xs " + panelMutedText}>Así se vería tu sesión hoy</div>
+                </div>
+                <div className="shrink-0">
+                  <UseCaseTabs value={useCase} onChange={handleUseCaseChange} theme={theme} />
+                </div>
+              </div>
+
+              <div className={"mt-3 rounded-xl p-3 " + panelSoft}>
+                <div className="flex items-center justify-between">
+                  <div className={"text-xs " + panelMutedText}>{activePreset.tableTitle}</div>
+                  <div className={"text-xs " + panelMutedText}>Hoy</div>
+                </div>
+
+                <div className={"mt-2 space-y-2"}>
+                  {activePreset.tableRows.slice(0, 3).map((r) => (
+                    <div
+                      key={r.title}
+                      className={
+                        'flex items-center justify-between gap-3 rounded-lg px-3 py-2 ring-1 ' +
+                        (isDay ? 'bg-white ring-slate-200' : 'bg-white/5 ring-white/10')
+                      }
+                    >
+                      <div className="min-w-0">
+                        <div className={"truncate text-xs font-medium " + (isDay ? 'text-slate-900' : 'text-white')}>{r.title}</div>
+                        <div className={"mt-0.5 text-[11px] " + panelMutedText}>{r.tasks} tareas</div>
+                      </div>
+                      <div
+                        className={
+                          'shrink-0 rounded-full px-2 py-0.5 text-[11px] ring-1 ' +
+                          (r.tone === 'emerald'
+                            ? isDay
+                              ? 'bg-emerald-500/10 text-emerald-700 ring-emerald-500/20'
+                              : 'bg-emerald-400/15 text-emerald-200 ring-emerald-400/20'
+                            : r.tone === 'cyan'
+                              ? isDay
+                                ? 'bg-cyan-500/10 text-cyan-700 ring-cyan-500/20'
+                                : 'bg-cyan-400/15 text-cyan-200 ring-cyan-400/20'
+                              : isDay
+                                ? 'bg-slate-900/5 text-slate-700 ring-slate-200'
+                                : 'bg-white/5 text-slate-200 ring-white/10')
+                        }
+                      >
+                        {r.status}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Card>
+          </div>
+
           {/* Right: dashboard preview (hidden on small screens to prevent scroll) */}
           <div className="hidden lg:col-span-5 lg:block">
             <div className={"h-full rounded-2xl p-5 " + panelClass}>
