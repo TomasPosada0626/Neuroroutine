@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "npm run build && vite preview",
     "preview:only": "vite preview",
+    "preview:port": "npm run build && vite preview --host --port 4174",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

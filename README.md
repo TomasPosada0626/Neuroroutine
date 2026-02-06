@@ -445,7 +445,9 @@ From `frontend/`:
 - `npm run dev`: development
 - `npm run build`: production build
 - `npm run lint`: lint
-- `npm run preview`: preview production build locally
+- `npm run preview`: build + preview production locally
+- `npm run preview:only`: preview without rebuilding (requires `dist/`)
+- `npm run preview:port`: build + preview on an alternate port (avoids port-in-use)
 
 ## Backend (Supabase)
 

@@ -445,7 +445,9 @@ Desde `frontend/`:
 - `npm run dev`: desarrollo
 - `npm run build`: build de producción
 - `npm run lint`: lint
-- `npm run preview`: previsualizar el build de producción localmente
+- `npm run preview`: build + previsualizar producción localmente
+- `npm run preview:only`: previsualizar sin rebuild (requiere `dist/`)
+- `npm run preview:port`: build + previsualizar en un puerto alternativo (evita puerto en uso)
 
 ## Backend (Supabase)
 
