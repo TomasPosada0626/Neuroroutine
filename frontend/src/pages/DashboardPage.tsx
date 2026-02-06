@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useAuth } from '@/features/auth/authStore'
 import { useDashboardPrefs, type DashboardWidgetId, type RoutineSchedule } from '@/features/dashboard/dashboardPrefsStore'
 import { computeDayActivitySet, computeStreaks, computeWeekCounts, formatTimeAgo } from '@/features/dashboard/dashboardUtils'
+import { clearDashboardDemoData, seedDashboardDemoData } from '@/features/dashboard/seedDemoData'
 import { WidgetOrderEditor } from '@/features/dashboard/WidgetOrderEditor'
 import { RoutineWizardModal } from '@/features/routines/components/RoutineWizardModal'
 import { RoutinePanel } from '@/features/routines/components/RoutinePanel'
@@ -97,6 +99,7 @@ function usePopoverTooltip() {
 }
 
 export function DashboardPage() {
+  const location = useLocation()
   const { user } = useAuth()
   const theme = useUiStore((s) => s.theme)
   const isDay = theme === 'day'
@@ -128,6 +131,15 @@ export function DashboardPage() {
   const [reminderSaved, setReminderSaved] = useState(false)
   const [scheduleRoutineId, setScheduleRoutineId] = useState<string | null>(null)
 
+  const showSeedTools = useMemo(() => {
+    if (import.meta.env.DEV) return true
+    const params = new URLSearchParams(location.search)
+    return params.has('seed')
+  }, [location.search])
+
+  const [seedBusy, setSeedBusy] = useState(false)
+  const [seedError, setSeedError] = useState<string | null>(null)
+
   const routinePanelRef = useRef<HTMLDivElement | null>(null)
   const [routineGranularity, setRoutineGranularity] = useState<BucketGranularity>(() => (range === '90d' ? 'week' : 'day'))
   const effectiveRoutineGranularity: BucketGranularity = range === '90d' ? 'week' : routineGranularity
@@ -145,6 +157,44 @@ export function DashboardPage() {
     hydrateFromCache()
     void refreshAll({ since: new Date(Date.now() - 1000 * 60 * 60 * 24 * 120).toISOString() })
   }, [hydrateFromCache, refreshAll])
+
+  const seedSince = useMemo(() => new Date(Date.now() - 1000 * 60 * 60 * 24 * 120).toISOString(), [])
+
+  const onSeedDemo = async () => {
+    if (!user) return
+    const ok = window.confirm(
+      'Esto creará rutinas/tareas DEMO y eventos de completitud en TU cuenta.\n\nPuedes eliminarlos con “Limpiar demo”. ¿Continuar?',
+    )
+    if (!ok) return
+
+    setSeedBusy(true)
+    setSeedError(null)
+    try {
+      await seedDashboardDemoData(user.id)
+      await refreshAll({ since: seedSince })
+    } catch (e) {
+      setSeedError(e instanceof Error ? e.message : 'No se pudo poblar la demo')
+    } finally {
+      setSeedBusy(false)
+    }
+  }
+
+  const onClearDemo = async () => {
+    if (!user) return
+    const ok = window.confirm('Esto eliminará todas las rutinas “Demo:*” de TU cuenta. ¿Continuar?')
+    if (!ok) return
+
+    setSeedBusy(true)
+    setSeedError(null)
+    try {
+      await clearDashboardDemoData(user.id)
+      await refreshAll({ since: seedSince })
+    } catch (e) {
+      setSeedError(e instanceof Error ? e.message : 'No se pudo limpiar la demo')
+    } finally {
+      setSeedBusy(false)
+    }
+  }
 
   // Map the top-level scope to the analytics range for a coherent experience.
   useEffect(() => {
@@ -1402,6 +1452,31 @@ export function DashboardPage() {
             >
               Reintentar
             </Button>
+          </div>
+        </Card>
+      ) : null}
+
+      {showSeedTools && user ? (
+        <Card className="mb-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="text-sm font-semibold">Demo: poblar dashboard</div>
+              <div className={'mt-1 text-xs ' + subtleText}>
+                Crea rutinas/tareas “Demo:*” y eventos de completitud en esta cuenta.
+              </div>
+              {seedError ? <div className="mt-2 text-xs text-rose-600">{seedError}</div> : null}
+              <div className={'mt-2 text-[11px] ' + subtleText}>
+                Tip: en producción, abre <span className="font-mono">/app?seed</span> para mostrar este panel.
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="secondary" onClick={() => void onClearDemo()} disabled={seedBusy || loading}>
+                Limpiar demo
+              </Button>
+              <Button onClick={() => void onSeedDemo()} disabled={seedBusy || loading}>
+                Poblar demo
+              </Button>
+            </div>
           </div>
         </Card>
       ) : null}

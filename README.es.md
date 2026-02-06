@@ -506,6 +506,7 @@ React Router necesita un rewrite a SPA para que refrescar rutas como `/login` fu
 - 404 al refrescar: verifica que el root del proyecto sea `frontend` y que `frontend/vercel.json` esté incluido.
 - Problemas de Auth: valida `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` local y en el proveedor de despliegue.
 - RLS bloquea escrituras: confirma que el usuario esté autenticado y revisa políticas en `backend/supabase/schema.sql`.
+- Poblar demo (solo tu usuario): abre `/app?seed` y usa el panel “Demo: poblar dashboard”.
 
 ## Hoja de ruta
 

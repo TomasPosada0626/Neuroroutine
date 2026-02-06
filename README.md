@@ -506,6 +506,7 @@ React Router needs a SPA rewrite so refreshing routes like `/login` works:
 - 404 on refresh: verify the project root is `frontend` and `frontend/vercel.json` is included.
 - Auth issues: validate `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` locally and in the deploy provider.
 - RLS blocks writes: confirm the user is authenticated and review policies in `backend/supabase/schema.sql`.
+- Seed demo data (your user only): open `/app?seed` and use the “Demo: populate dashboard” panel.
 
 ## Roadmap
 
