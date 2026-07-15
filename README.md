@@ -1,9 +1,8 @@
 <div align="center">
   <h1>NeuroRoutine</h1>
   <p><strong>Smart daily routines manager (portfolio)</strong> focused on premium UX and solid SPA + Auth + RLS practices.</p>
-  <p><em>React, TypeScript, Vite, Tailwind CSS, Supabase (Auth + Postgres + RLS), React Router, Zustand, React Hook Form, Zod, GitHub Actions, Vercel</em></p>
+  <p><em>React, TypeScript, Vite, Tailwind CSS, Supabase (Auth + Postgres + RLS), React Router, Zustand, React Hook Form, Zod, GitHub Actions, Vercel, Render</em></p>
   <p><a href="https://neuroroutine.vercel.app/">Live demo: neuroroutine.vercel.app</a></p>
-  <p><a href="./README.es.md">Read in Spanish</a></p>
 
   <p>
     <a href="https://github.com/TomasPosada0626/Neuroroutine/actions/workflows/ci.yml">
@@ -11,6 +10,9 @@
     </a>
     <a href="https://github.com/TomasPosada0626/Neuroroutine/actions/workflows/deploy-vercel.yml">
       <img alt="Deploy (Vercel)" src="https://github.com/TomasPosada0626/Neuroroutine/actions/workflows/deploy-vercel.yml/badge.svg" />
+    </a>
+    <a href="https://github.com/TomasPosada0626/Neuroroutine/actions/workflows/deploy-render.yml">
+      <img alt="Deploy (Render)" src="https://github.com/TomasPosada0626/Neuroroutine/actions/workflows/deploy-render.yml/badge.svg" />
     </a>
     <img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-10B981" />
   </p>
@@ -32,6 +34,7 @@
 
 ## Table of Contents
 
+- [Quick Start (60s)](#quick-start-60s)
 - [Overview](#overview)
 - [Scope & Non-goals](#scope--non-goals)
 - [Gallery](#gallery)
@@ -39,6 +42,7 @@
 - [Tech Stack](#tech-stack)
 - [Key Decisions](#key-decisions)
 - [Architecture](#architecture)
+- [Architecture Guide](#architecture-guide)
 - [Data Model](#data-model)
 - [Database Migrations](#database-migrations)
 - [API Surface](#api-surface)
@@ -47,6 +51,7 @@
 - [Performance & UX](#performance--ux)
 - [Repo Structure](#repo-structure)
 - [Main Routes](#main-routes)
+- [Runtime/Deploy Matrix](#runtimedeploy-matrix)
 - [Requirements](#requirements)
 - [Environment Variables](#environment-variables)
 - [Local Development](#local-development)
@@ -58,6 +63,7 @@
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
 - [Changelog](#changelog)
+- [Career Metrics (CV/LinkedIn)](#career-metrics-cvlinkedin)
 - [Author](#author)
 - [License](#license)
 
@@ -66,6 +72,20 @@
 ## Overview
 
 NeuroRoutine is a portfolio-ready web app for planning **routines and tasks** with real persistence, authentication, and strong **database-level security** via Supabase RLS.
+
+## Quick Start (60s)
+
+```bash
+cd frontend
+copy .env.example .env
+npm install
+npm run dev
+```
+
+Fill these values in `frontend/.env` before running:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
 
 ## Scope & Non-goals
 
@@ -122,7 +142,7 @@ Non-goals (intentional trade-offs for this portfolio MVP):
 **DevOps**
 
 - GitHub Actions (CI)
-- Vercel (recommended deploy)
+- Vercel / Render (deploy options)
 
 ## Key Decisions
 
@@ -143,7 +163,7 @@ Frontend talks directly to Supabase using the public anon key; access control is
 
 ```mermaid
 flowchart LR
-  U[User] -->|HTTPS| H[Vercel Hosting]
+  U[User] -->|HTTPS| H[Vercel / Render Hosting]
   H --> SPA[React SPA\nVite + TypeScript + Tailwind\nReact Router / Zustand / RHF+Zod]
 
   SPA -->|supabase-js\nVITE_SUPABASE_URL + anon key| SB[Supabase]
@@ -153,6 +173,12 @@ flowchart LR
   DB -.-> RLS[RLS policies]
   RLS -.-> DATA[(routines, routine_tasks, routine_task_events, profiles)]
 ```
+
+## Architecture Guide
+
+For architecture boundaries, dependency rules, and feature evolution conventions:
+
+- `ARCHITECTURE.md`
 
 ### Frontend structure (high level)
 
@@ -172,9 +198,10 @@ Conventions:
 
 The model is versioned in `backend/supabase/schema.sql`.
 
-ER diagram: `docs/diagrams/er-diagram.png` (guide in `docs/diagrams/README.md`).
+Source of truth for data model and relationships:
 
-![ER Diagram](docs/diagrams/er-diagram.png)
+- `backend/supabase/schema.sql`
+- `backend/supabase/migrations/`
 
 ### Entities
 
@@ -370,8 +397,9 @@ Note: analytics features (streaks/consistency/charts) rely on `routine_task_even
 │     ├─ migrations/
 │     └─ schema.sql
 ├─ docs/
-│  ├─ diagrams/
-│  └─ screenshots/
+│  ├─ deployment/
+│  ├─ screenshots/
+│  └─ README.md
 └─ .github/workflows/        # CI + deploy
 ```
 
@@ -386,6 +414,15 @@ For deeper docs per area:
 - `/login`: login
 - `/register`: register
 - `/app`: authenticated area (protected)
+
+## Runtime/Deploy Matrix
+
+| Mode | Frontend | Backend | Best for | Notes |
+|---|---|---|---|---|
+| Local + Supabase Cloud | Local Vite dev server | Hosted Supabase | Daily development | Fast setup, no Docker required |
+| Local + Supabase Local | Local Vite dev server | Local Supabase CLI + Docker | Full offline/local testing | Requires Docker + Supabase CLI |
+| Vercel | Static build from `frontend` | Hosted Supabase | Primary public demo | Uses `frontend/vercel.json` for SPA rewrite |
+| Render | Static build from `frontend` | Hosted Supabase | Alternate production deploy | Uses `render.yaml` Blueprint + SPA rewrite |
 
 ## Requirements
 
@@ -408,6 +445,10 @@ Frontend requires (example in `frontend/.env.example`):
 - **Event log (DB)**: `public.app_events` stores minimal, no-PII product events (routine/task actions). Inserts are best-effort and never block UX.
 
 ## Local Development
+
+This project has no custom backend server. The frontend talks directly to Supabase.
+
+Mode A (recommended): frontend local + Supabase cloud backend
 
 1) Install dependencies
 
@@ -437,6 +478,12 @@ copy .env.example .env
 ```bash
 npm run dev
 ```
+
+Mode B (optional): frontend local + Supabase local backend
+
+- Start a local Supabase stack with Supabase CLI and Docker.
+- Run the SQL from `backend/supabase/schema.sql` (or incremental migrations from `backend/supabase/migrations/`).
+- Point `frontend/.env` to local Supabase values (`VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`).
 
 ## Scripts
 
@@ -476,13 +523,18 @@ On each push to `main` and on PRs:
 
 ### CD (Deploy)
 
-Recommended: connect the repo to **Vercel** for automatic deploys.
+Recommended: connect the repo to **Vercel** or **Render** for automatic deploys.
 
-An optional GitHub Actions deploy workflow also exists:
+Optional GitHub Actions deploy workflows also exist:
 
 - `.github/workflows/deploy-vercel.yml`
+- `.github/workflows/deploy-render.yml`
 
 ## Deploy
+
+Full deployment and runtime guide:
+
+- `docs/deployment/README.md`
 
 ### Vercel (recommended)
 
@@ -491,6 +543,23 @@ Suggested Vercel config:
 - Root Directory: `frontend`
 - Build Command: `npm run build`
 - Output Directory: `dist`
+- Env vars:
+  - `VITE_SUPABASE_URL`
+  - `VITE_SUPABASE_ANON_KEY`
+
+### Render
+
+This repo includes a Render Blueprint file:
+
+- `render.yaml`
+
+Render setup (using Blueprint):
+
+- Service type: Static Site
+- Root Directory: `frontend`
+- Build Command: `npm ci && npm run build`
+- Publish Directory: `dist`
+- SPA rewrite: `/* -> /index.html` (already in `render.yaml`)
 - Env vars:
   - `VITE_SUPABASE_URL`
   - `VITE_SUPABASE_ANON_KEY`
@@ -504,6 +573,7 @@ React Router needs a SPA rewrite so refreshing routes like `/login` works:
 ## Troubleshooting
 
 - 404 on refresh: verify the project root is `frontend` and `frontend/vercel.json` is included.
+- 404 on refresh (Render): verify Blueprint routes include `/* -> /index.html` from `render.yaml`.
 - Auth issues: validate `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` locally and in the deploy provider.
 - RLS blocks writes: confirm the user is authenticated and review policies in `backend/supabase/schema.sql`.
 - Seed demo data (your user only): open `/app?seed` and use the “Demo: populate dashboard” panel.
@@ -540,6 +610,12 @@ PR guidelines:
 - **Real CRUD**: routines and tasks persisted with row-level security.
 - **Premium UX/UI**: scroll-free landing with preview, persistent theme, and SPA-ready deploy.
 - **Pro dashboard analytics**: heatmap + per-routine charts powered by a completion event log.
+
+## Career Metrics (CV/LinkedIn)
+
+Use this copy-ready block for resume and LinkedIn project descriptions:
+
+- `docs/career/metrics.md`
 
 ## Author
 

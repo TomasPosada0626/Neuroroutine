@@ -2,33 +2,60 @@
 
 React + TypeScript + Tailwind + Supabase.
 
+## Quick start
+
+```bash
+cd frontend
+npm install
+copy .env.example .env.local
+npm run dev
+```
+
 ## Setup
 
-1. Variables de entorno:
+1. Create environment file:
 
 ```bash
 cp .env.example .env
 ```
 
-2. Completa:
+Windows alternative:
+
+```bash
+copy .env.example .env.local
+```
+
+2. Fill required variables:
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 
-Opcional:
+Optional:
 
-- `VITE_SENTRY_DSN` (error tracking en frontend)
+- `VITE_SENTRY_DSN` (frontend error tracking)
 
-3. Instala y ejecuta:
+3. Scope note for env files:
+
+- Use `frontend/.env.local` for frontend runtime values.
+- Root `.env.local` is typically used by tooling (for example Vercel CLI), not by Vite frontend runtime.
+
+4. Install and run:
 
 ```bash
 npm install
 npm run dev
 ```
 
+## Build and preview
+
+```bash
+npm run build
+npm run preview:only
+```
+
 ## CI
 
-En GitHub Actions se corre `npm run lint`, `npm run test`, `npm run build` y un smoke suite de Playwright (desde la carpeta `frontend/`).
+GitHub Actions runs `npm run lint`, `npm run test`, `npm run build`, and a Playwright smoke suite (from the `frontend/` directory).
 
 ## Tests
 
@@ -42,29 +69,43 @@ npm run test
 npm run e2e
 ```
 
-El test de login real se omite a menos que configures:
+The real login E2E test is skipped unless you configure:
 
 - `E2E_USER_IDENTIFIER`
 - `E2E_USER_PASSWORD`
 
-## Rutas
+## Routes
 
 - `/login`
 - `/register`
-- `/app` (protegida)
+- `/app` (protected)
 
-## Arquitectura
+## Architecture
 
+- `src/main.tsx`: runtime bootstrap, env guard, Router mount
 - `src/app`: router + bootstrap
-- `src/shared`: UI/layout/lib/api reutilizable
+- `src/shared`: reusable UI/layout/lib/api
 - `src/features/auth`: auth store (Zustand) + guard
 - `src/features/routines`: CRUD + store + UI
-- `src/pages`: páginas (login/register/dashboard)
+- `src/pages`: pages (login/register/dashboard)
+
+## Supabase integration contract
+
+- Frontend expects `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+- Missing variables are treated as a startup misconfiguration.
+- Anonymous/public key is safe for frontend usage when RLS is enabled.
+
+## Smoke validation checklist
+
+1. Open the app locally and confirm no startup env error is shown.
+2. Register with email/password.
+3. Log in and confirm redirect to `/app`.
+4. Create a routine/task and verify persistence after refresh.
 
 ## Aliases
 
-- `@/` apunta a `src/` (configurado en Vite + tsconfig)
+- `@/` points to `src/` (configured in Vite + tsconfig)
 
 ## Imports
 
-- Preferir imports desde barrels: `@/shared/ui`, `@/shared/layout`, `@/shared/api`
+- Prefer imports from barrels: `@/shared/ui`, `@/shared/layout`, `@/shared/api`

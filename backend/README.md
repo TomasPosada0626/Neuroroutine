@@ -1,21 +1,49 @@
 # Backend (Supabase)
 
-Este proyecto usa **Supabase** como backend real (Auth + Postgres) con políticas **RLS** para asegurar que cada usuario solo acceda a sus propios datos.
+This project uses **Supabase** as the real backend (Auth + Postgres) with **RLS** policies so each user can only access their own data.
 
-## Setup rápido
+## Quick setup
 
-1. Crea un proyecto en Supabase.
-2. Ve a **SQL Editor** y ejecuta el script: `supabase/schema.sql`.
-	- Alternativa: aplica migraciones incrementales en `supabase/migrations/`.
-3. En **Authentication → Providers**, habilita Email (si no está habilitado).
-4. En el frontend, configura variables en `frontend/.env` (ver `frontend/.env.example`).
+1. Create a Supabase project.
+2. Open **SQL Editor** and run: `supabase/schema.sql`.
+   - Alternative: apply incremental migrations from `supabase/migrations/`.
+3. In **Authentication -> Providers**, enable Email (if not enabled).
+4. In the frontend, configure variables in `frontend/.env` (see `frontend/.env.example`).
 
-## Seguridad
+## Required Supabase Auth configuration
 
-- Las tablas tienen **Row Level Security** activada.
-- Las políticas permiten `SELECT/INSERT/UPDATE/DELETE` solo cuando `auth.uid() = user_id`.
+For production and local OAuth/email flows to work reliably, configure these values in Supabase Authentication URL settings.
 
-## Notas
+- Site URL: your deployed frontend URL (for example `https://neuroroutine.vercel.app`)
+- Additional redirect URLs:
+   - `https://neuroroutine.vercel.app/app`
+   - `https://neuroroutine.vercel.app/login`
+   - `http://localhost:5173/app`
+   - `http://localhost:5173/login`
 
-- `public.app_events`: event log mínimo (sin PII) para acciones clave.
-- `public.get_nr_schema_status()`: endpoint (RPC) para que el frontend detecte migraciones faltantes y muestre un aviso no bloqueante.
+## Backend runtime modes
+
+- Supabase cloud (recommended): managed backend, ideal for Vercel or Render deployments.
+- Supabase local (optional): run it with Supabase CLI + Docker for full local development.
+
+In both cases, the frontend only needs:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+## Security
+
+- Tables have **Row Level Security** enabled.
+- Policies allow `SELECT/INSERT/UPDATE/DELETE` only when `auth.uid() = user_id`.
+
+## Data model source of truth
+
+- Full schema: `supabase/schema.sql`
+- Incremental changes: `supabase/migrations/`
+
+If both exist, keep migrations and full schema aligned after each schema change.
+
+## Notes
+
+- `public.app_events`: minimal event log (no PII) for key actions.
+- `public.get_nr_schema_status()`: endpoint (RPC) so the frontend can detect missing migrations and show a non-blocking warning.

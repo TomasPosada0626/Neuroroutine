@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: neuroroutine-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    pullRequestPreviewsEnabled: true
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false
+      - key: VITE_SENTRY_DSN
+        sync: false
+      - key: VITE_NR_APP_VARIANT
+        value: app
