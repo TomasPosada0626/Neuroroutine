@@ -80,4 +80,30 @@ describe('useSchemaStore', () => {
 
     expect(fetchMock).not.toHaveBeenCalled()
   })
+
+  it('refresh handles null status and still updates timestamp', async () => {
+    const { storeMod, serviceMod } = await freshStore()
+    const { useSchemaStore } = storeMod
+
+    vi.mocked(serviceMod.fetchNrSchemaStatus).mockResolvedValue(null)
+
+    await useSchemaStore.getState().refresh()
+
+    const s = useSchemaStore.getState()
+    expect(s.status).toBeNull()
+    expect(s.lastCheckedAt).not.toBeNull()
+    expect(s.error).toBeNull()
+  })
+
+  it('refresh stores fallback error for non-Error throws', async () => {
+    const { storeMod, serviceMod } = await freshStore()
+    const { useSchemaStore } = storeMod
+
+    vi.mocked(serviceMod.fetchNrSchemaStatus).mockRejectedValue('x')
+
+    await useSchemaStore.getState().refresh()
+
+    expect(useSchemaStore.getState().error).toBe('Schema check failed')
+    expect(useSchemaStore.getState().loading).toBe(false)
+  })
 })

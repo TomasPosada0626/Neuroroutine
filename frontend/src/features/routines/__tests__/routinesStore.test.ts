@@ -512,4 +512,148 @@ describe('useRoutinesStore', () => {
     await useRoutinesStore.getState().removeTask({ id: 't1', routine_id: 'r3' })
     expect(useRoutinesStore.getState().error).toBe('Failed to delete task')
   })
+
+  it('hydrates safely when cache is malformed', async () => {
+    const { storeMod } = await freshStore()
+    const { useRoutinesStore } = storeMod
+
+    localStorage.setItem('nr-cache-routines-v1', '{broken-json')
+
+    expect(() => useRoutinesStore.getState().hydrateFromCache()).not.toThrow()
+    expect(useRoutinesStore.getState().routines).toEqual([])
+  })
+
+  it('loadRoutines keeps selected id when still present', async () => {
+    const { storeMod, serviceMod } = await freshStore()
+    const { useRoutinesStore } = storeMod
+
+    useRoutinesStore.setState({ selectedRoutineId: 'r1' })
+    vi.mocked(serviceMod.listRoutines).mockResolvedValue([
+      {
+        id: 'r1',
+        user_id: 'u1',
+        title: 'Still there',
+        notes: null,
+        created_at: new Date(2025, 0, 1, 12).toISOString(),
+        updated_at: new Date(2025, 0, 1, 12).toISOString(),
+      },
+    ])
+
+    await useRoutinesStore.getState().loadRoutines()
+    expect(useRoutinesStore.getState().selectedRoutineId).toBe('r1')
+  })
+
+  it('uses fallback messages for non-Error failures in loaders', async () => {
+    const { storeMod, serviceMod } = await freshStore()
+    const { useRoutinesStore } = storeMod
+
+    vi.mocked(serviceMod.listRoutines).mockRejectedValue('x')
+    await useRoutinesStore.getState().loadRoutines()
+    expect(useRoutinesStore.getState().error).toBe('Failed to load routines')
+
+    vi.mocked(serviceMod.listAllTasks).mockRejectedValue('x')
+    await useRoutinesStore.getState().loadAllTasks()
+    expect(useRoutinesStore.getState().error).toBe('Failed to load tasks')
+
+    vi.mocked(serviceMod.listTaskEvents).mockRejectedValue('x')
+    await useRoutinesStore.getState().loadTaskEvents()
+    expect(useRoutinesStore.getState().error).toBe('Failed to load task events')
+
+    vi.mocked(serviceMod.listTasks).mockRejectedValue('x')
+    await useRoutinesStore.getState().loadTasks('r1')
+    expect(useRoutinesStore.getState().error).toBe('Failed to load tasks')
+  })
+
+  it('addTasksBulk with blank-only titles does not alter lists', async () => {
+    const { storeMod } = await freshStore()
+    const { useRoutinesStore } = storeMod
+
+    useRoutinesStore.setState({ allTasks: [], tasksByRoutineId: {} })
+
+    await useRoutinesStore.getState().addTasksBulk({
+      user_id: 'u1',
+      routine_id: 'r1',
+      tasks: [{ title: '   ' }, { title: '' }],
+    })
+
+    const s = useRoutinesStore.getState()
+    expect(s.allTasks).toEqual([])
+    expect(s.tasksByRoutineId).toEqual({})
+  })
+
+  it('stores fallback messages for non-Error failures in routine actions', async () => {
+    const { storeMod, serviceMod } = await freshStore()
+    const { useRoutinesStore } = storeMod
+
+    vi.mocked(serviceMod.updateRoutine).mockRejectedValue('x')
+    await useRoutinesStore.getState().editRoutine({ id: 'r1', title: 'R1' })
+    expect(useRoutinesStore.getState().error).toBe('Failed to update routine')
+
+    vi.mocked(serviceMod.deleteRoutine).mockRejectedValue('x')
+    await useRoutinesStore.getState().removeRoutine('r1')
+    expect(useRoutinesStore.getState().error).toBe('Failed to delete routine')
+
+    vi.mocked(serviceMod.createTask).mockRejectedValue('x')
+    await useRoutinesStore
+      .getState()
+      .addTasksBulk({ user_id: 'u1', routine_id: 'r1', tasks: [{ title: 'Task one' }] })
+    expect(useRoutinesStore.getState().error).toBe('Failed to create tasks')
+  })
+
+  it('setTaskDone supports uncompleted event type branch', async () => {
+    const { storeMod, serviceMod } = await freshStore()
+    const { useRoutinesStore } = storeMod
+
+    useRoutinesStore.setState({
+      allTasks: [
+        {
+          id: 't2',
+          user_id: 'u1',
+          routine_id: 'r1',
+          title: 'Task 2',
+          description: null,
+          due_date: null,
+          due_time: null,
+          is_done: true,
+          completed_at: new Date(2025, 0, 2, 12).toISOString(),
+          created_at: new Date(2025, 0, 1, 12).toISOString(),
+          updated_at: new Date(2025, 0, 2, 12).toISOString(),
+        },
+      ],
+      tasksByRoutineId: {
+        r1: [
+          {
+            id: 't2',
+            user_id: 'u1',
+            routine_id: 'r1',
+            title: 'Task 2',
+            description: null,
+            due_date: null,
+            due_time: null,
+            is_done: true,
+            completed_at: new Date(2025, 0, 2, 12).toISOString(),
+            created_at: new Date(2025, 0, 1, 12).toISOString(),
+            updated_at: new Date(2025, 0, 2, 12).toISOString(),
+          },
+        ],
+      },
+    })
+
+    vi.mocked(serviceMod.toggleTaskDone).mockResolvedValue({
+      id: 't2',
+      user_id: 'u1',
+      routine_id: 'r1',
+      title: 'Task 2',
+      description: null,
+      due_date: null,
+      due_time: null,
+      is_done: false,
+      completed_at: null,
+      created_at: new Date(2025, 0, 1, 12).toISOString(),
+      updated_at: new Date(2025, 0, 3, 12).toISOString(),
+    })
+
+    await useRoutinesStore.getState().setTaskDone({ id: 't2', routine_id: 'r1', is_done: false })
+    expect(useRoutinesStore.getState().taskEvents[0]?.event_type).toBe('uncompleted')
+  })
 })

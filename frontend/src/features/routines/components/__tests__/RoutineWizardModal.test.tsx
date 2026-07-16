@@ -12,6 +12,7 @@ vi.mock('@/shared/state/uiStore', () => {
 const addRoutine = vi.fn()
 const addTasksBulk = vi.fn()
 let offline = false
+let authUser: { id: string } | null = { id: 'u1' }
 
 vi.mock('@/features/routines/routinesStore', () => {
   return {
@@ -26,7 +27,7 @@ vi.mock('@/features/routines/routinesStore', () => {
 vi.mock('@/features/auth/authStore', () => {
   return {
     useAuth: () => ({
-      user: { id: 'u1' },
+      user: authUser,
     }),
   }
 })
@@ -116,7 +117,36 @@ describe('RoutineWizardModal', () => {
     await user.type(routineTitle, 'Mi rutina')
 
     expect(screen.getByRole('button', { name: 'Crear rutina' })).toBeDisabled()
+    expect(screen.getByText('Modo offline: puedes ver, pero no crear.')).toBeInTheDocument()
+
+    // Single task row cannot be removed.
+    expect(screen.getByRole('button', { name: 'Debe existir al menos una fila' })).toBeDisabled()
 
     offline = false
+  })
+
+  it('disables submit when user is missing', async () => {
+    const user = userEvent.setup()
+    authUser = null
+
+    render(<RoutineWizardModal open onClose={() => {}} />)
+    await user.type(screen.getByPlaceholderText('Ej: Mañana enfocada'), 'Mi rutina')
+
+    expect(screen.getByRole('button', { name: 'Crear rutina' })).toBeDisabled()
+
+    authUser = { id: 'u1' }
+  })
+
+  it('shows generic error message when create fails with non-Error value', async () => {
+    const user = userEvent.setup()
+
+    addRoutine.mockRejectedValueOnce('boom')
+
+    render(<RoutineWizardModal open onClose={() => {}} />)
+
+    await user.type(screen.getByPlaceholderText('Ej: Mañana enfocada'), 'Mi rutina')
+    await user.click(screen.getByRole('button', { name: 'Crear rutina' }))
+
+    expect(screen.getByText('No se pudo crear la rutina')).toBeInTheDocument()
   })
 })

@@ -92,6 +92,15 @@ describe('shared ui components', () => {
     expect(card.className).toContain('bg-white')
   })
 
+  it('Card applies night theme variant classes', () => {
+    useUiStore.setState({ theme: 'night' })
+
+    render(<Card>night card</Card>)
+
+    const card = screen.getByText('night card')
+    expect(card.className).toContain('bg-white/5')
+  })
+
   it('AuthShell renders title, subtitle, badge and footer content', () => {
     useUiStore.setState({ theme: 'night' })
 
@@ -170,6 +179,19 @@ describe('shared ui components', () => {
 
     await user.click(screen.getByRole('button', { name: 'Cerrar' }))
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('Modal without title and description renders body only', () => {
+    const onClose = vi.fn()
+    render(
+      <Modal open onClose={onClose}>
+        <div>Only body</div>
+      </Modal>,
+    )
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByText('Only body')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cerrar' })).toBeNull()
   })
 
   it('GoogleMark renders the svg with custom className', () => {
