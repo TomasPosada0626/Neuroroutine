@@ -28,6 +28,12 @@ jobs:
             exit 0
           fi
 
+          if [[ ! "$RENDER_DEPLOY_HOOK_URL" =~ ^https:// ]]; then
+            echo "ok=false" >> $GITHUB_OUTPUT
+            echo "Skipping deploy: RENDER_DEPLOY_HOOK_URL must start with https://" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+
           echo "ok=true" >> $GITHUB_OUTPUT
 
       - name: Trigger Render deploy hook
@@ -35,5 +41,22 @@ jobs:
         env:
           RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
         run: |
-          curl --fail --show-error --silent -X POST "$RENDER_DEPLOY_HOOK_URL"
-          echo "Render deploy hook triggered." >> $GITHUB_STEP_SUMMARY
+          http_code=$(curl \
+            --request POST \
+            --silent \
+            --show-error \
+            --output /dev/null \
+            --write-out "%{http_code}" \
+            --connect-timeout 10 \
+            --max-time 30 \
+            --retry 3 \
+            --retry-all-errors \
+            --retry-delay 2 \
+            "$RENDER_DEPLOY_HOOK_URL")
+
+          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            echo "Render deploy hook failed with HTTP $http_code" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "Render deploy hook triggered (HTTP $http_code)." >> $GITHUB_STEP_SUMMARY
