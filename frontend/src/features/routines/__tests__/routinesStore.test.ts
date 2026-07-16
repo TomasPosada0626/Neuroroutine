@@ -347,6 +347,38 @@ describe('useRoutinesStore', () => {
     expect(s.tasksByRoutineId.r1).toEqual([])
   })
 
+  it('removeTask works even when task user id is not found', async () => {
+    const { storeMod, serviceMod } = await freshStore()
+    const { useRoutinesStore } = storeMod
+
+    useRoutinesStore.setState({
+      allTasks: [],
+      tasksByRoutineId: {
+        r1: [
+          {
+            id: 't1',
+            user_id: 'u1',
+            routine_id: 'r1',
+            title: 'Task',
+            description: null,
+            due_date: null,
+            due_time: null,
+            is_done: false,
+            completed_at: null,
+            created_at: new Date(2025, 0, 1, 12).toISOString(),
+            updated_at: new Date(2025, 0, 1, 12).toISOString(),
+          },
+        ],
+      },
+    })
+
+    vi.mocked(serviceMod.deleteTask).mockResolvedValue(undefined)
+
+    await useRoutinesStore.getState().removeTask({ id: 't1', routine_id: 'r1' })
+
+    expect(useRoutinesStore.getState().tasksByRoutineId.r1).toEqual([])
+  })
+
   it('removeRoutine drops selected routine and routine task map entry', async () => {
     const { storeMod, serviceMod } = await freshStore()
     const { useRoutinesStore } = storeMod
@@ -376,6 +408,36 @@ describe('useRoutinesStore', () => {
     expect(s.routines).toHaveLength(0)
     expect(s.selectedRoutineId).toBeNull()
     expect(s.tasksByRoutineId.r1).toBeUndefined()
+  })
+
+  it('removeRoutine removes routine even when user id is not found', async () => {
+    const { storeMod, serviceMod } = await freshStore()
+    const { useRoutinesStore } = storeMod
+
+    useRoutinesStore.setState({
+      selectedRoutineId: null,
+      routines: [
+        {
+          id: 'r1',
+          user_id: 'u1',
+          title: 'Rutina',
+          notes: null,
+          created_at: new Date(2025, 0, 1, 12).toISOString(),
+          updated_at: new Date(2025, 0, 1, 12).toISOString(),
+        },
+      ],
+      tasksByRoutineId: {
+        r1: [],
+      },
+    })
+
+    vi.mocked(serviceMod.deleteRoutine).mockResolvedValue(undefined)
+
+    useRoutinesStore.setState({ routines: [] })
+    await useRoutinesStore.getState().removeRoutine('r1')
+
+    expect(useRoutinesStore.getState().routines).toEqual([])
+    expect(useRoutinesStore.getState().tasksByRoutineId.r1).toBeUndefined()
   })
 
   it('loadAllTasks and loadTaskEvents update store slices', async () => {

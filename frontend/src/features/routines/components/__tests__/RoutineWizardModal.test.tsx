@@ -149,4 +149,31 @@ describe('RoutineWizardModal', () => {
 
     expect(screen.getByText('No se pudo crear la rutina')).toBeInTheDocument()
   })
+
+  it('creates routine without calling addTasksBulk when all task titles are blank', async () => {
+    const user = userEvent.setup()
+
+    addRoutine.mockResolvedValueOnce({ id: 'r2' })
+    addTasksBulk.mockReset()
+
+    render(<RoutineWizardModal open onClose={() => {}} />)
+
+    await user.type(screen.getByPlaceholderText('Ej: Mañana enfocada'), 'Routine only')
+    await user.click(screen.getByRole('button', { name: 'Crear rutina' }))
+
+    expect(addRoutine).toHaveBeenCalled()
+    expect(addTasksBulk).not.toHaveBeenCalled()
+  })
+
+  it('closes and resets state when cancel is pressed', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+
+    render(<RoutineWizardModal open onClose={onClose} />)
+
+    await user.type(screen.getByPlaceholderText('Ej: Mañana enfocada'), 'Temporary title')
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }))
+
+    expect(onClose).toHaveBeenCalled()
+  })
 })

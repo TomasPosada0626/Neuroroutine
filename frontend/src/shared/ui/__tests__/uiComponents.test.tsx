@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { ThemeToggle } from '../ThemeToggle'
@@ -9,6 +9,9 @@ import { Card } from '../Card'
 import { AuthShell } from '../AuthShell'
 import { Modal } from '../Modal'
 import { GoogleMark } from '../GoogleMark'
+import { Button } from '../Button'
+import { Input } from '../Input'
+import { Textarea } from '../Textarea'
 import { useUiStore } from '@/shared/state/uiStore'
 
 describe('shared ui components', () => {
@@ -123,6 +126,66 @@ describe('shared ui components', () => {
     expect(screen.getByText('Auth form')).toBeInTheDocument()
     expect(screen.getByText('Footer block')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Volver a la landing' })).toBeInTheDocument()
+  })
+
+  it('AuthShell works without subtitle, badge and footer', () => {
+    useUiStore.setState({ theme: 'day' })
+
+    render(
+      <MemoryRouter>
+        <AuthShell title="Only title">
+          <div>Simple child</div>
+        </AuthShell>
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('heading', { name: 'Only title' })).toBeInTheDocument()
+    expect(screen.queryByText('Footer block')).toBeNull()
+    expect(screen.queryByText('Secure')).toBeNull()
+    expect(screen.getByText('Simple child')).toBeInTheDocument()
+  })
+
+  it('Button supports variant branches and theme-specific secondary styles', () => {
+    act(() => {
+      useUiStore.setState({ theme: 'day' })
+    })
+    const { rerender } = render(<Button variant="secondary">Secondary</Button>)
+    expect(screen.getByRole('button', { name: 'Secondary' }).className).toContain('bg-white')
+
+    rerender(<Button variant="danger">Danger</Button>)
+    expect(screen.getByRole('button', { name: 'Danger' }).className).toContain('bg-rose-600')
+
+    act(() => {
+      useUiStore.setState({ theme: 'night' })
+    })
+    rerender(<Button variant="secondary">Secondary</Button>)
+    expect(screen.getByRole('button', { name: 'Secondary' }).className).toContain('bg-white/10')
+  })
+
+  it('Input and Textarea cover day and night theme branches', () => {
+    act(() => {
+      useUiStore.setState({ theme: 'day' })
+    })
+    const { rerender } = render(
+      <>
+        <Input placeholder="Input day" />
+        <Textarea placeholder="Textarea day" />
+      </>,
+    )
+    expect(screen.getByPlaceholderText('Input day').className).toContain('bg-white')
+    expect(screen.getByPlaceholderText('Textarea day').className).toContain('bg-white')
+
+    act(() => {
+      useUiStore.setState({ theme: 'night' })
+    })
+    rerender(
+      <>
+        <Input placeholder="Input day" />
+        <Textarea placeholder="Textarea day" />
+      </>,
+    )
+    expect(screen.getByPlaceholderText('Input day').className).toContain('bg-slate-950/40')
+    expect(screen.getByPlaceholderText('Textarea day').className).toContain('bg-slate-950/40')
   })
 
   it('Modal renders when open and closes with escape and backdrop click', () => {
