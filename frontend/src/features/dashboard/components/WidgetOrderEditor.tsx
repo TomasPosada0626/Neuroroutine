@@ -1,1 +1,1 @@
-export * from '../WidgetOrderEditor'
+export { WidgetOrderEditor } from '../WidgetOrderEditor'
