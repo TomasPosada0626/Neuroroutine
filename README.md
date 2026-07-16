@@ -88,6 +88,8 @@ Fill these values in `frontend/.env.local` before running:
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 
+Then open `http://localhost:5173` in your browser.
+
 ## Scope & Non-goals
 
 Scope (what this project focuses on):
