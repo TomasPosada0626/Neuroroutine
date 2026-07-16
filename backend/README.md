@@ -8,7 +8,7 @@ This project uses **Supabase** as the real backend (Auth + Postgres) with **RLS*
 2. Open **SQL Editor** and run: `supabase/schema.sql`.
    - Alternative: apply incremental migrations from `supabase/migrations/`.
 3. In **Authentication -> Providers**, enable Email (if not enabled).
-4. In the frontend, configure variables in `frontend/.env` (see `frontend/.env.example`).
+4. In the frontend, configure variables in `frontend/.env.local` (see `frontend/.env.example`).
 
 ## Required Supabase Auth configuration
 

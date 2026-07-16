@@ -17,7 +17,7 @@ This project is a frontend SPA (React/Vite) that uses Supabase as backend (Auth 
 
 ## Environment variables
 
-Frontend variables (`frontend/.env`):
+Frontend variables (`frontend/.env.local`):
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
@@ -26,7 +26,7 @@ Frontend variables (`frontend/.env`):
 
 Environment scope note:
 
-- Put frontend runtime variables in `frontend/.env.local` (or `frontend/.env`).
+- Put frontend runtime variables in `frontend/.env.local`.
 - Root `.env.local` is typically for tooling contexts (for example Vercel CLI) and should not be relied on for Vite frontend runtime.
 
 ## Mode 1: local frontend + Supabase cloud
@@ -41,16 +41,16 @@ npm install
 2. Create env file
 
 ```bash
-cp .env.example .env
+cp .env.example .env.local
 ```
 
 Windows alternative:
 
 ```bash
-copy .env.example .env
+copy .env.example .env.local
 ```
 
-3. Fill cloud Supabase values in `.env`
+3. Fill cloud Supabase values in `.env.local`
 
 4. Start frontend
 
@@ -71,7 +71,7 @@ supabase start
 - Run `backend/supabase/schema.sql` in local Supabase SQL editor, or
 - apply SQL files from `backend/supabase/migrations/`
 
-3. Set local Supabase values in `frontend/.env`
+3. Set local Supabase values in `frontend/.env.local`
 
 4. Run frontend
 

@@ -59,6 +59,7 @@
 - [Backend (Supabase)](#backend-supabase)
 - [CI/CD](#cicd)
 - [Deploy](#deploy)
+- [Known Checks](#known-checks)
 - [Troubleshooting](#troubleshooting)
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
@@ -77,12 +78,12 @@ NeuroRoutine is a portfolio-ready web app for planning **routines and tasks** wi
 
 ```bash
 cd frontend
-copy .env.example .env
+copy .env.example .env.local
 npm install
 npm run dev
 ```
 
-Fill these values in `frontend/.env` before running:
+Fill these values in `frontend/.env.local` before running:
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
@@ -457,21 +458,21 @@ cd frontend
 npm install
 ```
 
-2) Create `.env`
+2) Create `.env.local`
 
 ```bash
 cd frontend
-cp .env.example .env
+cp .env.example .env.local
 ```
 
 Windows alternative:
 
 ```bash
 cd frontend
-copy .env.example .env
+copy .env.example .env.local
 ```
 
-3) Fill `frontend/.env`
+3) Fill `frontend/.env.local`
 
 4) Run dev server
 
@@ -483,7 +484,7 @@ Mode B (optional): frontend local + Supabase local backend
 
 - Start a local Supabase stack with Supabase CLI and Docker.
 - Run the SQL from `backend/supabase/schema.sql` (or incremental migrations from `backend/supabase/migrations/`).
-- Point `frontend/.env` to local Supabase values (`VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`).
+- Point `frontend/.env.local` to local Supabase values (`VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`).
 
 ## Scripts
 
@@ -529,6 +530,12 @@ Optional GitHub Actions deploy workflows also exist:
 
 - `.github/workflows/deploy-vercel.yml`
 - `.github/workflows/deploy-render.yml`
+
+## Known Checks
+
+- If Vercel is connected natively to the repository, production deploys may succeed even when the optional GitHub deploy workflow check is failing or skipped.
+- To avoid noisy status checks, use one deploy strategy as primary: native Vercel integration or GitHub Actions deploy workflow.
+- The CI workflow (`.github/workflows/ci.yml`) remains the source of truth for code quality checks.
 
 ## Deploy
 
@@ -602,7 +609,7 @@ PR guidelines:
 
 - Keep PRs small and focused.
 - Include a clear description and, if relevant, update [Gallery](#gallery).
-- Never commit secrets. Use local `.env` and provider env vars.
+- Never commit secrets. Use local `.env.local` and provider env vars.
 
 ## Changelog
 

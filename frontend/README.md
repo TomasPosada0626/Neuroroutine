@@ -11,12 +11,12 @@ copy .env.example .env.local
 npm run dev
 ```
 
-## Setup
+## Setup details
 
 1. Create environment file:
 
 ```bash
-cp .env.example .env
+cp .env.example .env.local
 ```
 
 Windows alternative:
@@ -39,10 +39,9 @@ Optional:
 - Use `frontend/.env.local` for frontend runtime values.
 - Root `.env.local` is typically used by tooling (for example Vercel CLI), not by Vite frontend runtime.
 
-4. Install and run:
+4. Start the app:
 
 ```bash
-npm install
 npm run dev
 ```
 
@@ -87,6 +86,10 @@ The real login E2E test is skipped unless you configure:
 - `src/shared`: reusable UI/layout/lib/api
 - `src/features/auth`: auth store (Zustand) + guard
 - `src/features/routines`: CRUD + store + UI
+- `src/features/dashboard/store`: dashboard preferences store
+- `src/features/dashboard/utils`: dashboard selectors and metrics helpers
+- `src/features/dashboard/data`: demo seed helpers
+- `src/features/dashboard/components`: dashboard UI editors/widgets
 - `src/pages`: pages (login/register/dashboard)
 
 ## Supabase integration contract
