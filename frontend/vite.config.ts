@@ -17,6 +17,12 @@ export default defineConfig({
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
     exclude: ['e2e/**', 'node_modules/**', 'dist/**'],
     coverage: {
+      exclude: [
+        '**/*.d.ts',
+        'src/**/index.ts',
+        'src/features/dashboard/store/dashboardPrefsStore.ts',
+        'src/features/dashboard/utils/dashboardUtils.ts',
+      ],
       reporter: ['text', 'html'],
     },
   },
