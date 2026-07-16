@@ -1,11 +1,11 @@
 import { IS_DEMO_VARIANT } from '@/shared/config/appVariant'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/features/auth/authStore'
-import { useDashboardPrefs, type DashboardWidgetId, type RoutineSchedule } from '@/features/dashboard/dashboardPrefsStore'
-import { computeDayActivitySet, computeStreaks, computeWeekCounts, formatTimeAgo } from '@/features/dashboard/dashboardUtils'
-import { clearDashboardDemoData, seedDashboardDemoData, seedFullDemoData } from '@/features/dashboard/seedDemoData'
-import { WidgetOrderEditor } from '@/features/dashboard/WidgetOrderEditor'
+import { useDashboardPrefs, type DashboardWidgetId, type RoutineSchedule } from '@/features/dashboard/store/dashboardPrefsStore'
+import { computeDayActivitySet, computeStreaks, computeWeekCounts, formatTimeAgo } from '@/features/dashboard/utils/dashboardUtils'
+import { clearDashboardDemoData, seedDashboardDemoData, seedFullDemoData } from '@/features/dashboard/data/seedDemoData'
+import { WidgetOrderEditor } from '@/features/dashboard/components/WidgetOrderEditor'
 import { RoutineWizardModal } from '@/features/routines/components/RoutineWizardModal'
 import { RoutinePanel } from '@/features/routines/components/RoutinePanel'
 import { useRoutines, useRoutinesStore } from '@/features/routines/routinesStore'
@@ -122,7 +122,8 @@ function usePopoverTooltip() {
 
 export function DashboardPage() {
   const location = useLocation()
-  const { user } = useAuth()
+  const navigate = useNavigate()
+  const { user, signOut } = useAuth()
   const theme = useUiStore((s) => s.theme)
   const isDay = theme === 'day'
   const subtleText = isDay ? 'text-slate-600' : 'text-slate-300'
@@ -156,6 +157,13 @@ export function DashboardPage() {
 
   const didAutoPickRoutineRef = useRef(false)
   const didManualPickRoutineRef = useRef(false)
+
+  const handleSignOut = async () => {
+    navigate('/', { replace: true })
+    void signOut().catch(() => {
+      // ignore; landing page does not require auth
+    })
+  }
 
   const applyDemoScheduleDefaults = () => {
     const hasAnySchedule = Object.keys(prefs.routineScheduleById ?? {}).length > 0
@@ -1552,7 +1560,7 @@ Puedes eliminarlo con “Limpiar demo”. ¿Continuar?`,
   }
 
   return (
-    <AppShell>
+    <AppShell userId={user?.id} userEmail={user?.email ?? null} onSignOut={handleSignOut}>
       <RoutineWizardModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}

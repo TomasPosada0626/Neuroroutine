@@ -1,4 +1,4 @@
-import type { RoutineTaskEvent } from '@/features/routines/types'
+import type { RoutineTaskEvent } from '@/shared/types/routineEvents'
 import type { WeekStartsOn } from './dashboardPrefsStore'
 
 export function dateKeyLocal(d: Date) {

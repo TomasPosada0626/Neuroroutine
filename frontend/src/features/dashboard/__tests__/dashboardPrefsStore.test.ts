@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 async function freshStore() {
   vi.resetModules()
   vi.clearAllMocks()
-  const mod = await import('../dashboardPrefsStore')
+  const mod = await import('../store/dashboardPrefsStore')
   return mod
 }
 

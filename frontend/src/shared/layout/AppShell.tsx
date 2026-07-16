@@ -1,16 +1,18 @@
 import type { PropsWithChildren } from 'react'
 import { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAuth } from '@/features/auth/authStore'
 import { Button } from '@/shared/ui'
 import { useUiStore } from '@/shared/state/uiStore'
 import { ThemeToggle } from '@/shared/ui/ThemeToggle'
 import { SchemaBanner } from '@/shared/schema/SchemaBanner'
 import { useSchemaStore } from '@/shared/schema/schemaStore'
 
-export function AppShell({ children }: PropsWithChildren) {
-  const { user, signOut } = useAuth()
-  const navigate = useNavigate()
+type AppShellProps = PropsWithChildren<{
+  userId?: string | null
+  userEmail?: string | null
+  onSignOut?: () => void | Promise<void>
+}>
+
+export function AppShell({ children, userId, userEmail, onSignOut }: AppShellProps) {
   const theme = useUiStore((s) => s.theme)
   const isDay = theme === 'day'
   const hydrateSchema = useSchemaStore((s) => s.hydrateFromCache)
@@ -21,9 +23,9 @@ export function AppShell({ children }: PropsWithChildren) {
   }, [hydrateSchema])
 
   useEffect(() => {
-    if (!user?.id) return
+    if (!userId) return
     void refreshSchema()
-  }, [user?.id, refreshSchema])
+  }, [userId, refreshSchema])
 
   // Slightly lighter than the landing page in night mode.
   const rootClass = isDay
@@ -36,15 +38,6 @@ export function AppShell({ children }: PropsWithChildren) {
   const logoClass = isDay
     ? 'grid h-8 w-8 place-items-center overflow-hidden rounded-lg bg-slate-900'
     : 'grid h-8 w-8 place-items-center overflow-hidden rounded-lg bg-gradient-to-br from-cyan-400 to-violet-500'
-
-  const handleSignOut = async () => {
-    // Navigate immediately so the user sees the landing page instantly,
-    // even if network/logout takes a moment.
-    navigate('/', { replace: true })
-    void signOut().catch(() => {
-      // ignore; landing page doesn't require auth
-    })
-  }
 
   return (
     <div className={rootClass}>
@@ -76,9 +69,9 @@ export function AppShell({ children }: PropsWithChildren) {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className={"hidden text-xs sm:block " + subtleText}>{user?.email}</div>
+            <div className={"hidden text-xs sm:block " + subtleText}>{userEmail}</div>
             <ThemeToggle compact />
-            <Button variant="secondary" onClick={handleSignOut}>
+            <Button variant="secondary" onClick={() => void onSignOut?.()}>
               Salir
             </Button>
           </div>

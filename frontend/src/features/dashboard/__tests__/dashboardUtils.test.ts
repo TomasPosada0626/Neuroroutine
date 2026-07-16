@@ -7,8 +7,8 @@ import {
   dateKeyLocal,
   formatTimeAgo,
   startOfWeekLocal,
-} from '../dashboardUtils'
-import type { RoutineTaskEvent } from '@/features/routines/types'
+} from '../utils/dashboardUtils'
+import type { RoutineTaskEvent } from '@/shared/types/routineEvents'
 
 function isoFromLocal(y: number, m0: number, d: number, hh = 12, mm = 0) {
   return new Date(y, m0, d, hh, mm, 0, 0).toISOString()

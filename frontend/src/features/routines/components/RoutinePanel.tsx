@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@/features/auth/authStore'
 import { useRoutines } from '@/features/routines/routinesStore'
 import { RoutineFormModal } from '@/features/routines/components'
-import { useDashboardPrefs, type RoutineSchedule } from '@/features/dashboard/dashboardPrefsStore'
+import { useDashboardPrefs, type RoutineSchedule } from '@/features/dashboard/store/dashboardPrefsStore'
 import { Button, Card, Input, Textarea } from '@/shared/ui'
 import { useUiStore } from '@/shared/state/uiStore'
 
