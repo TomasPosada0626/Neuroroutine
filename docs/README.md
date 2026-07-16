@@ -5,5 +5,5 @@ This folder contains project-facing documentation used for portfolio presentatio
 ## Index
 
 - `deployment/README.md`: deployment and runtime guide (English)
-- `career/metrics.md`: copy-ready metrics block for CV and LinkedIn
+- `career/metrics.md`: career metrics and profile-ready summary text
 - `screenshots/`: product screenshots used in root README gallery

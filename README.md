@@ -620,7 +620,7 @@ PR guidelines:
 
 ## Career Metrics (CV/LinkedIn)
 
-Use this copy-ready block for resume and LinkedIn project descriptions:
+Career-focused project metrics and wording:
 
 - `docs/career/metrics.md`
 

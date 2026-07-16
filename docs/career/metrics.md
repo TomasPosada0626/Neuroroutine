@@ -1,6 +1,6 @@
 # CV and LinkedIn Metrics Block
 
-Use this page as your copy/paste source for career-facing project descriptions.
+This page captures career-facing project metrics and profile-ready wording.
 
 Important:
 
@@ -14,7 +14,7 @@ Important:
 - Dual deployment paths: Vercel and Render.
 - Security model: Supabase RLS policies scoped by authenticated user identity.
 
-## CV bullet block (copy/paste)
+## CV bullet block
 
 - Built and shipped NeuroRoutine, a React + TypeScript SPA with Supabase Auth/Postgres and row-level security.
 - Implemented CI quality gates (lint, unit tests, build, and Playwright smoke E2E) to reduce regression risk before deployment.
@@ -22,7 +22,7 @@ Important:
 - Designed resilient delivery with dual production deployment options (Vercel primary, Render fallback).
 - Enforced per-user data isolation at the database layer through RLS policies (`auth.uid()` ownership checks).
 
-## LinkedIn project summary (copy/paste)
+## LinkedIn project summary
 
 Built NeuroRoutine as a production-style portfolio app focused on secure multi-user data handling and operational reliability. The project uses React + TypeScript + Supabase (Auth + Postgres + RLS), runs CI gates on every push/PR (lint, tests, build, Playwright smoke E2E), and supports dual deployment on Vercel and Render. This let me practice end-to-end product delivery, from UX and feature architecture to database security and release workflows.
 
