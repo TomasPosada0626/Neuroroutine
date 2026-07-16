@@ -16,10 +16,6 @@ jobs:
     name: Deploy frontend to Vercel
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: frontend
-
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -53,10 +49,6 @@ jobs:
 
           echo "ok=true" >> $GITHUB_OUTPUT
 
-      - name: Install
-        if: steps.gate.outputs.ok == 'true'
-        run: npm ci
-
       - name: Deploy
         if: steps.gate.outputs.ok == 'true'
         env:
@@ -66,5 +58,6 @@ jobs:
           VITE_BUILD_SHA: ${{ github.sha }}
           VITE_BUILD_RUN_NUMBER: ${{ github.run_number }}
         run: |
-          npx vercel build --prod --token=$VERCEL_TOKEN
-          npx vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
+          npx vercel deploy --prod --yes --token="$VERCEL_TOKEN" \
+            --build-env VITE_BUILD_SHA="$VITE_BUILD_SHA" \
+            --build-env VITE_BUILD_RUN_NUMBER="$VITE_BUILD_RUN_NUMBER"
