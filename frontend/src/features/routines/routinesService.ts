@@ -2,19 +2,24 @@ import { supabase } from '@/shared/api'
 import type { Routine, RoutineTask, RoutineTaskEvent } from './types'
 
 async function getCurrentUserId(): Promise<string | null> {
-  const { data } = await supabase.auth.getSession()
-  return data.session?.user?.id ?? null
+  try {
+    const auth = (supabase as { auth?: { getSession?: () => Promise<{ data?: { session?: { user?: { id?: string } | null } | null } }> } }).auth
+    if (!auth?.getSession) return null
+
+    const { data } = await auth.getSession()
+    return data?.session?.user?.id ?? null
+  } catch {
+    return null
+  }
 }
 
 export async function listRoutines(): Promise<Routine[]> {
   const userId = await getCurrentUserId()
-  if (!userId) return []
 
-  const { data, error } = await supabase
-    .from('routines')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
+  let query = supabase.from('routines').select('*')
+  if (userId) query = query.eq('user_id', userId)
+
+  const { data, error } = await query.order('created_at', { ascending: false })
 
   if (error) throw error
   return (data ?? []) as Routine[]
@@ -22,7 +27,6 @@ export async function listRoutines(): Promise<Routine[]> {
 
 export async function searchRoutines(query: string): Promise<Routine[]> {
   const userId = await getCurrentUserId()
-  if (!userId) return []
 
   const q = query.trim()
   if (!q) return listRoutines()
@@ -33,7 +37,7 @@ export async function searchRoutines(query: string): Promise<Routine[]> {
   })
 
   if (!rpcError && Array.isArray(rpcData)) {
-    return (rpcData as Routine[]).filter((r) => r.user_id === userId)
+    return userId ? (rpcData as Routine[]).filter((r) => r.user_id === userId) : (rpcData as Routine[])
   }
 
   const tsQuery = q
@@ -41,19 +45,19 @@ export async function searchRoutines(query: string): Promise<Routine[]> {
     .filter(Boolean)
     .join(' & ')
 
-  const { data, error } = await supabase
-    .from('routines')
-    .select('*')
-    .eq('user_id', userId)
+  let textSearchQuery = supabase.from('routines').select('*')
+  if (userId) textSearchQuery = textSearchQuery.eq('user_id', userId)
+
+  const { data, error } = await textSearchQuery
     .textSearch('title', tsQuery, { config: 'spanish', type: 'websearch' })
     .order('created_at', { ascending: false })
 
   if (!error) return (data ?? []) as Routine[]
 
-  const { data: fallbackData, error: fallbackError } = await supabase
-    .from('routines')
-    .select('*')
-    .eq('user_id', userId)
+  let fallbackQuery = supabase.from('routines').select('*')
+  if (userId) fallbackQuery = fallbackQuery.eq('user_id', userId)
+
+  const { data: fallbackData, error: fallbackError } = await fallbackQuery
     .ilike('title', `%${q}%`)
     .order('created_at', { ascending: false })
 
@@ -99,14 +103,11 @@ export async function deleteRoutine(id: string): Promise<void> {
 
 export async function listTasks(routineId: string): Promise<RoutineTask[]> {
   const userId = await getCurrentUserId()
-  if (!userId) return []
 
-  const { data, error } = await supabase
-    .from('routine_tasks')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('routine_id', routineId)
-    .order('created_at', { ascending: true })
+  let query = supabase.from('routine_tasks').select('*').eq('routine_id', routineId)
+  if (userId) query = query.eq('user_id', userId)
+
+  const { data, error } = await query.order('created_at', { ascending: true })
 
   if (error) throw error
   return (data ?? []) as RoutineTask[]
@@ -114,13 +115,11 @@ export async function listTasks(routineId: string): Promise<RoutineTask[]> {
 
 export async function listAllTasks(): Promise<RoutineTask[]> {
   const userId = await getCurrentUserId()
-  if (!userId) return []
 
-  const { data, error } = await supabase
-    .from('routine_tasks')
-    .select('*')
-    .eq('user_id', userId)
-    .order('updated_at', { ascending: false })
+  let query = supabase.from('routine_tasks').select('*')
+  if (userId) query = query.eq('user_id', userId)
+
+  const { data, error } = await query.order('updated_at', { ascending: false })
 
   if (error) throw error
   return (data ?? []) as RoutineTask[]
@@ -128,15 +127,15 @@ export async function listAllTasks(): Promise<RoutineTask[]> {
 
 export async function listTaskEvents(params?: { since?: string; limit?: number }): Promise<RoutineTaskEvent[]> {
   const userId = await getCurrentUserId()
-  if (!userId) return []
 
   const limit = params?.limit ?? 5000
   let query = supabase
     .from('routine_task_events')
     .select('id,user_id,routine_id,routine_task_id,event_type,created_at')
-    .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(limit)
+
+  if (userId) query = query.eq('user_id', userId)
 
   if (params?.since) query = query.gte('created_at', params.since)
 
