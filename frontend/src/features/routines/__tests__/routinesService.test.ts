@@ -1,5 +1,3 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-
 type MockResult = {
   data?: unknown
   error?: unknown

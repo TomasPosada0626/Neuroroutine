@@ -13,6 +13,11 @@ import {
   updateRoutine,
 } from './routinesService'
 import { logAppEvent } from '@/shared/observability/eventLog'
+import {
+  enqueueTaskInsert,
+  listQueuedTaskInserts,
+  removeQueuedTaskInsert,
+} from '@/shared/offline/taskSyncQueue'
 
 type RoutinesState = {
   loading: boolean
@@ -29,6 +34,7 @@ type RoutinesState = {
 
   hydrateFromCache: () => void
   refreshAll: (params?: { since?: string }) => Promise<void>
+  syncOfflineTasks: () => Promise<number>
 
   loadRoutines: () => Promise<void>
   loadAllTasks: () => Promise<void>
@@ -58,6 +64,56 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
   tasksByRoutineId: {},
   allTasks: [],
   taskEvents: [],
+
+  syncOfflineTasks: async () => {
+    const isOnline = typeof navigator === 'undefined' ? true : navigator.onLine
+    if (!isOnline) {
+      set({ offline: true })
+      return 0
+    }
+
+    const pending = await listQueuedTaskInserts()
+    if (pending.length === 0) {
+      set({ offline: false })
+      return 0
+    }
+
+    let synced = 0
+    for (const item of pending) {
+      try {
+        const created = await createTask({
+          user_id: item.user_id,
+          routine_id: item.routine_id,
+          title: item.title,
+          description: item.description ?? null,
+          due_date: item.due_date ?? null,
+          due_time: item.due_time ?? null,
+        })
+
+        set((s) => ({
+          allTasks: s.allTasks.map((t) => (t.id === item.local_id ? created : t)),
+          tasksByRoutineId: {
+            ...s.tasksByRoutineId,
+            [item.routine_id]: (s.tasksByRoutineId[item.routine_id] ?? []).map((t) =>
+              t.id === item.local_id ? created : t,
+            ),
+          },
+        }))
+
+        await removeQueuedTaskInsert(item.local_id)
+        synced += 1
+      } catch {
+        set({ offline: true, error: 'Some offline tasks could not be synced yet' })
+      }
+    }
+
+    if (synced > 0) {
+      const ts = new Date().toISOString()
+      set({ offline: false, lastSyncedAt: ts })
+    }
+
+    return synced
+  },
 
   hydrateFromCache: () => {
     try {
@@ -248,9 +304,42 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
     set({ loading: true, error: null })
     try {
       const createdTasks: RoutineTask[] = []
+      const isOnline = typeof navigator === 'undefined' ? true : navigator.onLine
+
       for (const t of input.tasks) {
         const title = t.title.trim()
         if (!title) continue
+
+        if (!isOnline) {
+          const now = new Date().toISOString()
+          const localId = `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+          const localTask: RoutineTask = {
+            id: localId,
+            user_id: input.user_id,
+            routine_id: input.routine_id,
+            title,
+            description: t.description ?? null,
+            due_date: t.due_date ?? null,
+            due_time: t.due_time ?? null,
+            is_done: false,
+            completed_at: null,
+            created_at: now,
+            updated_at: now,
+          }
+          createdTasks.push(localTask)
+          await enqueueTaskInsert({
+            local_id: localId,
+            user_id: input.user_id,
+            routine_id: input.routine_id,
+            title,
+            description: t.description ?? null,
+            due_date: t.due_date ?? null,
+            due_time: t.due_time ?? null,
+            queued_at: now,
+          })
+          continue
+        }
+
         const created = await createTask({
           user_id: input.user_id,
           routine_id: input.routine_id,
@@ -280,6 +369,10 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
           },
         }))
       }
+
+      if (!isOnline && createdTasks.length > 0) {
+        set({ offline: true })
+      }
     } catch (e) {
       set({ error: e instanceof Error ? e.message : 'Failed to create tasks' })
     } finally {
@@ -290,6 +383,48 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
   addTask: async (input) => {
     set({ loading: true, error: null })
     try {
+      const isOnline = typeof navigator === 'undefined' ? true : navigator.onLine
+
+      if (!isOnline) {
+        const now = new Date().toISOString()
+        const localId = `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+        const localTask: RoutineTask = {
+          id: localId,
+          user_id: input.user_id,
+          routine_id: input.routine_id,
+          title: input.title,
+          description: input.description ?? null,
+          due_date: input.due_date ?? null,
+          due_time: input.due_time ?? null,
+          is_done: false,
+          completed_at: null,
+          created_at: now,
+          updated_at: now,
+        }
+
+        await enqueueTaskInsert({
+          local_id: localId,
+          user_id: input.user_id,
+          routine_id: input.routine_id,
+          title: input.title,
+          description: input.description ?? null,
+          due_date: input.due_date ?? null,
+          due_time: input.due_time ?? null,
+          queued_at: now,
+        })
+
+        set((s) => ({
+          offline: true,
+          allTasks: [localTask, ...s.allTasks],
+          tasksByRoutineId: {
+            ...s.tasksByRoutineId,
+            [input.routine_id]: [...(s.tasksByRoutineId[input.routine_id] ?? []), localTask],
+          },
+        }))
+
+        return
+      }
+
       const created = await createTask(input)
       set((s) => ({
         allTasks: [created, ...s.allTasks],

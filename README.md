@@ -101,7 +101,7 @@ Scope (what this project focuses on):
 Non-goals (intentional trade-offs for this portfolio MVP):
 
 - No custom backend server (the frontend talks directly to Supabase).
-- No notifications/cron jobs yet.
+- No third-party notification provider integration yet (email/push dispatch is not wired to an external provider).
 - Not an exhaustive test suite (CI enforces lint + unit/store tests + build + Playwright smoke E2E).
 
 ## Gallery
@@ -124,6 +124,9 @@ Non-goals (intentional trade-offs for this portfolio MVP):
 - Modern Tailwind UI with reusable layouts.
 - Persistent day/night theme (global state with localStorage persistence).
 - Remote routine search (full-text with fallback) plus client-side favorites sorting.
+- Offline-first task creation queue (IndexedDB) with automatic sync when connectivity returns.
+- Service worker app-shell caching for resilient loading and navigation fallback.
+- Reminder foundation (user reminder preferences + scheduled Edge Function event generation).
 - SPA-friendly deploy (no 404 on refresh for client-side routes).
 
 ## Tech Stack

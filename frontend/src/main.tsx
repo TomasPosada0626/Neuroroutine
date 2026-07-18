@@ -11,6 +11,18 @@ if (!rootEl) throw new Error('Root element #root not found')
 
 const root = createRoot(rootEl)
 
+function registerServiceWorker() {
+  if (!import.meta.env.PROD) return
+  if (typeof window === 'undefined') return
+  if (!('serviceWorker' in navigator)) return
+
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.register('/sw.js').catch(() => {
+      // Keep startup resilient even if SW registration fails.
+    })
+  })
+}
+
 function setBuildMarker() {
   const sha = import.meta.env.VITE_BUILD_SHA as string | undefined
   const runNumber = import.meta.env.VITE_BUILD_RUN_NUMBER as string | undefined
@@ -22,6 +34,7 @@ function setBuildMarker() {
 }
 
 setBuildMarker()
+registerServiceWorker()
 
 initSentry()
 

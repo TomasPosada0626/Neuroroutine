@@ -1,4 +1,3 @@
-import { describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
@@ -22,12 +21,12 @@ describe('shared ui components', () => {
     render(<ThemeToggle />)
 
     const button = screen.getByRole('button', { name: 'Cambiar modo noche/día' })
-    expect(button).toHaveAttribute('aria-pressed', 'false')
+    expect(button.getAttribute('aria-pressed')).toBe('false')
 
     await user.click(button)
 
     expect(useUiStore.getState().theme).toBe('day')
-    expect(button).toHaveAttribute('aria-pressed', 'true')
+    expect(button.getAttribute('aria-pressed')).toBe('true')
   })
 
   it('PasswordInput toggles between password and text', async () => {
@@ -53,7 +52,7 @@ describe('shared ui components', () => {
     )
 
     fireEvent.mouseEnter(screen.getByRole('button', { name: 'Target' }))
-    expect(screen.getByRole('tooltip')).toHaveTextContent('Info content')
+    expect(screen.getByRole('tooltip').textContent).toContain('Info content')
 
     fireEvent.pointerDown(document.body)
     expect(screen.queryByRole('tooltip')).toBeNull()
@@ -68,7 +67,7 @@ describe('shared ui components', () => {
 
     const target = screen.getByRole('button', { name: 'Touch target' })
     fireEvent.pointerDown(target, { pointerType: 'touch' })
-    expect(screen.getByRole('tooltip')).toHaveTextContent('Rich tip')
+    expect(screen.getByRole('tooltip').textContent).toContain('Rich tip')
 
     fireEvent.pointerDown(target, { pointerType: 'touch' })
     expect(screen.queryByRole('tooltip')).toBeNull()
@@ -81,7 +80,7 @@ describe('shared ui components', () => {
       </Tooltip>,
     )
 
-    expect(screen.getByRole('button', { name: 'Disabled target' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Disabled target' })).not.toBeNull()
     expect(screen.queryByRole('tooltip')).toBeNull()
   })
 
@@ -120,12 +119,12 @@ describe('shared ui components', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByRole('heading', { name: 'Welcome' })).toBeInTheDocument()
-    expect(screen.getByText('Subtitle')).toBeInTheDocument()
-    expect(screen.getByText('Secure')).toBeInTheDocument()
-    expect(screen.getByText('Auth form')).toBeInTheDocument()
-    expect(screen.getByText('Footer block')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Volver a la landing' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Welcome' })).not.toBeNull()
+    expect(screen.getByText('Subtitle')).not.toBeNull()
+    expect(screen.getByText('Secure')).not.toBeNull()
+    expect(screen.getByText('Auth form')).not.toBeNull()
+    expect(screen.getByText('Footer block')).not.toBeNull()
+    expect(screen.getByRole('link', { name: 'Volver a la landing' })).not.toBeNull()
   })
 
   it('AuthShell works without subtitle, badge and footer', () => {
@@ -139,10 +138,10 @@ describe('shared ui components', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByRole('heading', { name: 'Only title' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Only title' })).not.toBeNull()
     expect(screen.queryByText('Footer block')).toBeNull()
     expect(screen.queryByText('Secure')).toBeNull()
-    expect(screen.getByText('Simple child')).toBeInTheDocument()
+    expect(screen.getByText('Simple child')).not.toBeNull()
   })
 
   it('Button supports variant branches and theme-specific secondary styles', () => {
@@ -200,9 +199,9 @@ describe('shared ui components', () => {
       </Modal>,
     )
 
-    expect(screen.getByRole('dialog')).toBeInTheDocument()
-    expect(screen.getByText('Description')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Done' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog')).not.toBeNull()
+    expect(screen.getByText('Description')).not.toBeNull()
+    expect(screen.getByRole('button', { name: 'Done' })).not.toBeNull()
 
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(onClose).toHaveBeenCalledTimes(1)
@@ -252,8 +251,8 @@ describe('shared ui components', () => {
       </Modal>,
     )
 
-    expect(screen.getByRole('dialog')).toBeInTheDocument()
-    expect(screen.getByText('Only body')).toBeInTheDocument()
+    expect(screen.getByRole('dialog')).not.toBeNull()
+    expect(screen.getByText('Only body')).not.toBeNull()
     expect(screen.queryByRole('button', { name: 'Cerrar' })).toBeNull()
   })
 

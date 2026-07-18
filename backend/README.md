@@ -47,3 +47,10 @@ If both exist, keep migrations and full schema aligned after each schema change.
 
 - `public.app_events`: minimal event log (no PII) for key actions.
 - `public.get_nr_schema_status()`: endpoint (RPC) so the frontend can detect missing migrations and show a non-blocking warning.
+- `supabase/functions/send-due-reminders`: scheduled Edge Function that prepares due-task reminder events in `app_events`.
+
+## Reminders (Tier 2 foundation)
+
+- Migration `supabase/migrations/0005_reminder_preferences.sql` creates `public.reminder_preferences` with RLS policies.
+- Edge Function `send-due-reminders` scans due tasks and inserts `reminder_due_task` events in `public.app_events`.
+- See `supabase/functions/README.md` for deploy/invoke/schedule commands.

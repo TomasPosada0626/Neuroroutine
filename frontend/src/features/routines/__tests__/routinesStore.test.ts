@@ -1,5 +1,3 @@
-import { describe, expect, it, vi } from 'vitest'
-
 vi.mock('@/shared/observability/eventLog', () => {
   return {
     logAppEvent: vi.fn(),
@@ -31,6 +29,13 @@ async function freshStore() {
 }
 
 describe('useRoutinesStore', () => {
+  beforeEach(() => {
+    Object.defineProperty(window.navigator, 'onLine', {
+      configurable: true,
+      get: () => true,
+    })
+  })
+
   it('addRoutine prepends routine and selects it', async () => {
     const { storeMod, serviceMod } = await freshStore()
     const { useRoutinesStore } = storeMod

@@ -1,4 +1,3 @@
-import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { RoutineWizardModal } from '../RoutineWizardModal'
@@ -42,10 +41,10 @@ describe('RoutineWizardModal', () => {
     render(<RoutineWizardModal open onClose={() => {}} />)
 
     const submit = screen.getByRole('button', { name: 'Crear rutina' })
-    expect(submit).toBeDisabled()
+    expect((submit as HTMLButtonElement).disabled).toBe(true)
 
     await user.type(screen.getByPlaceholderText('Ej: Mañana enfocada'), 'Mi rutina')
-    expect(submit).toBeEnabled()
+    expect((submit as HTMLButtonElement).disabled).toBe(false)
   })
 
   it('creates a routine and bulk-creates normalized tasks', async () => {
@@ -116,11 +115,11 @@ describe('RoutineWizardModal', () => {
     const routineTitle = screen.getByPlaceholderText('Ej: Mañana enfocada')
     await user.type(routineTitle, 'Mi rutina')
 
-    expect(screen.getByRole('button', { name: 'Crear rutina' })).toBeDisabled()
-    expect(screen.getByText('Modo offline: puedes ver, pero no crear.')).toBeInTheDocument()
+    expect((screen.getByRole('button', { name: 'Crear rutina' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByText('Modo offline: puedes ver, pero no crear.')).not.toBeNull()
 
     // Single task row cannot be removed.
-    expect(screen.getByRole('button', { name: 'Debe existir al menos una fila' })).toBeDisabled()
+    expect((screen.getByRole('button', { name: 'Debe existir al menos una fila' }) as HTMLButtonElement).disabled).toBe(true)
 
     offline = false
   })
@@ -132,7 +131,7 @@ describe('RoutineWizardModal', () => {
     render(<RoutineWizardModal open onClose={() => {}} />)
     await user.type(screen.getByPlaceholderText('Ej: Mañana enfocada'), 'Mi rutina')
 
-    expect(screen.getByRole('button', { name: 'Crear rutina' })).toBeDisabled()
+    expect((screen.getByRole('button', { name: 'Crear rutina' }) as HTMLButtonElement).disabled).toBe(true)
 
     authUser = { id: 'u1' }
   })
@@ -147,7 +146,7 @@ describe('RoutineWizardModal', () => {
     await user.type(screen.getByPlaceholderText('Ej: Mañana enfocada'), 'Mi rutina')
     await user.click(screen.getByRole('button', { name: 'Crear rutina' }))
 
-    expect(screen.getByText('No se pudo crear la rutina')).toBeInTheDocument()
+    expect(screen.getByText('No se pudo crear la rutina')).not.toBeNull()
   })
 
   it('creates routine without calling addTasksBulk when all task titles are blank', async () => {

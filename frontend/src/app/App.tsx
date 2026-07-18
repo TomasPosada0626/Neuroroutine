@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from '@/features/auth/authStore'
 import { RequireAuth } from '@/features/auth/RequireAuth'
+import { useRoutinesStore } from '@/features/routines/routinesStore'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { LandingPage } from '../pages/LandingPage'
 import { LoginPage } from '@/pages/LoginPage'
@@ -29,6 +30,17 @@ export function App() {
     document.documentElement.classList.toggle('nr-day', isDay)
     document.documentElement.classList.toggle('nr-night', !isDay)
   }, [theme])
+
+  useEffect(() => {
+    const sync = () => {
+      void useRoutinesStore.getState().syncOfflineTasks()
+    }
+
+    if (typeof navigator === 'undefined' || navigator.onLine) sync()
+    window.addEventListener('online', sync)
+
+    return () => window.removeEventListener('online', sync)
+  }, [])
 
   return (
     <Routes>
