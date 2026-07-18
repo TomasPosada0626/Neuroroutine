@@ -3,7 +3,21 @@ type MockResult = {
   error?: unknown
 }
 
-function makeChain(result: MockResult): any {
+type MockChain = {
+  select: ReturnType<typeof vi.fn>
+  order: ReturnType<typeof vi.fn>
+  textSearch: ReturnType<typeof vi.fn>
+  ilike: ReturnType<typeof vi.fn>
+  insert: ReturnType<typeof vi.fn>
+  update: ReturnType<typeof vi.fn>
+  delete: ReturnType<typeof vi.fn>
+  eq: ReturnType<typeof vi.fn>
+  limit: ReturnType<typeof vi.fn>
+  gte: ReturnType<typeof vi.fn>
+  single: ReturnType<typeof vi.fn>
+}
+
+function makeChain(result: MockResult): MockChain {
   const chain = {
     select: vi.fn(() => chain),
     order: vi.fn(async () => result),
@@ -21,7 +35,7 @@ function makeChain(result: MockResult): any {
   return chain
 }
 
-const fromQueue: any[] = []
+const fromQueue: MockChain[] = []
 const rpcQueue: MockResult[] = []
 
 vi.mock('@/shared/api', () => {
