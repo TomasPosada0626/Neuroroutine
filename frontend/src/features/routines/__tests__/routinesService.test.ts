@@ -143,6 +143,40 @@ describe('routinesService', () => {
     expect(fromQueue).toHaveLength(0)
   })
 
+  it('searchRoutines delegates to listRoutines when query is empty after trim', async () => {
+    const listChain = makeChain({
+      data: [{ id: 'r-empty', title: 'From listRoutines' }],
+      error: null,
+    })
+    fromQueue.push(listChain)
+
+    const data = await searchRoutines('   ')
+
+    expect(data).toHaveLength(1)
+    expect(data[0]?.id).toBe('r-empty')
+    expect(listChain.order).toHaveBeenCalled()
+  })
+
+  it('searchRoutines throws when fallback ilike also fails', async () => {
+    rpcQueue.push({ data: null, error: new Error('rpc unavailable') })
+    const textSearchFail = makeChain({ data: null, error: new Error('fts fail') })
+    const ilikeFail = makeChain({ data: null, error: new Error('fallback fail') })
+    fromQueue.push(textSearchFail, ilikeFail)
+
+    await expect(searchRoutines('broken')).rejects.toThrow('fallback fail')
+  })
+
+  it('searchRoutines falls back to text search when rpc data shape is invalid', async () => {
+    rpcQueue.push({ data: { not: 'array' }, error: null })
+    const textSearchOk = makeChain({ data: [{ id: 'r-ts' }], error: null })
+    fromQueue.push(textSearchOk)
+
+    const data = await searchRoutines('from text search')
+
+    expect(data[0]?.id).toBe('r-ts')
+    expect(textSearchOk.textSearch).toHaveBeenCalled()
+  })
+
   it('createTask returns base insert result when no metadata is provided', async () => {
     const insert = makeChain({
       data: {
@@ -245,6 +279,53 @@ describe('routinesService', () => {
     expect(update.update).toHaveBeenCalled()
   })
 
+  it('createTask falls back to base task when update stage throws unexpectedly', async () => {
+    const insert = makeChain({
+      data: {
+        id: 't4',
+        user_id: 'u1',
+        routine_id: 'r1',
+        title: 'Task throw branch',
+      },
+      error: null,
+    })
+    fromQueue.push(insert)
+
+    const created = await createTask({
+      user_id: 'u1',
+      routine_id: 'r1',
+      title: 'Task throw branch',
+      description: 'desc',
+    })
+
+    expect(created.id).toBe('t4')
+  })
+
+  it('createTask treats whitespace-only metadata as no metadata', async () => {
+    const insert = makeChain({
+      data: {
+        id: 't5',
+        user_id: 'u1',
+        routine_id: 'r1',
+        title: 'Task no meta',
+      },
+      error: null,
+    })
+    fromQueue.push(insert)
+
+    const created = await createTask({
+      user_id: 'u1',
+      routine_id: 'r1',
+      title: 'Task no meta',
+      description: '   ',
+      due_date: ' ',
+      due_time: '\t',
+    })
+
+    expect(created.id).toBe('t5')
+    expect(fromQueue).toHaveLength(0)
+  })
+
   it('createRoutine inserts a routine and returns it', async () => {
     const insert = makeChain({
       data: {
@@ -281,6 +362,44 @@ describe('routinesService', () => {
     expect(update.eq).toHaveBeenCalledWith('id', 'r11')
   })
 
+  it('createRoutine, updateRoutine, deleteRoutine, listTasks and listAllTasks propagate errors', async () => {
+    const deleteRoutineFailChain = {
+      select: vi.fn(),
+      order: vi.fn(),
+      textSearch: vi.fn(),
+      ilike: vi.fn(),
+      insert: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      eq: vi.fn(async () => ({ error: new Error('delete routine fail') })),
+      limit: vi.fn(),
+      gte: vi.fn(),
+      single: vi.fn(),
+    } as unknown as MockChain
+    deleteRoutineFailChain.select = vi.fn(() => deleteRoutineFailChain)
+    deleteRoutineFailChain.textSearch = vi.fn(() => deleteRoutineFailChain)
+    deleteRoutineFailChain.ilike = vi.fn(() => deleteRoutineFailChain)
+    deleteRoutineFailChain.insert = vi.fn(() => deleteRoutineFailChain)
+    deleteRoutineFailChain.update = vi.fn(() => deleteRoutineFailChain)
+    deleteRoutineFailChain.delete = vi.fn(() => deleteRoutineFailChain)
+    deleteRoutineFailChain.limit = vi.fn(() => deleteRoutineFailChain)
+    deleteRoutineFailChain.gte = vi.fn(() => deleteRoutineFailChain)
+
+    fromQueue.push(
+      makeChain({ data: null, error: new Error('create fail') }),
+      makeChain({ data: null, error: new Error('update fail') }),
+      deleteRoutineFailChain,
+      makeChain({ data: null, error: new Error('list tasks fail') }),
+      makeChain({ data: null, error: new Error('list all fail') }),
+    )
+
+    await expect(createRoutine({ user_id: 'u1', title: 'x' })).rejects.toThrow('create fail')
+    await expect(updateRoutine({ id: 'r1', title: 'y' })).rejects.toThrow('update fail')
+    await expect(deleteRoutine('r1')).rejects.toThrow('delete routine fail')
+    await expect(listTasks('r1')).rejects.toThrow('list tasks fail')
+    await expect(listAllTasks()).rejects.toThrow('list all fail')
+  })
+
   it('deleteRoutine deletes by id', async () => {
     const chain = makeChain({ data: null, error: null })
     fromQueue.push(chain)
@@ -306,6 +425,62 @@ describe('routinesService', () => {
     expect(tasks[0]?.id).toBe('tA')
     expect(all[0]?.id).toBe('tB')
     expect(listByRoutine.eq).toHaveBeenCalledWith('routine_id', 'r1')
+  })
+
+  it('listTasks, listAllTasks and listTaskEvents return [] when Supabase data is null', async () => {
+    const listByRoutine = makeChain({ data: null, error: null })
+    const listEverywhere = makeChain({ data: null, error: null })
+
+    const eventsChain = makeChain({ data: [], error: null })
+    eventsChain.order = vi.fn(() => eventsChain)
+    eventsChain.limit = vi.fn(async () => ({ data: null, error: null }))
+    eventsChain.gte = vi.fn(async () => ({ data: null, error: null }))
+
+    fromQueue.push(listByRoutine, listEverywhere, eventsChain)
+
+    await expect(listTasks('r1')).resolves.toEqual([])
+    await expect(listAllTasks()).resolves.toEqual([])
+    await expect(listTaskEvents({ limit: 20 })).resolves.toEqual([])
+  })
+
+  it('createTask metadata patch sets null for empty optional fields', async () => {
+    const insert = makeChain({
+      data: {
+        id: 't6',
+        user_id: 'u1',
+        routine_id: 'r1',
+        title: 'Task patch nulls',
+      },
+      error: null,
+    })
+    const update = makeChain({
+      data: {
+        id: 't6',
+        user_id: 'u1',
+        routine_id: 'r1',
+        title: 'Task patch nulls',
+        description: 'desc only',
+        due_date: null,
+        due_time: null,
+      },
+      error: null,
+    })
+    fromQueue.push(insert, update)
+
+    await createTask({
+      user_id: 'u1',
+      routine_id: 'r1',
+      title: 'Task patch nulls',
+      description: ' desc only ',
+      due_date: undefined,
+      due_time: undefined,
+    })
+
+    expect(update.update).toHaveBeenCalledWith({
+      description: 'desc only',
+      due_date: null,
+      due_time: null,
+    })
   })
 
   it('listTaskEvents applies limit and optional since filter', async () => {

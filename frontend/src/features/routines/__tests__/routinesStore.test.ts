@@ -1,3 +1,5 @@
+import { renderHook } from '@testing-library/react'
+
 vi.mock('@/shared/observability/eventLog', () => {
   return {
     logAppEvent: vi.fn(),
@@ -67,6 +69,21 @@ describe('useRoutinesStore', () => {
     expect(created.id).toBe('r1')
     expect(s.selectedRoutineId).toBe('r1')
     expect(s.routines[0]?.id).toBe('r1')
+  })
+
+  it('useRoutines wrapper returns the same store API and selectRoutine updates selected id', async () => {
+    const { storeMod } = await freshStore()
+    const { useRoutinesStore, useRoutines } = storeMod
+
+    const { result } = renderHook(() => useRoutines())
+    const api = result.current
+    expect(typeof api.selectRoutine).toBe('function')
+
+    api.selectRoutine('r-xyz')
+    expect(useRoutinesStore.getState().selectedRoutineId).toBe('r-xyz')
+
+    api.selectRoutine(null)
+    expect(useRoutinesStore.getState().selectedRoutineId).toBeNull()
   })
 
   it('addTasksBulk skips blank titles and updates task lists', async () => {
@@ -393,6 +410,38 @@ describe('useRoutinesStore', () => {
     expect(useRoutinesStore.getState().tasksByRoutineId.r1).toEqual([])
   })
 
+  it('removeTask handles missing routine bucket by using empty fallback array', async () => {
+    const { storeMod, serviceMod } = await freshStore()
+    const { useRoutinesStore } = storeMod
+
+    useRoutinesStore.setState({
+      allTasks: [
+        {
+          id: 't_missing_bucket',
+          user_id: 'u1',
+          routine_id: 'r_missing',
+          title: 'Task missing bucket',
+          description: null,
+          due_date: null,
+          due_time: null,
+          is_done: false,
+          completed_at: null,
+          created_at: new Date(2025, 0, 1, 12).toISOString(),
+          updated_at: new Date(2025, 0, 1, 12).toISOString(),
+        },
+      ],
+      tasksByRoutineId: {},
+    })
+
+    vi.mocked(serviceMod.deleteTask).mockResolvedValue(undefined)
+
+    await useRoutinesStore
+      .getState()
+      .removeTask({ id: 't_missing_bucket', routine_id: 'r_missing' })
+
+    expect(useRoutinesStore.getState().tasksByRoutineId.r_missing).toEqual([])
+  })
+
   it('removeRoutine drops selected routine and routine task map entry', async () => {
     const { storeMod, serviceMod } = await freshStore()
     const { useRoutinesStore } = storeMod
@@ -674,6 +723,55 @@ describe('useRoutinesStore', () => {
       .getState()
       .addTasksBulk({ user_id: 'u1', routine_id: 'r1', tasks: [{ title: 'Task one' }] })
     expect(useRoutinesStore.getState().error).toBe('Failed to create tasks')
+
+    vi.mocked(serviceMod.listTaskEvents).mockRejectedValue('x')
+    await useRoutinesStore.getState().loadTaskEvents()
+    expect(useRoutinesStore.getState().error).toBe('Failed to load task events')
+
+    vi.mocked(serviceMod.deleteTask).mockRejectedValue('x')
+    await useRoutinesStore.getState().removeTask({ id: 'task-x', routine_id: 'r1' })
+    expect(useRoutinesStore.getState().error).toBe('Failed to delete task')
+
+    vi.mocked(serviceMod.toggleTaskDone).mockRejectedValue('x')
+    await useRoutinesStore.getState().setTaskDone({ id: 'task-x', routine_id: 'r1', is_done: true })
+    expect(useRoutinesStore.getState().error).toBe('Failed to update task')
+  })
+
+  it('stores Error.message for Error-instance failures in task actions', async () => {
+    const { storeMod, serviceMod } = await freshStore()
+    const { useRoutinesStore } = storeMod
+
+    vi.mocked(serviceMod.listTaskEvents).mockRejectedValue(new Error('events down'))
+    await useRoutinesStore.getState().loadTaskEvents()
+    expect(useRoutinesStore.getState().error).toBe('events down')
+
+    vi.mocked(serviceMod.toggleTaskDone).mockRejectedValue(new Error('toggle down'))
+    await useRoutinesStore.getState().setTaskDone({ id: 'task-y', routine_id: 'r1', is_done: false })
+    expect(useRoutinesStore.getState().error).toBe('toggle down')
+
+    vi.mocked(serviceMod.deleteTask).mockRejectedValue(new Error('delete down'))
+    await useRoutinesStore.getState().removeTask({ id: 'task-y', routine_id: 'r1' })
+    expect(useRoutinesStore.getState().error).toBe('delete down')
+  })
+
+  it('addTasksBulk offline with blank-only titles keeps offline flag unchanged', async () => {
+    const { storeMod } = await freshStore()
+    const { useRoutinesStore } = storeMod
+
+    Object.defineProperty(window.navigator, 'onLine', {
+      configurable: true,
+      value: false,
+    })
+
+    useRoutinesStore.setState({ offline: false })
+
+    await useRoutinesStore.getState().addTasksBulk({
+      user_id: 'u1',
+      routine_id: 'r1',
+      tasks: [{ title: '   ' }, { title: '' }],
+    })
+
+    expect(useRoutinesStore.getState().offline).toBe(false)
   })
 
   it('setTaskDone supports uncompleted event type branch', async () => {

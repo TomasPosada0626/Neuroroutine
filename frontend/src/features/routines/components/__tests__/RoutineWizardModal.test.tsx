@@ -164,6 +164,47 @@ describe('RoutineWizardModal', () => {
     expect(addTasksBulk).not.toHaveBeenCalled()
   })
 
+  it('passes trimmed notes when provided', async () => {
+    const user = userEvent.setup()
+
+    addRoutine.mockResolvedValueOnce({ id: 'r-notes' })
+    addTasksBulk.mockReset()
+
+    render(<RoutineWizardModal open onClose={() => {}} />)
+
+    await user.type(screen.getByPlaceholderText('Ej: Mañana enfocada'), 'Routine with notes')
+    await user.type(screen.getByLabelText('Notas'), '  nota importante  ')
+    await user.click(screen.getByRole('button', { name: 'Crear rutina' }))
+
+    expect(addRoutine).toHaveBeenCalledWith({
+      user_id: 'u1',
+      title: 'Routine with notes',
+      notes: 'nota importante',
+    })
+  })
+
+  it('removes a non-first task row when Eliminar is clicked', async () => {
+    const user = userEvent.setup()
+
+    render(<RoutineWizardModal open onClose={() => {}} />)
+
+    await user.click(screen.getByRole('button', { name: '+ Tarea' }))
+    expect(screen.getAllByPlaceholderText('Ej: Tomar agua')).toHaveLength(2)
+
+    await user.click(screen.getByRole('button', { name: 'Eliminar tarea 2' }))
+    expect(screen.getAllByPlaceholderText('Ej: Tomar agua')).toHaveLength(1)
+  })
+
+  it('uses modal close button and triggers close callback', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+
+    render(<RoutineWizardModal open onClose={onClose} />)
+
+    await user.click(screen.getByRole('button', { name: 'Cerrar' }))
+    expect(onClose).toHaveBeenCalled()
+  })
+
   it('closes and resets state when cancel is pressed', async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()

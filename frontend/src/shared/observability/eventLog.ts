@@ -1,8 +1,10 @@
 import { supabase } from '@/shared/api'
 
 export type AppEventName =
+  | 'auth_login_success'
   | 'routine_created'
   | 'routine_deleted'
+  | 'offline_sync_completed'
   | 'task_created'
   | 'tasks_created_bulk'
   | 'task_completed'

@@ -52,6 +52,15 @@ npm run build
 npm run preview:only
 ```
 
+## Formatting and commit quality
+
+```bash
+npm run format:check
+npm run format
+```
+
+Conventional commit linting and staged file formatting are configured with Commitlint, Husky, and lint-staged.
+
 ## CI
 
 GitHub Actions runs `npm run lint`, `npm run test`, `npm run build`, and a Playwright smoke suite (from the `frontend/` directory).
@@ -72,6 +81,14 @@ The real login E2E test is skipped unless you configure:
 
 - `E2E_USER_IDENTIFIER`
 - `E2E_USER_PASSWORD`
+
+## Containers
+
+From repo root:
+
+```bash
+docker compose up --build
+```
 
 ## Routes
 

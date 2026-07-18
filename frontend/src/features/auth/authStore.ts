@@ -1,6 +1,7 @@
 import type { Session, User } from '@supabase/supabase-js'
 import { create } from 'zustand'
 import { supabase } from '@/shared/api'
+import { logAppEvent } from '@/shared/observability/eventLog'
 
 type AuthState = {
   loading: boolean
@@ -85,6 +86,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   signInWithPassword: async (identifier, password) => {
     set({ loading: true })
+    const startedAt = performance.now()
     const trimmed = identifier.trim()
     let email = trimmed
     if (!trimmed.includes('@')) {
@@ -100,9 +102,20 @@ export const useAuthStore = create<AuthState>((set) => ({
       email = data
     }
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     set({ loading: false })
     if (error) throw error
+
+    if (data.user) {
+      void logAppEvent({
+        user_id: data.user.id,
+        event_name: 'auth_login_success',
+        meta: {
+          flow: 'login_password',
+          duration_ms: Math.round(performance.now() - startedAt),
+        },
+      })
+    }
   },
 
   signInWithGoogle: async () => {

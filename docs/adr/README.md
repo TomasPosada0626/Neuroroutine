@@ -8,6 +8,9 @@ This folder stores architecture decisions that have long-term impact on the proj
 - ADR-002: [Supabase as backend platform with RLS-first authorization](./ADR-002-supabase-rls-first.md)
 - ADR-003: [Zustand for domain state and React Query for server state](./ADR-003-zustand-plus-react-query.md)
 - ADR-004: [Dual deployment strategy (Vercel primary, Render fallback)](./ADR-004-dual-deploy-vercel-render.md)
+- ADR-005: [App-event observability with duration metrics](./ADR-005-observability-event-metrics.md)
+- ADR-006: [Offline queue with eventual consistency for task creation](./ADR-006-offline-queue-eventual-consistency.md)
+- ADR-007: [Quality gates and commit hygiene baseline](./ADR-007-quality-gates-and-commit-hygiene.md)
 
 ## ADR status model
 

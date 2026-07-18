@@ -10,7 +10,7 @@ Important:
 ## Verified project metrics (from current repository)
 
 - CI quality gates on every push/PR: lint, tests, build, Playwright smoke E2E.
-- Test coverage snapshot (2026-02-06): 52.6% statements, 34.44% branches, 48.14% functions, 53.52% lines.
+- Test coverage snapshot (2026-07-18): 97.8% statements, 88.02% branches, 98.29% functions, 99.51% lines.
 - Dual deployment paths: Vercel and Render.
 - Security model: Supabase RLS policies scoped by authenticated user identity.
 
@@ -18,7 +18,7 @@ Important:
 
 - Built and shipped NeuroRoutine, a React + TypeScript SPA with Supabase Auth/Postgres and row-level security.
 - Implemented CI quality gates (lint, unit tests, build, and Playwright smoke E2E) to reduce regression risk before deployment.
-- Maintained measurable test quality with 52.6% statement coverage (snapshot), including feature/store tests for core flows.
+- Maintained measurable test quality with 97.8% statement coverage (snapshot), including feature/store tests for core flows.
 - Designed resilient delivery with dual production deployment options (Vercel primary, Render fallback).
 - Enforced per-user data isolation at the database layer through RLS policies (`auth.uid()` ownership checks).
 

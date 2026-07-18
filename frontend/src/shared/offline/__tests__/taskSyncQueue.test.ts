@@ -41,6 +41,28 @@ describe('taskSyncQueue', () => {
     expect(afterRemove.map((x) => x.local_id)).toEqual(['b'])
   })
 
+  it('handles identical queued_at timestamps without throwing', async () => {
+    await enqueueTaskInsert({
+      local_id: 'same-1',
+      user_id: 'u1',
+      routine_id: 'r1',
+      title: 'first same timestamp',
+      queued_at: '2026-07-18T10:00:00.000Z',
+    })
+
+    await enqueueTaskInsert({
+      local_id: 'same-2',
+      user_id: 'u1',
+      routine_id: 'r1',
+      title: 'second same timestamp',
+      queued_at: '2026-07-18T10:00:00.000Z',
+    })
+
+    const listed = await listQueuedTaskInserts()
+    expect(listed).toHaveLength(2)
+    expect(listed.map((x) => x.local_id).sort()).toEqual(['same-1', 'same-2'])
+  })
+
   it('returns empty list and no-ops when indexedDB is missing', async () => {
     const original = globalThis.indexedDB
     // Simulate environments where IndexedDB is unavailable.
@@ -95,6 +117,89 @@ describe('taskSyncQueue', () => {
 
     await expect(listQueuedTaskInserts()).resolves.toEqual([])
     await expect(removeQueuedTaskInsert('err')).resolves.toBeUndefined()
+
+    ;(indexedDB as { open: IDBFactory['open'] }).open = originalOpen
+  })
+
+  it('handles upgrade path when object store already exists', async () => {
+    const originalOpen = indexedDB.open.bind(indexedDB)
+
+    const customOpen: IDBFactory['open'] = () => {
+      const req = {
+        result: {
+          objectStoreNames: {
+            contains: () => true,
+          },
+          createObjectStore: vi.fn(),
+          close: vi.fn(),
+        },
+        error: null,
+        onsuccess: null,
+        onerror: null,
+        onupgradeneeded: null,
+      } as unknown as IDBOpenDBRequest
+
+      queueMicrotask(() => {
+        req.onupgradeneeded?.call(req, new Event('upgradeneeded'))
+        req.onsuccess?.call(req, new Event('success'))
+      })
+
+      return req
+    }
+
+    ;(indexedDB as { open: IDBFactory['open'] }).open = customOpen
+
+    await expect(listQueuedTaskInserts()).resolves.toEqual([])
+
+    ;(indexedDB as { open: IDBFactory['open'] }).open = originalOpen
+  })
+
+  it('returns [] when getAll fails in readonly transaction', async () => {
+    const originalOpen = indexedDB.open.bind(indexedDB)
+
+    const failingOpen: IDBFactory['open'] = () => {
+      const req = {
+        result: {
+          objectStoreNames: {
+            contains: () => true,
+          },
+          createObjectStore: vi.fn(),
+          close: vi.fn(),
+          transaction: vi.fn(() => ({
+            objectStore: () => ({
+              getAll: () => {
+                const getReq = {
+                  result: null,
+                  error: new DOMException('getAll fail'),
+                  onsuccess: null,
+                  onerror: null,
+                } as unknown as IDBRequest
+
+                queueMicrotask(() => {
+                  getReq.onerror?.call(getReq, new Event('error'))
+                })
+
+                return getReq
+              },
+            }),
+          })),
+        },
+        error: null,
+        onsuccess: null,
+        onerror: null,
+        onupgradeneeded: null,
+      } as unknown as IDBOpenDBRequest
+
+      queueMicrotask(() => {
+        req.onsuccess?.call(req, new Event('success'))
+      })
+
+      return req
+    }
+
+    ;(indexedDB as { open: IDBFactory['open'] }).open = failingOpen
+
+    await expect(listQueuedTaskInserts()).resolves.toEqual([])
 
     ;(indexedDB as { open: IDBFactory['open'] }).open = originalOpen
   })

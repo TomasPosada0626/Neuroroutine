@@ -35,9 +35,9 @@ This guide complements the existing RLS-first model with practical hardening act
 
 ### App and Client
 
-- [ ] Add CSP headers in production hosting config.
-- [ ] Add `X-Frame-Options` / frame-ancestors strategy.
-- [ ] Add strict `Referrer-Policy` and `Permissions-Policy`.
+- [x] Add CSP headers in production hosting config (`frontend/vercel.json`, `frontend/nginx.conf`).
+- [x] Add `X-Frame-Options` / frame-ancestors strategy.
+- [x] Add strict `Referrer-Policy` and `Permissions-Policy`.
 - [ ] Ensure all external dependencies are pinned and reviewed.
 
 ### Auth and Session
@@ -58,6 +58,7 @@ This guide complements the existing RLS-first model with practical hardening act
 - [ ] Require passing CI before merge.
 - [ ] Rotate deploy tokens periodically.
 - [ ] Use environment-scoped secrets in GitHub where possible.
+- [x] Enable automated dependency and code scanning (`.github/dependabot.yml`, `.github/workflows/codeql.yml`).
 
 ## Incident Readiness
 

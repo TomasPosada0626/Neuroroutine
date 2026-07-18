@@ -14,6 +14,16 @@ async function freshStore() {
 }
 
 describe('useSchemaStore', () => {
+  it('hydrateFromCache no-ops cleanly when cache key does not exist', async () => {
+    const { storeMod } = await freshStore()
+    const { useSchemaStore } = storeMod
+
+    useSchemaStore.getState().hydrateFromCache()
+
+    expect(useSchemaStore.getState().status).toBeNull()
+    expect(useSchemaStore.getState().lastCheckedAt).toBeNull()
+  })
+
   it('hydrateFromCache restores cached schema status', async () => {
     const cached = {
       ts: '2026-07-16T10:00:00.000Z',
@@ -102,6 +112,18 @@ describe('useSchemaStore', () => {
     await useSchemaStore.getState().refresh()
 
     expect(useSchemaStore.getState().error).toBe('Schema check failed')
+    expect(useSchemaStore.getState().loading).toBe(false)
+  })
+
+  it('refresh stores Error.message when fetch throws Error', async () => {
+    const { storeMod, serviceMod } = await freshStore()
+    const { useSchemaStore } = storeMod
+
+    vi.mocked(serviceMod.fetchNrSchemaStatus).mockRejectedValue(new Error('schema unavailable'))
+
+    await useSchemaStore.getState().refresh()
+
+    expect(useSchemaStore.getState().error).toBe('schema unavailable')
     expect(useSchemaStore.getState().loading).toBe(false)
   })
 })

@@ -43,3 +43,6 @@ frontend/coverage/
 
 # Supabase local metadata
 backend/supabase/.temp/
+
+# Private local strategy notes (never commit)
+Pilares.md

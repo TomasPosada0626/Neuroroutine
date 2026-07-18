@@ -1,0 +1,60 @@
+name: Incident report
+description: Track an operational incident and follow-up actions
+labels: [incident, ops]
+body:
+  - type: input
+    id: when
+    attributes:
+      label: Detection time
+      description: Date and time the issue was detected.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - low
+        - medium
+        - high
+        - critical
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Who/what was affected?
+    validations:
+      required: true
+
+  - type: textarea
+    id: timeline
+    attributes:
+      label: Timeline
+      description: Key timestamps (T0, T1, T2).
+    validations:
+      required: true
+
+  - type: textarea
+    id: root-cause
+    attributes:
+      label: Root cause
+    validations:
+      required: true
+
+  - type: textarea
+    id: actions
+    attributes:
+      label: Corrective actions
+      description: List concrete follow-up tasks.
+    validations:
+      required: true
+
+  - type: textarea
+    id: postmortem-link
+    attributes:
+      label: Postmortem link
+      description: Link to the filled postmortem file in docs/observability.

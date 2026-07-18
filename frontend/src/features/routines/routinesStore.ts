@@ -66,6 +66,7 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
   taskEvents: [],
 
   syncOfflineTasks: async () => {
+    const startedAt = performance.now()
     const isOnline = typeof navigator === 'undefined' ? true : navigator.onLine
     if (!isOnline) {
       set({ offline: true })
@@ -110,6 +111,18 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
     if (synced > 0) {
       const ts = new Date().toISOString()
       set({ offline: false, lastSyncedAt: ts })
+
+      const firstUserId = pending[0]?.user_id
+      if (firstUserId) {
+        void logAppEvent({
+          user_id: firstUserId,
+          event_name: 'offline_sync_completed',
+          meta: {
+            synced_count: synced,
+            duration_ms: Math.round(performance.now() - startedAt),
+          },
+        })
+      }
     }
 
     return synced
@@ -230,6 +243,7 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
 
   addRoutine: async (input) => {
     set({ loading: true, error: null })
+    const startedAt = performance.now()
     try {
       const created = await createRoutine(input)
       set((s) => ({ routines: [created, ...s.routines], selectedRoutineId: created.id }))
@@ -238,6 +252,9 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
         user_id: input.user_id,
         event_name: 'routine_created',
         routine_id: created.id,
+        meta: {
+          duration_ms: Math.round(performance.now() - startedAt),
+        },
       })
 
       return created
@@ -302,6 +319,7 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
 
   addTasksBulk: async (input) => {
     set({ loading: true, error: null })
+    const startedAt = performance.now()
     try {
       const createdTasks: RoutineTask[] = []
       const isOnline = typeof navigator === 'undefined' ? true : navigator.onLine
@@ -356,7 +374,10 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
           user_id: input.user_id,
           event_name: 'tasks_created_bulk',
           routine_id: input.routine_id,
-          meta: { count: createdTasks.length },
+          meta: {
+            count: createdTasks.length,
+            duration_ms: Math.round(performance.now() - startedAt),
+          },
         })
       }
 
@@ -382,6 +403,7 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
 
   addTask: async (input) => {
     set({ loading: true, error: null })
+    const startedAt = performance.now()
     try {
       const isOnline = typeof navigator === 'undefined' ? true : navigator.onLine
 
@@ -439,6 +461,9 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
         event_name: 'task_created',
         routine_id: input.routine_id,
         routine_task_id: created.id,
+        meta: {
+          duration_ms: Math.round(performance.now() - startedAt),
+        },
       })
     } catch (e) {
       set({ error: e instanceof Error ? e.message : 'Failed to create task' })
@@ -449,6 +474,7 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
 
   setTaskDone: async (input) => {
     set({ loading: true, error: null })
+    const startedAt = performance.now()
     try {
       const updated = await toggleTaskDone({ id: input.id, is_done: input.is_done })
       const eventType: RoutineTaskEvent['event_type'] = input.is_done ? 'completed' : 'uncompleted'
@@ -477,6 +503,9 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
         event_name: input.is_done ? 'task_completed' : 'task_uncompleted',
         routine_id: input.routine_id,
         routine_task_id: updated.id,
+        meta: {
+          duration_ms: Math.round(performance.now() - startedAt),
+        },
       })
     } catch (e) {
       set({ error: e instanceof Error ? e.message : 'Failed to update task' })

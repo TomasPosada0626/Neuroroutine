@@ -6,8 +6,10 @@ This project is a frontend SPA (React/Vite) that uses Supabase as backend (Auth 
 
 1. Local frontend + Supabase cloud (recommended local workflow)
 2. Local frontend + Supabase local (optional full-local workflow)
-3. Production deploy on Vercel
-4. Production deploy on Render
+3. Docker Compose frontend development
+4. VS Code devcontainer workflow
+5. Production deploy on Vercel
+6. Production deploy on Render
 
 ## Requirements
 
@@ -80,7 +82,27 @@ cd frontend
 npm run dev
 ```
 
-## Mode 3: deploy on Vercel
+## Mode 3: Docker Compose frontend development
+
+Run from repo root:
+
+```bash
+docker compose up --build
+```
+
+Frontend will be available on `http://localhost:5173`.
+
+## Mode 4: VS Code devcontainer workflow
+
+This repository includes `.devcontainer/devcontainer.json` and `docker-compose.yml`.
+
+In VS Code:
+
+1. Open command palette.
+2. Run `Dev Containers: Reopen in Container`.
+3. Start coding with Node and dependencies inside the container.
+
+## Mode 5: deploy on Vercel
 
 Project settings:
 
@@ -93,6 +115,10 @@ SPA routing:
 
 - Keep `frontend/vercel.json` with rewrite to `index.html`
 
+Security headers:
+
+- `frontend/vercel.json` includes baseline CSP and hardening headers.
+
 Optional GitHub workflow:
 
 - `.github/workflows/deploy-vercel.yml`
@@ -103,7 +129,7 @@ Required GitHub secrets/variables (if using workflow):
 - Variable: `VERCEL_ORG_ID`
 - Variable: `VERCEL_PROJECT_ID`
 
-## Mode 4: deploy on Render
+## Mode 6: deploy on Render
 
 This repo includes a Render Blueprint:
 
