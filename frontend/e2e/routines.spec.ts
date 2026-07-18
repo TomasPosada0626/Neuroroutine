@@ -1,7 +1,8 @@
 import { expect, test } from '@playwright/test'
+import { env } from 'node:process'
 
 function hasRealBackendEnv() {
-  return Boolean(process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY)
+  return Boolean(env.VITE_SUPABASE_URL && env.VITE_SUPABASE_ANON_KEY)
 }
 
 async function login(page: import('@playwright/test').Page, identifier: string, password: string) {
@@ -15,11 +16,11 @@ async function login(page: import('@playwright/test').Page, identifier: string, 
 test('authenticated happy path: create routine + tasks and complete one task', async ({ page }) => {
   test.skip(!hasRealBackendEnv(), 'Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to enable real backend E2E')
   test.skip(
-    !process.env.E2E_USER_IDENTIFIER || !process.env.E2E_USER_PASSWORD,
+    !env.E2E_USER_IDENTIFIER || !env.E2E_USER_PASSWORD,
     'Set E2E_USER_IDENTIFIER and E2E_USER_PASSWORD to enable this test',
   )
 
-  await login(page, process.env.E2E_USER_IDENTIFIER!, process.env.E2E_USER_PASSWORD!)
+  await login(page, env.E2E_USER_IDENTIFIER!, env.E2E_USER_PASSWORD!)
 
   const routineTitle = `E2E Routine ${Date.now()}`
   const task1 = 'E2E Task 1'
@@ -58,17 +59,17 @@ test('authenticated happy path: create routine + tasks and complete one task', a
 test('RLS isolation (optional): user B cannot see user A routine', async ({ page }) => {
   test.skip(!hasRealBackendEnv(), 'Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to enable real backend E2E')
   test.skip(
-    !process.env.E2E_USER_A_IDENTIFIER ||
-      !process.env.E2E_USER_A_PASSWORD ||
-      !process.env.E2E_USER_B_IDENTIFIER ||
-      !process.env.E2E_USER_B_PASSWORD,
+    !env.E2E_USER_A_IDENTIFIER ||
+      !env.E2E_USER_A_PASSWORD ||
+      !env.E2E_USER_B_IDENTIFIER ||
+      !env.E2E_USER_B_PASSWORD,
     'Set E2E_USER_A_IDENTIFIER/PASSWORD and E2E_USER_B_IDENTIFIER/PASSWORD to enable this test',
   )
 
   const routineTitle = `E2E RLS ${Date.now()}`
 
   // Login as user A and create a routine.
-  await login(page, process.env.E2E_USER_A_IDENTIFIER!, process.env.E2E_USER_A_PASSWORD!)
+  await login(page, env.E2E_USER_A_IDENTIFIER!, env.E2E_USER_A_PASSWORD!)
   await page.getByRole('button', { name: 'Nueva rutina' }).click()
   await page.getByPlaceholder('Ej: Mañana enfocada').fill(routineTitle)
   await page.getByRole('button', { name: 'Crear rutina' }).click()
@@ -80,7 +81,7 @@ test('RLS isolation (optional): user B cannot see user A routine', async ({ page
   await expect(page).toHaveURL(/\/$/)
 
   // Login as user B and verify the routine is not visible.
-  await login(page, process.env.E2E_USER_B_IDENTIFIER!, process.env.E2E_USER_B_PASSWORD!)
+  await login(page, env.E2E_USER_B_IDENTIFIER!, env.E2E_USER_B_PASSWORD!)
 
   // Ensure routines are loaded (button becomes enabled).
   await expect(page.getByRole('button', { name: 'Refrescar' })).toBeEnabled()
