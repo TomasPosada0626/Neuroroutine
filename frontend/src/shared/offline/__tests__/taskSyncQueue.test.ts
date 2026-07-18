@@ -140,7 +140,13 @@ describe('taskSyncQueue', () => {
       } as unknown as IDBOpenDBRequest
 
       queueMicrotask(() => {
-        req.onupgradeneeded?.call(req, new Event('upgradeneeded'))
+        req.onupgradeneeded?.call(
+          req,
+          {
+            oldVersion: 0,
+            newVersion: 1,
+          } as IDBVersionChangeEvent,
+        )
         req.onsuccess?.call(req, new Event('success'))
       })
 
