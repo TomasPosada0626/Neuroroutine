@@ -19,6 +19,8 @@ import {
   removeQueuedTaskInsert,
 } from '@/shared/offline/taskSyncQueue'
 
+const CACHE_KEY = 'nr-cache-routines-v1'
+
 type RoutinesState = {
   loading: boolean
   error: string | null
@@ -32,8 +34,8 @@ type RoutinesState = {
   allTasks: RoutineTask[]
   taskEvents: RoutineTaskEvent[]
 
-  hydrateFromCache: () => void
-  refreshAll: (params?: { since?: string }) => Promise<void>
+  hydrateFromCache: (userId?: string | null) => void
+  refreshAll: (params?: { since?: string; userId?: string | null }) => Promise<void>
   syncOfflineTasks: () => Promise<number>
 
   loadRoutines: () => Promise<void>
@@ -128,16 +130,45 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
     return synced
   },
 
-  hydrateFromCache: () => {
+  hydrateFromCache: (userId) => {
     try {
-      const raw = localStorage.getItem('nr-cache-routines-v1')
-      if (!raw) return
+      const raw = localStorage.getItem(CACHE_KEY)
+      if (!raw) {
+        if (userId) {
+          set({
+            routines: [],
+            allTasks: [],
+            taskEvents: [],
+            tasksByRoutineId: {},
+            selectedRoutineId: null,
+            lastSyncedAt: null,
+          })
+        }
+        return
+      }
+
       const parsed = JSON.parse(raw) as {
         ts?: string
+        userId?: string | null
         routines?: Routine[]
         allTasks?: RoutineTask[]
         taskEvents?: RoutineTaskEvent[]
         selectedRoutineId?: string | null
+      }
+
+      if (userId) {
+        const cachedUserId = typeof parsed.userId === 'string' ? parsed.userId : null
+        if (cachedUserId !== userId) {
+          set({
+            routines: [],
+            allTasks: [],
+            taskEvents: [],
+            tasksByRoutineId: {},
+            selectedRoutineId: null,
+            lastSyncedAt: null,
+          })
+          return
+        }
       }
 
       const routines = Array.isArray(parsed.routines) ? parsed.routines : []
@@ -184,9 +215,21 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
       set({ routines, allTasks, taskEvents, tasksByRoutineId, offline: false, lastSyncedAt: ts })
 
       try {
+        const cacheUserId =
+          typeof params?.userId === 'string'
+            ? params.userId
+            : routines[0]?.user_id ?? allTasks[0]?.user_id ?? null
+
         localStorage.setItem(
-          'nr-cache-routines-v1',
-          JSON.stringify({ ts, routines, allTasks, taskEvents, selectedRoutineId: get().selectedRoutineId }),
+          CACHE_KEY,
+          JSON.stringify({
+            ts,
+            userId: cacheUserId,
+            routines,
+            allTasks,
+            taskEvents,
+            selectedRoutineId: get().selectedRoutineId,
+          }),
         )
       } catch {
         // ignore

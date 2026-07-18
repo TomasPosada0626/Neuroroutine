@@ -226,9 +226,10 @@ export function DashboardPage() {
   }, [scheduleRoutineId, selectedRoutineId, routines])
 
   useEffect(() => {
-    hydrateFromCache()
-    void refreshAll({ since: new Date(Date.now() - 1000 * 60 * 60 * 24 * 120).toISOString() })
-  }, [hydrateFromCache, refreshAll])
+    if (!user?.id) return
+    hydrateFromCache(user.id)
+    void refreshAll({ since: new Date(Date.now() - 1000 * 60 * 60 * 24 * 120).toISOString(), userId: user.id })
+  }, [user?.id, hydrateFromCache, refreshAll])
 
   const seedSince = useMemo(() => new Date(Date.now() - 1000 * 60 * 60 * 24 * 120).toISOString(), [])
   const seedSinceLong = useMemo(() => new Date(Date.now() - 1000 * 60 * 60 * 24 * 365).toISOString(), [])
@@ -244,7 +245,7 @@ export function DashboardPage() {
     setSeedError(null)
     try {
       await seedDashboardDemoData(user.id)
-      await refreshAll({ since: seedSince })
+      await refreshAll({ since: seedSince, userId: user.id })
       applyDemoScheduleDefaults()
     } catch (e) {
       setSeedError(e instanceof Error ? e.message : 'No se pudo poblar la demo')
@@ -268,7 +269,7 @@ Puedes eliminarlo con “Limpiar demo”. ¿Continuar?`,
     setSeedError(null)
     try {
       await seedFullDemoData(user.id, 'full')
-      await refreshAll({ since: seedSinceLong })
+      await refreshAll({ since: seedSinceLong, userId: user.id })
       applyDemoScheduleDefaults()
     } catch (e) {
       setSeedError(e instanceof Error ? e.message : 'No se pudo poblar la demo completa')
@@ -286,7 +287,7 @@ Puedes eliminarlo con “Limpiar demo”. ¿Continuar?`,
     setSeedError(null)
     try {
       await clearDashboardDemoData(user.id)
-      await refreshAll({ since: seedSince })
+      await refreshAll({ since: seedSince, userId: user.id })
     } catch (e) {
       setSeedError(e instanceof Error ? e.message : 'No se pudo limpiar la demo')
     } finally {
@@ -1811,7 +1812,9 @@ Puedes eliminarlo con “Limpiar demo”. ¿Continuar?`,
                 </div>
                 <Button
                   variant="secondary"
-                  onClick={() => void refreshAll({ since: new Date(Date.now() - 1000 * 60 * 60 * 24 * 120).toISOString() })}
+                  onClick={() =>
+                    void refreshAll({ since: new Date(Date.now() - 1000 * 60 * 60 * 24 * 120).toISOString(), userId: user?.id ?? null })
+                  }
                   disabled={loading}
                 >
                   Reintentar
@@ -1837,7 +1840,9 @@ Puedes eliminarlo con “Limpiar demo”. ¿Continuar?`,
             <div className="text-sm text-rose-600">{error}</div>
             <Button
               variant="secondary"
-              onClick={() => void refreshAll({ since: new Date(Date.now() - 1000 * 60 * 60 * 24 * 120).toISOString() })}
+              onClick={() =>
+                void refreshAll({ since: new Date(Date.now() - 1000 * 60 * 60 * 24 * 120).toISOString(), userId: user?.id ?? null })
+              }
               disabled={loading}
             >
               Reintentar
