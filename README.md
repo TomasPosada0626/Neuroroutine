@@ -1,8 +1,9 @@
 <div align="center">
   <h1>NeuroRoutine</h1>
-  <p><strong>Smart daily routines manager (portfolio)</strong> focused on premium UX and solid SPA + Auth + RLS practices.</p>
-  <p><em>React, TypeScript, Vite, Tailwind CSS, Supabase (Auth + Postgres + RLS), React Router, Zustand, TanStack Query, React Hook Form, Zod, GitHub Actions, Vercel, Render</em></p>
-  <p><a href="https://neuroroutine.vercel.app/">Live demo: neuroroutine.vercel.app</a></p>
+  <p><strong>Smart daily routines manager | University Practicum Project</strong></p>
+  <p><em>Full-stack SPA focused on secure architecture, practical UX, and production-ready engineering workflows.</em></p>
+  <p><em>React 19, TypeScript, Vite, Tailwind CSS, Supabase (Auth + Postgres + RLS), Zustand, React Hook Form, Zod</em></p>
+  <p><a href="https://neuroroutine.vercel.app/">Live Demo: neuroroutine.vercel.app</a></p>
 
   <p>
     <a href="https://github.com/TomasPosada0626/Neuroroutine/actions/workflows/ci.yml">
@@ -35,44 +36,26 @@
 ## Table of Contents
 
 - [Quick Start (60s)](#quick-start-60s)
-- [Overview](#overview)
-- [Scope & Non-goals](#scope--non-goals)
-- [Gallery](#gallery)
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Key Decisions](#key-decisions)
-- [Architecture](#architecture)
-- [Architecture Guide](#architecture-guide)
+- [What This Project Is](#what-this-project-is)
+- [Core Features [CHANGED]](#core-features-changed)
+- [Architecture Overview](#architecture-overview)
+- [Key Design Decisions](#key-design-decisions)
+- [Tech Stack [CHANGED]](#tech-stack-changed)
+- [Project Structure](#project-structure)
 - [Data Model](#data-model)
-- [Database Migrations](#database-migrations)
-- [API Surface](#api-surface)
 - [Security](#security)
-- [Testing & Quality](#testing--quality)
-- [Performance & UX](#performance--ux)
-- [Repo Structure](#repo-structure)
-- [Main Routes](#main-routes)
-- [Runtime/Deploy Matrix](#runtimedeploy-matrix)
-- [Requirements](#requirements)
-- [Environment Variables](#environment-variables)
-- [Local Development](#local-development)
-- [Scripts](#scripts)
-- [Backend (Supabase)](#backend-supabase)
-- [CI/CD](#cicd)
-- [Deploy](#deploy)
-- [Known Checks](#known-checks)
-- [Troubleshooting](#troubleshooting)
-- [Roadmap](#roadmap)
+- [Testing & Quality [CHANGED]](#testing--quality-changed)
+- [Setup & Local Development](#setup--local-development)
+- [Deployment](#deployment)
+- [Roadmap (Future Advances) [CHANGED]](#roadmap-future-advances-changed)
+- [Known Limitations (Intentional MVP Trade-offs) [NEW]](#known-limitations-intentional-mvp-trade-offs-new)
+- [What I Learned Building This [NEW]](#what-i-learned-building-this-new)
+- [For Instructors / Evaluators [NEW]](#for-instructors--evaluators-new)
 - [Contributing](#contributing)
-- [Changelog](#changelog)
-- [Career Metrics (CV/LinkedIn)](#career-metrics-cvlinkedin)
 - [Author](#author)
 - [License](#license)
 
 ---
-
-## Overview
-
-NeuroRoutine is a portfolio-ready web app for planning **routines and tasks** with real persistence, authentication, and strong **database-level security** via Supabase RLS.
 
 ## Quick Start (60s)
 
@@ -83,560 +66,385 @@ npm install
 npm run dev
 ```
 
-Fill these values in `frontend/.env.local` before running:
+Configure `frontend/.env.local`:
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 
-Then open `http://localhost:5173` in your browser.
+Then open `http://localhost:5173`.
 
-## Scope & Non-goals
+---
 
-Scope (what this project focuses on):
+## What This Project Is
 
-- A clean, modern SPA with a premium UX.
-- Real auth + persistence (Supabase Auth + Postgres).
-- Secure multi-user access enforced via database RLS.
+NeuroRoutine is a full-stack university practicum MVP that demonstrates end-to-end product delivery with modern frontend architecture and secure backend design.
 
-Non-goals (intentional trade-offs for this portfolio MVP):
+The project was built to prove practical capabilities in:
 
-- No custom backend server (the frontend talks directly to Supabase).
-- No third-party notification provider integration yet (email/push dispatch is not wired to an external provider).
-- Not an exhaustive test suite (CI enforces lint + unit/store tests + build + Playwright smoke E2E).
+- Building a typed SPA with React + TypeScript.
+- Integrating authentication and persistence with Supabase.
+- Enforcing data isolation with Postgres Row-Level Security (RLS).
+- Delivering with CI/CD and cloud deployment workflows.
 
-## Gallery
+Scope intent: this repository prioritizes engineering fundamentals done well over feature volume.
 
-| Step | Light | Dark |
-|---|---|---|
-| Landing | ![Landing (light)](docs/screenshots/01-landing-light.png) | ![Landing (dark)](docs/screenshots/01-landing-dark.png) |
-| Login | ![Login (light)](docs/screenshots/02-login-light.png) | ![Login (dark)](docs/screenshots/02-login-dark.png) |
-| Register | ![Register (light)](docs/screenshots/03-register-light.png) | ![Register (dark)](docs/screenshots/03-register-dark.png) |
-| Dashboard | ![Dashboard (light)](docs/screenshots/04-dashboard-light.png) | ![Dashboard (dark)](docs/screenshots/04-dashboard-dark.png) |
-| Routines/Tasks | ![Routines (light)](docs/screenshots/05-routines-light.png) | ![Routines (dark)](docs/screenshots/05-routines-dark.png) |
+---
 
-## Features
+## Core Features [CHANGED]
 
-- Supabase Auth (register/login/logout) + session handling.
-- Protected routes (only authenticated users can access the app area).
-- Real CRUD over Postgres for routines and tasks.
-- Analytics dashboard (KPIs + activity heatmap + per-routine metrics + charts).
-- Analytics-grade completion history via event log (accurate streaks/consistency).
-- Modern Tailwind UI with reusable layouts.
-- Persistent day/night theme (global state with localStorage persistence).
-- Remote routine search (full-text with fallback) plus client-side favorites sorting.
-- Offline-first task creation queue (IndexedDB) with automatic sync when connectivity returns.
-- Service worker app-shell caching for resilient loading and navigation fallback.
-- Reminder foundation (user reminder preferences + scheduled Edge Function event generation).
-- SPA-friendly deploy (no 404 on refresh for client-side routes).
+### Authentication and Access
 
-## Tech Stack
+- Email/password sign-up and sign-in via Supabase Auth.
+- Protected route access to `/app` for authenticated users.
+- Session persistence and logout flow.
 
-**Frontend**
+### Routines and Tasks
 
-- React + TypeScript (SPA)
-- Vite (build tool)
-- Tailwind CSS (styling)
-- React Router (routing)
-- Zustand (global state + persistence)
-- TanStack Query (server state cache + revalidation)
-- React Hook Form + Zod (forms + validation)
+- CRUD operations for routines.
+- Task creation, completion toggle, and deletion.
+- Bulk task creation through the routine wizard.
+- Event logging for completion/uncompletion actions.
 
-**Backend**
+### Dashboard and User Experience
 
-- Supabase Auth
-- Postgres
-- Row Level Security (RLS) + per-user policies
+- Activity and consistency-focused dashboard widgets.
+- Theme and dashboard preference persistence.
+- Responsive layout for desktop and mobile usage.
 
-**DevOps**
+### Reliability and Product Foundations
 
-- GitHub Actions (CI)
-- Vercel / Render (deploy options)
+- Routine search via Postgres RPC with full-text fallback (backend ready; UI SearchBar component pending).
+- Offline-first task queue with IndexedDB persistence (service worker planned for Phase 2).
+- Reminder foundation (database schema + preferences ready; Edge Function deployment pending).
 
-## Key Decisions
+---
 
-- **Supabase + RLS**: real backend without a custom server, with strong database-enforced security (each user only sees their own data).
-- **Zustand**: simple, performant global state (e.g. persistent theme and feature stores) without boilerplate.
-- **React Hook Form + Zod**: fast forms with typed, declarative validation for consistent UX.
-- **SPA rewrite on Vercel**: React Router needs an `index.html` rewrite to avoid 404 on refresh for routes like `/login`.
-- **Event log for analytics**: completion events are stored in Postgres to compute streaks, consistency, and charts from real history.
+## Architecture Overview
 
-## Architecture
+High-level architecture by responsibility:
 
-High-level approach:
-
-- **frontend/**: React SPA (UI, routing, forms, state).
-- **backend/**: Supabase schema + RLS policies (SQL) and documentation.
-
-Frontend talks directly to Supabase using the public anon key; access control is enforced in Postgres through RLS.
+- `frontend/`: UI, route orchestration, feature modules, shared components/utilities.
+- `backend/`: Supabase schema, SQL migrations, Edge Function source.
+- Supabase: Auth + Postgres as managed backend platform.
 
 ```mermaid
 flowchart LR
-  U[User] -->|HTTPS| H[Vercel / Render Hosting]
-  H --> SPA[React SPA\nVite + TypeScript + Tailwind\nReact Router / Zustand / RHF+Zod]
-
-  SPA -->|supabase-js\nVITE_SUPABASE_URL + anon key| SB[Supabase]
+  U[User Browser] --> SPA[React SPA]
+  SPA -->|supabase-js| SB[Supabase Platform]
   SB --> AUTH[Auth]
-  SB --> DB[Postgres]
-
-  DB -.-> RLS[RLS policies]
-  RLS -.-> DATA[(routines, routine_tasks, routine_task_events, profiles)]
+  SB --> DB[(Postgres)]
+  DB --> RLS[RLS Policies]
+  DB --> EVT[Events + Metrics Data]
 ```
 
-## Architecture Guide
-
-For architecture boundaries, dependency rules, and feature evolution conventions:
+Architecture references:
 
 - `ARCHITECTURE.md`
+- `backend/supabase/schema.sql`
+- `backend/supabase/migrations/`
 
-### Frontend structure (high level)
+---
 
-Inside `frontend/src/`:
+## Key Design Decisions
 
-- `app/`: router + bootstrap
-- `pages/`: route pages (landing/auth/app)
-- `features/`: feature-based logic (auth, routines, etc.)
-- `shared/`: reusable UI/layout/lib/api
+1. **Database-enforced authorization (RLS)**
+   - Authorization rules are applied where data lives.
+   - Prevents cross-user access even if frontend requests are manipulated.
 
-Conventions:
+2. **Feature-first frontend structure**
+   - Improves maintainability by grouping domain logic (`auth`, `routines`, `dashboard`).
+   - Reduces accidental coupling across modules.
 
-- Alias `@/` points to `frontend/src/`.
-- Prefer imports from barrels (e.g. `@/shared/ui`).
+3. **Zustand for lightweight state management**
+   - Low-boilerplate store model fits MVP scope well.
+   - Supports clean, testable action-based patterns.
+
+4. **Event-oriented analytics model**
+   - Completion events support reliable streak and consistency calculations.
+   - Keeps metric logic auditable and extendable.
+
+5. **Migration-driven backend evolution**
+   - Schema changes are tracked and reproducible.
+   - Supports safe iterative releases.
+
+---
+
+## Tech Stack [CHANGED]
+
+### Frontend
+
+- React 19
+- TypeScript 5
+- Vite 7
+- Tailwind CSS 3
+- React Router 7
+- Zustand
+- React Hook Form + Zod
+
+### Backend
+
+- Supabase Auth
+- Supabase Postgres
+- Row-Level Security (RLS)
+- SQL migrations
+- Edge Function scaffolding for reminders
+
+### Quality and Delivery
+
+- ESLint
+- Vitest + Testing Library
+- Playwright (smoke + optional authenticated flows)
+- GitHub Actions CI
+- Vercel and Render deployment pipelines
+
+---
+
+## Project Structure
+
+```text
+NeuroRoutine/
++-- frontend/
+�   +-- src/
+�   �   +-- app/
+�   �   +-- pages/
+�   �   +-- features/
+�   �   �   +-- auth/
+�   �   �   +-- routines/
+�   �   �   +-- dashboard/
+�   �   +-- shared/
+�   +-- e2e/
+�   +-- vite.config.ts
+�   +-- package.json
++-- backend/
+�   +-- supabase/
+�       +-- schema.sql
+�       +-- migrations/
+�       +-- functions/
++-- docs/
++-- ARCHITECTURE.md
++-- README.md
+```
+
+---
 
 ## Data Model
 
-The model is versioned in `backend/supabase/schema.sql`.
+Main entities:
 
-Source of truth for data model and relationships:
+- `profiles`
+- `routines`
+- `routine_tasks`
+- `routine_task_events`
+- `app_events`
+- `reminder_preferences`
+
+Schema and migrations:
 
 - `backend/supabase/schema.sql`
 - `backend/supabase/migrations/`
 
-### Entities
+The model supports both task lifecycle operations and analytics/event-based calculations.
 
-| Table | Purpose | Key fields |
-|---|---|---|
-| `profiles` | User profile (app-level) | `id` (UUID = `auth.users.id`), `email`, `username`, `first_name`, `last_name` |
-| `routines` | User routines | `id`, `user_id`, `title`, `notes` |
-| `routine_tasks` | Tasks within a routine | `id`, `user_id`, `routine_id`, `title`, `is_done`, `completed_at` |
-| `routine_task_events` | Completion event history | `id`, `user_id`, `routine_id`, `routine_task_id`, `event_type`, `created_at` |
-
-### Relationships
-
-```text
-auth.users (Supabase Auth)
-  1 ── 1  profiles
-
-auth.users
-  1 ── *  routines
-
-routines
-  1 ── *  routine_tasks
-
-routine_tasks
-  1 ── *  routine_task_events
-```
-
-## API Surface
-
-Main operations the frontend performs against Supabase:
-
-- **Auth**: sign up / sign in / sign out + session reading.
-- **Reads (SELECT)**: fetch routines and tasks for the authenticated user.
-- **Writes (INSERT/UPDATE/DELETE)**: create/update/delete routines, toggle task completion.
-- **Profile**: read `profiles` (RLS-scoped) and support username login (SQL helper).
+---
 
 ## Security
 
-Checklist:
+Security design principles implemented in this project:
 
-- RLS enabled on `profiles`, `routines`, `routine_tasks`.
-- Per-user policies: access allowed only when `auth.uid()` matches the owner (`user_id` or `profiles.id`).
-- Public vs private:
-  - Private: routines and tasks (always user-scoped).
-  - Profile: only accessible by the same user.
-  - Note: `get_email_by_username()` exists (security definer) to enable username → email lookup for login; usernames should not be sensitive.
-- Key management:
-  - OK in frontend: `VITE_SUPABASE_ANON_KEY` (public) + RLS.
-  - Never in frontend: Supabase `service_role` key.
+- RLS enabled on user-scoped data tables.
+- Ownership checks bound to authenticated identity (`auth.uid()`).
+- Public anon key constrained by database policies.
+- Service role secrets never exposed in frontend runtime.
 
-### SQL injection & safe SQL functions
+Practical result: user-level data boundaries are enforced by Postgres, not only by UI behavior.
 
-In this architecture, the frontend does **not** build raw SQL strings; it uses `supabase-js` query builders and RPC calls, and the database enforces RLS. That makes classic SQL injection much less likely.
+---
 
-The main SQLi risk surface is:
+## Testing & Quality [CHANGED]
 
-- Custom SQL functions (RPC), especially if they use dynamic SQL.
-- Any place you concatenate user input into SQL.
+Quality pipeline includes:
 
-Guidelines used here:
+- `npm run lint`
+- `npm run test`
+- `npm run build`
+- Playwright smoke checks
 
-- Prefer static SQL (no dynamic `EXECUTE`).
-- Validate/sanitize inputs (length + allowed characters) at the function boundary.
-- For `SECURITY DEFINER` functions: set a safe `search_path` and grant the minimum required privileges.
+Coverage snapshot:
 
-Example (safe helper function shape):
+- **Statements:** 52.6%
+- **Branches:** 34.44%
+- **Functions:** 48.14%
+- **Lines:** 53.52%
 
-```sql
-create or replace function public.get_email_by_username(p_username text)
-returns text
-language plpgsql
-security definer
-set search_path = pg_catalog, public
-as $$
-declare
-  v_username text := lower(trim(p_username));
-  v_email text;
-begin
-  if v_username is null or v_username = '' then
-    return null;
-  end if;
+**Last updated:** 2026-07-18  
+CI reference: https://github.com/TomasPosada0626/Neuroroutine/actions/workflows/ci.yml
 
-  -- Allow only [a-z0-9_], 3..30 chars.
-  if v_username !~ '^[a-z0-9_]{3,30}$' then
-    raise exception 'invalid username';
-  end if;
+---
 
-  select email into v_email
-  from public.profiles
-  where username = v_username
-  limit 1;
-
-  return v_email;
-end;
-$$;
-
-revoke all on function public.get_email_by_username(text) from public;
-grant execute on function public.get_email_by_username(text) to anon, authenticated;
-```
-
-### Security proof (RLS)
-
-You can reproduce RLS behavior in the Supabase SQL Editor by simulating authenticated requests (JWT claims).
-
-> Replace `USER_A_UUID` and `USER_B_UUID` with real `auth.users.id` values.
-
-**Query 1 — user A inserts, user B cannot read**
-
-```sql
--- As user A
-select set_config('request.jwt.claim.role', 'authenticated', true);
-select set_config('request.jwt.claim.sub', 'USER_A_UUID', true);
-
-insert into public.routines (user_id, title)
-values (auth.uid(), 'Routine A')
-returning id, user_id, title;
-
--- As user B
-select set_config('request.jwt.claim.sub', 'USER_B_UUID', true);
-
--- This will return 0 rows due to RLS (user B cannot see user A data)
-select id, user_id, title
-from public.routines
-where title = 'Routine A';
-```
-
-**Query 2 — user B cannot insert on behalf of user A**
-
-```sql
--- As user B
-select set_config('request.jwt.claim.role', 'authenticated', true);
-select set_config('request.jwt.claim.sub', 'USER_B_UUID', true);
-
--- This should fail with an RLS violation (cannot write rows owned by another user)
-insert into public.routines (user_id, title)
-values ('USER_A_UUID', 'Malicious attempt');
-```
-
-## Testing & Quality
-
-- **CI**: GitHub Actions runs `npm ci`, `npm run lint`, `npm run test`, `npm run build`, and a Playwright E2E smoke suite.
-- **Unit/store tests**: Vitest (examples live under `frontend/src/**/__tests__`).
-- **E2E**: Playwright (smoke test runs with dummy Supabase env; an optional real-auth test can be enabled via env vars).
-
-Useful commands (from `frontend/`):
-
-```bash
-npm run test
-npm run test:coverage
-npm run e2e
-```
-
-Coverage (local run on 2026-02-06): **52.6% statements**, **34.44% branches**, **48.14% functions**, **53.52% lines**.
-
-Note: the authenticated E2E test is skipped unless you set `E2E_USER_IDENTIFIER` and `E2E_USER_PASSWORD`.
-
-## Performance & UX
-
-- **Scroll-free landing**: hero + preview in a single view to reduce friction and improve first impression.
-- **Persistent theme**: global day/night theme persistence for consistent identity.
-- **Accessibility + contrast**: inputs and controls are designed for consistent readability.
-
-## Database Migrations
-
-This repo keeps both:
-
-- A **full schema** for bootstrapping a fresh Supabase project.
-- A **migrations folder** for incremental changes.
-
-- `backend/supabase/schema.sql`
-- `backend/supabase/migrations/`
-
-How updates are applied:
-
-- For this project, schema changes are applied by running the SQL in Supabase (SQL Editor).
-- When the schema evolves, a new migration is added and `schema.sql` stays up-to-date so the full database setup remains reproducible.
-
-Schema version / capability check:
-
-- The backend exposes `get_nr_schema_status()` so the frontend can detect missing migrations and show a non-blocking warning banner.
-
-Note: analytics features (streaks/consistency/charts) rely on `routine_task_events` and the trigger defined in `backend/supabase/schema.sql`.
-
-## Repo Structure
-
-```text
-.
-├─ frontend/                 # React + TS + Tailwind
-│  ├─ src/
-│  ├─ vercel.json            # SPA rewrite for React Router
-│  └─ ...
-├─ backend/                  # Supabase SQL/RLS + docs
-│  └─ supabase/
-│     ├─ migrations/
-│     └─ schema.sql
-├─ docs/
-│  ├─ deployment/
-│  ├─ screenshots/
-│  └─ README.md
-└─ .github/workflows/        # CI + deploy
-```
-
-For deeper docs per area:
-
-- `frontend/README.md`
-- `backend/README.md`
-
-## Main Routes
-
-- `/`: landing
-- `/login`: login
-- `/register`: register
-- `/app`: authenticated area (protected)
-
-## Runtime/Deploy Matrix
-
-| Mode | Frontend | Backend | Best for | Notes |
-|---|---|---|---|---|
-| Local + Supabase Cloud | Local Vite dev server | Hosted Supabase | Daily development | Fast setup, no Docker required |
-| Local + Supabase Local | Local Vite dev server | Local Supabase CLI + Docker | Full offline/local testing | Requires Docker + Supabase CLI |
-| Vercel | Static build from `frontend` | Hosted Supabase | Primary public demo | Uses `frontend/vercel.json` for SPA rewrite |
-| Render | Static build from `frontend` | Hosted Supabase | Alternate production deploy | Uses `render.yaml` Blueprint + SPA rewrite |
-
-## Requirements
-
-- Node.js 18+ (recommended)
-- A Supabase project (created)
-
-## Environment Variables
-
-Frontend requires (example in `frontend/.env.example`):
-
-| Variable | Description |
-|---|---|
-| `VITE_SUPABASE_URL` | Supabase project URL |
-| `VITE_SUPABASE_ANON_KEY` | Public anon key |
-| `VITE_SENTRY_DSN` | (Optional) Sentry DSN for frontend error tracking |
-
-## Observability
-
-- **Sentry (frontend)**: optional. When `VITE_SENTRY_DSN` is set, the app initializes Sentry with `sendDefaultPii: false`.
-- **Event log (DB)**: `public.app_events` stores minimal, no-PII product events (routine/task actions). Inserts are best-effort and never block UX.
-
-## Local Development
-
-This project has no custom backend server. The frontend talks directly to Supabase.
-
-Mode A (recommended): frontend local + Supabase cloud backend
-
-1) Install dependencies
+## Setup & Local Development
 
 ```bash
 cd frontend
 npm install
-```
-
-2) Create `.env.local`
-
-```bash
-cd frontend
-cp .env.example .env.local
-```
-
-Windows alternative:
-
-```bash
-cd frontend
-copy .env.example .env.local
-```
-
-3) Fill `frontend/.env.local`
-
-4) Run dev server
-
-```bash
 npm run dev
 ```
 
-Mode B (optional): frontend local + Supabase local backend
+Useful scripts:
 
-- Start a local Supabase stack with Supabase CLI and Docker.
-- Run the SQL from `backend/supabase/schema.sql` (or incremental migrations from `backend/supabase/migrations/`).
-- Point `frontend/.env.local` to local Supabase values (`VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`).
+```bash
+npm run lint
+npm run test
+npm run build
+npm run e2e
+npm run e2e:ui
+```
 
-## Scripts
+Recommended workflow:
 
-From `frontend/`:
+1. Develop with `npm run dev`.
+2. Validate quality gates locally (`lint`, `test`, `build`).
+3. Push changes and rely on CI for verification.
 
-- `npm run dev`: development
-- `npm run build`: production build
-- `npm run lint`: lint
-- `npm run preview`: build + preview production locally
-- `npm run preview:only`: preview without rebuilding (requires `dist/`)
-- `npm run preview:port`: build + preview on an alternate port (avoids port-in-use)
+---
 
-## Backend (Supabase)
+## Deployment
 
-Supabase is used as the real backend (Auth + Postgres). Schema and RLS policies live in:
+Production deployment:
 
-- `backend/supabase/schema.sql`
+- Vercel (primary): https://neuroroutine.vercel.app
+- Render (alternative)
 
-Quick setup:
+Supabase backend operations:
 
-1) Create a Supabase project
-2) Supabase → SQL Editor: run `backend/supabase/schema.sql`
-3) Enable Auth providers as needed (Email by default; OAuth optional)
-4) Configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
+```bash
+cd backend
+npx supabase migration list
+npx supabase db push
+npx supabase functions deploy send-due-reminders --project-ref <project-ref>
+```
 
-## CI/CD
+---
 
-### CI (GitHub Actions)
+## Roadmap (Future Advances) [CHANGED]
 
-Workflow: `.github/workflows/ci.yml`
+### Phase 1
 
-On each push to `main` and on PRs:
+- SearchBar UI integrated with existing Postgres RPC search backend.
+- Reminder Edge Function deployment and first scheduled execution.
+- Expanded automated test depth for auth/routine critical paths.
 
-- install deps (`npm ci`)
-- run lint (`npm run lint`)
-- build (`npm run build`)
+### Phase 2
 
-### CD (Deploy)
+- Service worker + app-shell caching.
+- Task reordering UX wired to existing drag-and-drop dependencies.
+- Improved offline conflict messaging and recovery UX.
 
-Recommended: connect the repo to **Vercel** or **Render** for automatic deploys.
+### Phase 3
 
-Optional GitHub Actions deploy workflows also exist:
+- Real-time sync using Supabase Realtime subscriptions.
+- Analytics export (CSV/PDF).
+- Extended profile management and personalization.
 
-- `.github/workflows/deploy-vercel.yml`
-- `.github/workflows/deploy-render.yml`
+---
 
-## Known Checks
+## Known Limitations (Intentional MVP Trade-offs) [NEW]
 
-- If Vercel is connected natively to the repository, production deploys may succeed even when the optional GitHub deploy workflow check is failing or skipped.
-- To avoid noisy status checks, use one deploy strategy as primary: native Vercel integration or GitHub Actions deploy workflow.
-- The CI workflow (`.github/workflows/ci.yml`) remains the source of truth for code quality checks.
+This MVP intentionally focuses on core engineering fundamentals. Current scope boundaries are explicit and planned:
 
-## Deploy
+| Feature | Status | Reason | Phase |
+|---------|--------|--------|-------|
+| **Service Worker** | Planned | IndexedDB queue already provides core offline resilience for MVP scope | Phase 2 |
+| **Search UI** | Backend ready | Postgres RPC is available; SearchBar component is next UI increment | Phase 1 |
+| **Notifications** | Foundation ready | Schema + RLS are ready; Edge Function rollout is next step | Phase 1 |
+| **Task Reordering** | Foundation ready | `@dnd-kit` installed; interaction wiring pending | Phase 2 |
+| **User Profile Edit** | Basic profile only | Authentication and profile base exist; edit UX planned | Phase 2 |
+| **Analytics Export** | Planned | CSV/PDF export not in MVP scope | Phase 3 |
+| **Real-time Sync** | Planned | Current sync model is pull-based; realtime planned | Phase 3 |
 
-Full deployment and runtime guide:
+### Coverage Gaps
 
-- `docs/deployment/README.md`
+- Current test coverage: 52.6% (target 75%+ over roadmap iterations).
+- Priority expansion areas: dashboard utilities, auth edge cases, service-level integration.
 
-### Vercel (recommended)
+---
 
-Suggested Vercel config:
+## What I Learned Building This [NEW]
 
-- Root Directory: `frontend`
-- Build Command: `npm run build`
-- Output Directory: `dist`
-- Env vars:
-  - `VITE_SUPABASE_URL`
-  - `VITE_SUPABASE_ANON_KEY`
+- **Database Security:** database-layer RLS is more robust than app-layer-only guards.
+- **State Management:** Zustand provides excellent speed-to-value for MVP complexity.
+- **Offline-first Design:** IndexedDB solves core persistence; service workers require lifecycle discipline.
+- **Testing Strategy:** 50%+ enabled safe iteration; next milestone is deeper integration confidence.
+- **Architecture Discipline:** clear module boundaries reduce feature creep and regression risk.
+- **Deployment Maturity:** SPA routing and environment configuration are key production details.
 
-### Render
+---
 
-This repo includes a Render Blueprint file:
+## For Instructors / Evaluators [NEW]
 
-- `render.yaml`
+### Quick Assessment (20 minutes)
 
-Render setup (using Blueprint):
+**Setup and smoke test:**
 
-- Service type: Static Site
-- Root Directory: `frontend`
-- Build Command: `npm ci && npm run build`
-- Publish Directory: `dist`
-- SPA rewrite: `/* -> /index.html` (already in `render.yaml`)
-- Env vars:
-  - `VITE_SUPABASE_URL`
-  - `VITE_SUPABASE_ANON_KEY`
+```bash
+cd frontend
+npm install
+npm run dev
+# -> http://localhost:5173
+```
 
-### SPA routing (avoid 404 on refresh)
+Suggested validation flow:
 
-React Router needs a SPA rewrite so refreshing routes like `/login` works:
+1. Click "Get Started" -> "Sign Up".
+2. Register with email/password.
+3. Create a routine with 2-3 tasks.
+4. Complete one task.
+5. Refresh browser to confirm persisted data.
+6. Run `npm run build` to verify production build integrity.
 
-- `frontend/vercel.json`
+**Focused code review (10-15 minutes):**
 
-## Troubleshooting
+- `ARCHITECTURE.md` - design decisions and dependency rules.
+- `backend/supabase/schema.sql` - data model and RLS policies.
+- `frontend/src/features/routines/routinesStore.ts` - state and orchestration pattern.
+- `frontend/src/features/routines/__tests__/` - testing strategy in practice.
 
-- 404 on refresh: verify the project root is `frontend` and `frontend/vercel.json` is included.
-- 404 on refresh (Render): verify Blueprint routes include `/* -> /index.html` from `render.yaml`.
-- Auth issues: validate `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` locally and in the deploy provider.
-- RLS blocks writes: confirm the user is authenticated and review policies in `backend/supabase/schema.sql`.
-- Seed demo data (your user only): open `/app?seed` and use the “Demo: populate dashboard” panel.
+**Quality verification:**
 
-## Roadmap
+```bash
+npm run lint
+npm run test
+npm run build
+```
 
-Ideas to push this towards a product:
-
-- Notifications/reminders
-- Advanced task editing
-- Drag & drop ordering
-- More analytics (insights quality, export, per-task trends)
-- Light offline caching
+---
 
 ## Contributing
 
 Contributions are welcome.
 
-Before opening a PR:
+Before opening a pull request:
 
-- Install deps: `npm ci` (inside `frontend/`)
-- Run lint: `npm run lint`
-- Verify build: `npm run build`
+```bash
+npm run lint
+npm run test
+npm run build
+```
 
-PR guidelines:
+Contribution checklist:
 
-- Keep PRs small and focused.
-- Include a clear description and, if relevant, update [Gallery](#gallery).
-- Never commit secrets. Use local `.env.local` and provider env vars.
+- No secrets committed.
+- Relevant tests added or updated.
+- Docs updated when behavior changes.
 
-## Changelog
-
-- **MVP (SPA + Auth + RLS)**: React frontend + Supabase Auth with Postgres and per-user RLS.
-- **Real CRUD**: routines and tasks persisted with row-level security.
-- **Premium UX/UI**: scroll-free landing with preview, persistent theme, and SPA-ready deploy.
-- **Pro dashboard analytics**: heatmap + per-routine charts powered by a completion event log.
-
-## Career Metrics (CV/LinkedIn)
-
-Career-focused project metrics and wording:
-
-- `docs/career/metrics.md`
+---
 
 ## Author
 
-Tomas Posada
+Tomas Posada  
+GitHub: https://github.com/TomasPosada0626
 
-- Email: tomasposada67@gmail.com
+---
 
 ## License
 
-MIT — see `LICENSE`.
+MIT License.
