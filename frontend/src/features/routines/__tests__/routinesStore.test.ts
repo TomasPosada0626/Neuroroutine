@@ -19,13 +19,22 @@ vi.mock('../routinesService', () => {
   }
 })
 
+vi.mock('@/shared/offline/taskSyncQueue', () => {
+  return {
+    enqueueTaskInsert: vi.fn(),
+    listQueuedTaskInserts: vi.fn(),
+    removeQueuedTaskInsert: vi.fn(),
+  }
+})
+
 async function freshStore() {
   vi.resetModules()
   vi.clearAllMocks()
   localStorage.clear()
   const storeMod = await import('../routinesStore')
   const serviceMod = await import('../routinesService')
-  return { storeMod, serviceMod }
+  const queueMod = await import('@/shared/offline/taskSyncQueue')
+  return { storeMod, serviceMod, queueMod }
 }
 
 describe('useRoutinesStore', () => {
@@ -722,5 +731,185 @@ describe('useRoutinesStore', () => {
 
     await useRoutinesStore.getState().setTaskDone({ id: 't2', routine_id: 'r1', is_done: false })
     expect(useRoutinesStore.getState().taskEvents[0]?.event_type).toBe('uncompleted')
+  })
+
+  it('syncOfflineTasks returns 0 and marks offline when navigator is offline', async () => {
+    const { storeMod, queueMod } = await freshStore()
+    const { useRoutinesStore } = storeMod
+
+    Object.defineProperty(window.navigator, 'onLine', {
+      configurable: true,
+      value: false,
+    })
+
+    const synced = await useRoutinesStore.getState().syncOfflineTasks()
+
+    expect(synced).toBe(0)
+    expect(useRoutinesStore.getState().offline).toBe(true)
+    expect(vi.mocked(queueMod.listQueuedTaskInserts)).not.toHaveBeenCalled()
+  })
+
+  it('syncOfflineTasks returns 0 and clears offline when no pending items exist', async () => {
+    const { storeMod, queueMod } = await freshStore()
+    const { useRoutinesStore } = storeMod
+
+    vi.mocked(queueMod.listQueuedTaskInserts).mockResolvedValue([])
+    useRoutinesStore.setState({ offline: true })
+
+    const synced = await useRoutinesStore.getState().syncOfflineTasks()
+
+    expect(synced).toBe(0)
+    expect(useRoutinesStore.getState().offline).toBe(false)
+  })
+
+  it('syncOfflineTasks replaces local tasks and removes queue entries on success', async () => {
+    const { storeMod, serviceMod, queueMod } = await freshStore()
+    const { useRoutinesStore } = storeMod
+
+    const pending = [
+      {
+        local_id: 'local_1',
+        user_id: 'u1',
+        routine_id: 'r1',
+        title: 'Offline task',
+        description: null,
+        due_date: null,
+        due_time: null,
+        queued_at: '2026-07-18T10:00:00.000Z',
+      },
+    ]
+
+    vi.mocked(queueMod.listQueuedTaskInserts).mockResolvedValue(pending)
+    vi.mocked(queueMod.removeQueuedTaskInsert).mockResolvedValue(undefined)
+    vi.mocked(serviceMod.createTask).mockResolvedValue({
+      id: 'remote_1',
+      user_id: 'u1',
+      routine_id: 'r1',
+      title: 'Offline task',
+      description: null,
+      due_date: null,
+      due_time: null,
+      is_done: false,
+      completed_at: null,
+      created_at: new Date(2026, 6, 18, 10).toISOString(),
+      updated_at: new Date(2026, 6, 18, 10).toISOString(),
+    })
+
+    useRoutinesStore.setState({
+      allTasks: [
+        {
+          id: 'local_1',
+          user_id: 'u1',
+          routine_id: 'r1',
+          title: 'Offline task',
+          description: null,
+          due_date: null,
+          due_time: null,
+          is_done: false,
+          completed_at: null,
+          created_at: new Date(2026, 6, 18, 10).toISOString(),
+          updated_at: new Date(2026, 6, 18, 10).toISOString(),
+        },
+      ],
+      tasksByRoutineId: {
+        r1: [
+          {
+            id: 'local_1',
+            user_id: 'u1',
+            routine_id: 'r1',
+            title: 'Offline task',
+            description: null,
+            due_date: null,
+            due_time: null,
+            is_done: false,
+            completed_at: null,
+            created_at: new Date(2026, 6, 18, 10).toISOString(),
+            updated_at: new Date(2026, 6, 18, 10).toISOString(),
+          },
+        ],
+      },
+    })
+
+    const synced = await useRoutinesStore.getState().syncOfflineTasks()
+    const s = useRoutinesStore.getState()
+
+    expect(synced).toBe(1)
+    expect(s.offline).toBe(false)
+    expect(s.lastSyncedAt).not.toBeNull()
+    expect(s.allTasks[0]?.id).toBe('remote_1')
+    expect(s.tasksByRoutineId.r1?.[0]?.id).toBe('remote_1')
+    expect(vi.mocked(queueMod.removeQueuedTaskInsert)).toHaveBeenCalledWith('local_1')
+  })
+
+  it('syncOfflineTasks keeps queue item when sync fails', async () => {
+    const { storeMod, serviceMod, queueMod } = await freshStore()
+    const { useRoutinesStore } = storeMod
+
+    vi.mocked(queueMod.listQueuedTaskInserts).mockResolvedValue([
+      {
+        local_id: 'local_2',
+        user_id: 'u1',
+        routine_id: 'r1',
+        title: 'Will fail',
+        description: null,
+        due_date: null,
+        due_time: null,
+        queued_at: '2026-07-18T10:00:00.000Z',
+      },
+    ])
+    vi.mocked(serviceMod.createTask).mockRejectedValue(new Error('network fail'))
+
+    const synced = await useRoutinesStore.getState().syncOfflineTasks()
+    const s = useRoutinesStore.getState()
+
+    expect(synced).toBe(0)
+    expect(s.offline).toBe(true)
+    expect(s.error).toBe('Some offline tasks could not be synced yet')
+    expect(vi.mocked(queueMod.removeQueuedTaskInsert)).not.toHaveBeenCalled()
+  })
+
+  it('addTask offline enqueues local task and marks store offline', async () => {
+    const { storeMod, queueMod } = await freshStore()
+    const { useRoutinesStore } = storeMod
+
+    Object.defineProperty(window.navigator, 'onLine', {
+      configurable: true,
+      value: false,
+    })
+
+    await useRoutinesStore
+      .getState()
+      .addTask({ user_id: 'u1', routine_id: 'r5', title: 'Offline local task', description: 'd' })
+
+    const s = useRoutinesStore.getState()
+    expect(s.offline).toBe(true)
+    expect(s.allTasks).toHaveLength(1)
+    expect(s.tasksByRoutineId.r5).toHaveLength(1)
+    expect(vi.mocked(queueMod.enqueueTaskInsert)).toHaveBeenCalledTimes(1)
+  })
+
+  it('addTasksBulk offline queues local tasks and sets offline state', async () => {
+    const { storeMod, queueMod } = await freshStore()
+    const { useRoutinesStore } = storeMod
+
+    Object.defineProperty(window.navigator, 'onLine', {
+      configurable: true,
+      value: false,
+    })
+
+    await useRoutinesStore.getState().addTasksBulk({
+      user_id: 'u1',
+      routine_id: 'r6',
+      tasks: [
+        { title: '  offline 1  ' },
+        { title: '  ' },
+        { title: 'offline 2', description: 'desc' },
+      ],
+    })
+
+    const s = useRoutinesStore.getState()
+    expect(s.offline).toBe(true)
+    expect(s.tasksByRoutineId.r6).toHaveLength(2)
+    expect(vi.mocked(queueMod.enqueueTaskInsert)).toHaveBeenCalledTimes(2)
   })
 })
