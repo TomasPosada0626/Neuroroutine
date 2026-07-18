@@ -3,7 +3,7 @@ type MockResult = {
   error?: unknown
 }
 
-function makeChain(result: MockResult) {
+function makeChain(result: MockResult): any {
   const chain = {
     select: vi.fn(() => chain),
     order: vi.fn(async () => result),
@@ -21,7 +21,7 @@ function makeChain(result: MockResult) {
   return chain
 }
 
-const fromQueue: Array<ReturnType<typeof makeChain>> = []
+const fromQueue: any[] = []
 const rpcQueue: MockResult[] = []
 
 vi.mock('@/shared/api', () => {
@@ -295,19 +295,15 @@ describe('routinesService', () => {
   })
 
   it('listTaskEvents applies limit and optional since filter', async () => {
-    const noSince = {
-      select: vi.fn(() => noSince),
-      order: vi.fn(() => noSince),
-      limit: vi.fn(async () => ({ data: [{ id: 'e1' }], error: null })),
-      gte: vi.fn(async () => ({ data: [{ id: 'never' }], error: null })),
-    }
+    const noSince = makeChain({ data: [], error: null })
+    noSince.order = vi.fn(() => noSince)
+    noSince.limit = vi.fn(async () => ({ data: [{ id: 'e1' }], error: null }))
+    noSince.gte = vi.fn(async () => ({ data: [{ id: 'never' }], error: null }))
 
-    const withSince = {
-      select: vi.fn(() => withSince),
-      order: vi.fn(() => withSince),
-      limit: vi.fn(() => withSince),
-      gte: vi.fn(async () => ({ data: [{ id: 'e2' }], error: null })),
-    }
+    const withSince = makeChain({ data: [], error: null })
+    withSince.order = vi.fn(() => withSince)
+    withSince.limit = vi.fn(() => withSince)
+    withSince.gte = vi.fn(async () => ({ data: [{ id: 'e2' }], error: null }))
 
     fromQueue.push(noSince, withSince)
 
@@ -342,12 +338,10 @@ describe('routinesService', () => {
   })
 
   it('propagates errors for listTaskEvents, toggleTaskDone and deleteTask', async () => {
-    const eventsFail = {
-      select: vi.fn(() => eventsFail),
-      order: vi.fn(() => eventsFail),
-      limit: vi.fn(async () => ({ data: null, error: new Error('events fail') })),
-      gte: vi.fn(async () => ({ data: null, error: new Error('events fail') })),
-    }
+    const eventsFail = makeChain({ data: null, error: null })
+    eventsFail.order = vi.fn(() => eventsFail)
+    eventsFail.limit = vi.fn(async () => ({ data: null, error: new Error('events fail') }))
+    eventsFail.gte = vi.fn(async () => ({ data: null, error: new Error('events fail') }))
 
     const deleteFail = {
       select: vi.fn(() => deleteFail),
