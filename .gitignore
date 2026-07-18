@@ -40,3 +40,6 @@ frontend/coverage/
 *.sln
 *.sw?
 .env*.local
+
+# Supabase local metadata
+backend/supabase/.temp/
