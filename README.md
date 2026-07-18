@@ -1,7 +1,7 @@
 <div align="center">
   <h1>NeuroRoutine</h1>
   <p><strong>Smart daily routines manager (portfolio)</strong> focused on premium UX and solid SPA + Auth + RLS practices.</p>
-  <p><em>React, TypeScript, Vite, Tailwind CSS, Supabase (Auth + Postgres + RLS), React Router, Zustand, React Hook Form, Zod, GitHub Actions, Vercel, Render</em></p>
+  <p><em>React, TypeScript, Vite, Tailwind CSS, Supabase (Auth + Postgres + RLS), React Router, Zustand, TanStack Query, React Hook Form, Zod, GitHub Actions, Vercel, Render</em></p>
   <p><a href="https://neuroroutine.vercel.app/">Live demo: neuroroutine.vercel.app</a></p>
 
   <p>
@@ -123,6 +123,7 @@ Non-goals (intentional trade-offs for this portfolio MVP):
 - Analytics-grade completion history via event log (accurate streaks/consistency).
 - Modern Tailwind UI with reusable layouts.
 - Persistent day/night theme (global state with localStorage persistence).
+- Remote routine search (full-text with fallback) plus client-side favorites sorting.
 - SPA-friendly deploy (no 404 on refresh for client-side routes).
 
 ## Tech Stack
@@ -134,6 +135,7 @@ Non-goals (intentional trade-offs for this portfolio MVP):
 - Tailwind CSS (styling)
 - React Router (routing)
 - Zustand (global state + persistence)
+- TanStack Query (server state cache + revalidation)
 - React Hook Form + Zod (forms + validation)
 
 **Backend**

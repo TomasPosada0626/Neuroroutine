@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/features/auth/authStore'
 import { useRoutines } from '@/features/routines/routinesStore'
 import { RoutineFormModal } from '@/features/routines/components'
 import { useDashboardPrefs, type RoutineSchedule } from '@/features/dashboard/store/dashboardPrefsStore'
+import { listRoutines, searchRoutines } from '@/features/routines/routinesService'
 import { Button, Card, Input, Textarea } from '@/shared/ui'
 import { useUiStore } from '@/shared/state/uiStore'
 
@@ -12,6 +14,7 @@ export function RoutinePanel() {
   const isDay = theme === 'day'
 
   const prefs = useDashboardPrefs()
+  const queryClient = useQueryClient()
 
   const subtleText = isDay ? 'text-slate-500' : 'text-slate-300'
   const secondaryText = isDay ? 'text-slate-600' : 'text-slate-200'
@@ -31,13 +34,11 @@ export function RoutinePanel() {
     return base + (selected ? 'bg-white/12 text-white ring-white/20' : 'bg-white/5 text-slate-50 ring-white/10 hover:bg-white/7')
   }
   const {
-    loading,
+    loading: actionLoading,
     error,
     offline,
-    routines,
     selectedRoutineId,
     tasksByRoutineId,
-    loadRoutines,
     selectRoutine,
     editRoutine,
     removeRoutine,
@@ -51,6 +52,7 @@ export function RoutinePanel() {
   const [bulkMode, setBulkMode] = useState(false)
   const [bulkText, setBulkText] = useState('')
   const [routineQuery, setRoutineQuery] = useState('')
+  const [debouncedRoutineQuery, setDebouncedRoutineQuery] = useState('')
 
   const [scheduleOpen, setScheduleOpen] = useState(false)
   const [panelCollapsed, setPanelCollapsed] = useState<boolean>(() => {
@@ -71,6 +73,35 @@ export function RoutinePanel() {
   })
 
   const [editOpen, setEditOpen] = useState(false)
+
+  const routinesQuery = useQuery({
+    queryKey: ['routines', user?.id],
+    queryFn: () => listRoutines(),
+    enabled: Boolean(user),
+  })
+
+  const routinesSearchQuery = useQuery({
+    queryKey: ['routines', 'search', user?.id, debouncedRoutineQuery],
+    queryFn: () => searchRoutines(debouncedRoutineQuery),
+    enabled: Boolean(user) && debouncedRoutineQuery.trim().length > 0,
+    staleTime: 60 * 1000,
+  })
+
+  const routines = useMemo(() => {
+    const hasSearch = debouncedRoutineQuery.trim().length > 0
+    if (hasSearch) return routinesSearchQuery.data ?? []
+    return routinesQuery.data ?? []
+  }, [debouncedRoutineQuery, routinesSearchQuery.data, routinesQuery.data])
+
+  const routinesLoading =
+    actionLoading || routinesQuery.isLoading || routinesQuery.isFetching || routinesSearchQuery.isFetching
+  const routinesError =
+    error ??
+    (routinesQuery.error instanceof Error
+      ? routinesQuery.error.message
+      : routinesSearchQuery.error instanceof Error
+        ? routinesSearchQuery.error.message
+        : null)
 
   const persistPanelCollapsed = (next: boolean) => {
     setPanelCollapsed(next)
@@ -98,12 +129,21 @@ export function RoutinePanel() {
   }
 
   useEffect(() => {
-    void loadRoutines()
-  }, [loadRoutines])
+    const id = window.setTimeout(() => {
+      setDebouncedRoutineQuery(routineQuery)
+    }, 250)
+    return () => window.clearTimeout(id)
+  }, [routineQuery])
 
   useEffect(() => {
     if (selectedRoutineId) void loadTasks(selectedRoutineId)
   }, [selectedRoutineId, loadTasks])
+
+  useEffect(() => {
+    if (selectedRoutineId && !routines.some((r) => r.id === selectedRoutineId)) {
+      selectRoutine(null)
+    }
+  }, [selectedRoutineId, routines, selectRoutine])
 
   const selectedRoutine = useMemo(
     () => routines.find((r) => r.id === selectedRoutineId) ?? null,
@@ -113,14 +153,12 @@ export function RoutinePanel() {
   const tasks = selectedRoutineId ? tasksByRoutineId[selectedRoutineId] ?? [] : []
 
   const filteredRoutines = useMemo(() => {
-    const q = routineQuery.trim().toLowerCase()
-    const base = q ? routines.filter((r) => r.title.toLowerCase().includes(q)) : routines
-    return [...base].sort((a, b) => {
+    return [...routines].sort((a, b) => {
       const af = favoriteIds.has(a.id) ? 1 : 0
       const bf = favoriteIds.has(b.id) ? 1 : 0
       return bf - af
     })
-  }, [routines, routineQuery, favoriteIds])
+  }, [routines, favoriteIds])
 
   const toggleFavorite = (routineId: string) => {
     setFavoriteIds((prev) => {
@@ -164,7 +202,7 @@ export function RoutinePanel() {
         open={editOpen}
         title="Editar rutina"
         confirmLabel="Guardar"
-        loading={loading}
+        loading={actionLoading}
         initialValues={{
           title: selectedRoutine?.title ?? '',
           notes: selectedRoutine?.notes ?? '',
@@ -177,6 +215,8 @@ export function RoutinePanel() {
             title: values.title,
             notes: values.notes?.trim() ? values.notes.trim() : null,
           })
+          await queryClient.invalidateQueries({ queryKey: ['routines', user?.id] })
+          await queryClient.invalidateQueries({ queryKey: ['routines', 'search', user?.id] })
         }}
       />
       <Card className="lg:col-span-1">
@@ -186,7 +226,16 @@ export function RoutinePanel() {
             <div className={'text-xs ' + subtleText}>Solo las tuyas (RLS)</div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={() => void loadRoutines()} disabled={loading}>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                void queryClient.invalidateQueries({ queryKey: ['routines', user?.id] })
+                if (debouncedRoutineQuery.trim().length > 0) {
+                  void queryClient.invalidateQueries({ queryKey: ['routines', 'search', user?.id] })
+                }
+              }}
+              disabled={routinesLoading}
+            >
               Refrescar
             </Button>
           </div>
@@ -241,7 +290,7 @@ export function RoutinePanel() {
           )}
         </div>
 
-        {error ? <div className="mt-3 text-sm text-rose-600">{error}</div> : null}
+        {routinesError ? <div className="mt-3 text-sm text-rose-600">{routinesError}</div> : null}
       </Card>
 
       <Card className="lg:col-span-2">
@@ -344,8 +393,12 @@ export function RoutinePanel() {
                   variant="danger"
                   onClick={() => {
                     if (confirm('¿Eliminar esta rutina?')) {
-                      void removeRoutine(selectedRoutine.id)
-                      selectRoutine(null)
+                      void (async () => {
+                        await removeRoutine(selectedRoutine.id)
+                        selectRoutine(null)
+                        await queryClient.invalidateQueries({ queryKey: ['routines', user?.id] })
+                        await queryClient.invalidateQueries({ queryKey: ['routines', 'search', user?.id] })
+                      })()
                     }
                   }}
                 >
@@ -383,7 +436,7 @@ export function RoutinePanel() {
                   />
                   <div className="flex flex-wrap items-center gap-2">
                     <Button
-                      disabled={offline || !user || !selectedRoutineId || loading || bulkText.trim().length === 0}
+                      disabled={offline || !user || !selectedRoutineId || actionLoading || bulkText.trim().length === 0}
                       onClick={async () => {
                         if (!user) return
                         if (!selectedRoutineId) return
@@ -416,7 +469,7 @@ export function RoutinePanel() {
                   onChange={(e) => setNewTaskTitle(e.target.value)}
                 />
                 <Button
-                  disabled={offline || !user || !newTaskTitle.trim() || loading}
+                  disabled={offline || !user || !newTaskTitle.trim() || actionLoading}
                   onClick={() => {
                     if (!user) return
                     if (!selectedRoutineId) return

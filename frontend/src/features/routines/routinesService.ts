@@ -11,6 +11,33 @@ export async function listRoutines(): Promise<Routine[]> {
   return (data ?? []) as Routine[]
 }
 
+export async function searchRoutines(query: string): Promise<Routine[]> {
+  const q = query.trim()
+  if (!q) return listRoutines()
+
+  const tsQuery = q
+    .split(/\s+/)
+    .filter(Boolean)
+    .join(' & ')
+
+  const { data, error } = await supabase
+    .from('routines')
+    .select('*')
+    .textSearch('title', tsQuery, { config: 'spanish', type: 'websearch' })
+    .order('created_at', { ascending: false })
+
+  if (!error) return (data ?? []) as Routine[]
+
+  const { data: fallbackData, error: fallbackError } = await supabase
+    .from('routines')
+    .select('*')
+    .ilike('title', `%${q}%`)
+    .order('created_at', { ascending: false })
+
+  if (fallbackError) throw fallbackError
+  return (fallbackData ?? []) as Routine[]
+}
+
 export async function createRoutine(input: {
   user_id: string
   title: string
