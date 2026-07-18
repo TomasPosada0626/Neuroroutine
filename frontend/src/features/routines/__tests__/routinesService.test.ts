@@ -24,10 +24,14 @@ function makeChain(result: MockResult) {
 }
 
 const fromQueue: Array<ReturnType<typeof makeChain>> = []
+const rpcQueue: MockResult[] = []
 
 vi.mock('@/shared/api', () => {
   return {
     supabase: {
+      rpc: vi.fn(async () => {
+        return rpcQueue.shift() ?? { data: null, error: new Error('Missing mocked supabase.rpc() result') }
+      }),
       from: vi.fn(() => {
         const next = fromQueue.shift()
         if (!next) throw new Error('Missing mocked supabase.from() chain')
@@ -43,6 +47,7 @@ describe('routinesService', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     fromQueue.length = 0
+    rpcQueue.length = 0
   })
 
   it('listRoutines returns ordered data', async () => {
@@ -60,6 +65,7 @@ describe('routinesService', () => {
   })
 
   it('searchRoutines uses text search when available', async () => {
+    rpcQueue.push({ data: null, error: new Error('rpc not available') })
     const queryChain = makeChain({
       data: [{ id: 'r1', title: 'Morning Focus' }],
       error: null,
@@ -74,6 +80,7 @@ describe('routinesService', () => {
   })
 
   it('searchRoutines falls back to ilike when text search errors', async () => {
+    rpcQueue.push({ data: null, error: new Error('rpc not available') })
     const first = makeChain({ data: null, error: new Error('fts missing') })
     const fallback = makeChain({
       data: [{ id: 'r2', title: 'Focus fallback' }],
@@ -86,6 +93,19 @@ describe('routinesService', () => {
     expect(data).toHaveLength(1)
     expect(first.textSearch).toHaveBeenCalled()
     expect(fallback.ilike).toHaveBeenCalledWith('title', '%focus fallback%')
+  })
+
+  it('searchRoutines uses RPC result when available', async () => {
+    rpcQueue.push({
+      data: [{ id: 'r3', title: 'RPC routine' }],
+      error: null,
+    })
+
+    const data = await searchRoutines('rpc routine')
+
+    expect(data).toHaveLength(1)
+    expect(data[0]?.id).toBe('r3')
+    expect(fromQueue).toHaveLength(0)
   })
 
   it('createTask returns base insert result when no metadata is provided', async () => {

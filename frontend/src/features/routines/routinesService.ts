@@ -15,6 +15,13 @@ export async function searchRoutines(query: string): Promise<Routine[]> {
   const q = query.trim()
   if (!q) return listRoutines()
 
+  const { data: rpcData, error: rpcError } = await supabase.rpc('search_routines', {
+    p_query: q,
+    p_limit: 50,
+  })
+
+  if (!rpcError && Array.isArray(rpcData)) return rpcData as Routine[]
+
   const tsQuery = q
     .split(/\s+/)
     .filter(Boolean)
