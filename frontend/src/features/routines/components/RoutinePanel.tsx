@@ -10,6 +10,7 @@ import { useUiStore } from '@/shared/state/uiStore'
 
 export function RoutinePanel() {
   const { user } = useAuth()
+  const userId = user?.id ?? null
   const theme = useUiStore((s) => s.theme)
   const isDay = theme === 'day'
 
@@ -75,15 +76,15 @@ export function RoutinePanel() {
   const [editOpen, setEditOpen] = useState(false)
 
   const routinesQuery = useQuery({
-    queryKey: ['routines', user?.id],
+    queryKey: ['routines', userId],
     queryFn: () => listRoutines(),
-    enabled: Boolean(user),
+    enabled: Boolean(userId),
   })
 
   const routinesSearchQuery = useQuery({
-    queryKey: ['routines', 'search', user?.id, debouncedRoutineQuery],
+    queryKey: ['routines', 'search', userId, debouncedRoutineQuery],
     queryFn: () => searchRoutines(debouncedRoutineQuery),
-    enabled: Boolean(user) && debouncedRoutineQuery.trim().length > 0,
+    enabled: Boolean(userId) && debouncedRoutineQuery.trim().length > 0,
     staleTime: 60 * 1000,
   })
 
@@ -94,7 +95,7 @@ export function RoutinePanel() {
   }, [debouncedRoutineQuery, routinesSearchQuery.data, routinesQuery.data])
 
   const routinesLoading =
-    actionLoading || routinesQuery.isLoading || routinesQuery.isFetching || routinesSearchQuery.isFetching
+    !userId || actionLoading || routinesQuery.isLoading || routinesQuery.isFetching || routinesSearchQuery.isFetching
   const routinesError =
     error ??
     (routinesQuery.error instanceof Error
