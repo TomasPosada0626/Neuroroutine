@@ -9,12 +9,6 @@
     <a href="https://github.com/TomasPosada0626/Neuroroutine/actions/workflows/ci.yml">
       <img alt="CI" src="https://github.com/TomasPosada0626/Neuroroutine/actions/workflows/ci.yml/badge.svg" />
     </a>
-    <a href="https://github.com/TomasPosada0626/Neuroroutine/actions/workflows/deploy-vercel.yml">
-      <img alt="Deploy (Vercel)" src="https://github.com/TomasPosada0626/Neuroroutine/actions/workflows/deploy-vercel.yml/badge.svg" />
-    </a>
-    <a href="https://github.com/TomasPosada0626/Neuroroutine/actions/workflows/deploy-render.yml">
-      <img alt="Deploy (Render)" src="https://github.com/TomasPosada0626/Neuroroutine/actions/workflows/deploy-render.yml/badge.svg" />
-    </a>
     <img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-10B981" />
   </p>
 
@@ -203,26 +197,26 @@ Architecture references:
 
 ```text
 NeuroRoutine/
-+-- frontend/
-�   +-- src/
-�   �   +-- app/
-�   �   +-- pages/
-�   �   +-- features/
-�   �   �   +-- auth/
-�   �   �   +-- routines/
-�   �   �   +-- dashboard/
-�   �   +-- shared/
-�   +-- e2e/
-�   +-- vite.config.ts
-�   +-- package.json
-+-- backend/
-�   +-- supabase/
-�       +-- schema.sql
-�       +-- migrations/
-�       +-- functions/
-+-- docs/
-+-- ARCHITECTURE.md
-+-- README.md
+├── frontend/
+│   ├── src/
+│   │   ├── app/
+│   │   ├── pages/
+│   │   ├── features/
+│   │   │   ├── auth/
+│   │   │   ├── routines/
+│   │   │   └── dashboard/
+│   │   └── shared/
+│   ├── e2e/
+│   ├── vite.config.ts
+│   └── package.json
+├── backend/
+│   └── supabase/
+│       ├── schema.sql
+│       ├── migrations/
+│       └── functions/
+├── docs/
+├── ARCHITECTURE.md
+└── README.md
 ```
 
 ---
@@ -325,7 +319,7 @@ npx supabase functions deploy send-due-reminders --project-ref <project-ref>
 
 ---
 
-## Roadmap (Future Advances) [CHANGED]
+## Roadmap (Future Advances) 
 
 ### Phase 1
 
@@ -347,7 +341,7 @@ npx supabase functions deploy send-due-reminders --project-ref <project-ref>
 
 ---
 
-## Known Limitations (Intentional MVP Trade-offs) [NEW]
+## Known Limitations (Intentional MVP Trade-offs)
 
 This MVP intentionally focuses on core engineering fundamentals. Current scope boundaries are explicit and planned:
 
@@ -368,7 +362,7 @@ This MVP intentionally focuses on core engineering fundamentals. Current scope b
 
 ---
 
-## What I Learned Building This [NEW]
+## What I Learned Building This 
 
 - **Database Security:** database-layer RLS is more robust than app-layer-only guards.
 - **State Management:** Zustand provides excellent speed-to-value for MVP complexity.
@@ -379,7 +373,7 @@ This MVP intentionally focuses on core engineering fundamentals. Current scope b
 
 ---
 
-## For Instructors / Evaluators [NEW]
+## For Instructors / Evaluators 
 
 ### Quick Assessment (20 minutes)
 
