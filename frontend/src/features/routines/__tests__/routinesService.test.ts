@@ -37,10 +37,16 @@ function makeChain(result: MockResult): MockChain {
 
 const fromQueue: MockChain[] = [];
 const rpcQueue: MockResult[] = [];
+const getSessionMock = vi.fn(async () => ({
+  data: { session: null as { user?: { id?: string } } | null },
+}));
 
 vi.mock('@/shared/api', () => {
   return {
     supabase: {
+      auth: {
+        getSession: (...args: unknown[]) => getSessionMock(...(args as [])),
+      },
       rpc: vi.fn(async () => {
         return (
           rpcQueue.shift() ?? {
@@ -146,6 +152,41 @@ describe('routinesService', () => {
     expect(data).toHaveLength(1);
     expect(data[0]?.id).toBe('r3');
     expect(fromQueue).toHaveLength(0);
+  });
+
+  it('searchRoutines filters RPC rows to the current user when a session exists', async () => {
+    getSessionMock.mockResolvedValueOnce({ data: { session: { user: { id: 'me' } } } });
+    rpcQueue.push({
+      data: [
+        { id: 'mine', title: 'Mine', user_id: 'me' },
+        { id: 'not-mine', title: 'Someone else', user_id: 'someone-else' },
+      ],
+      error: null,
+    });
+
+    const data = await searchRoutines('shared rpc index');
+
+    expect(data).toEqual([{ id: 'mine', title: 'Mine', user_id: 'me' }]);
+  });
+
+  it('getCurrentUserId scopes the query when a real session is available', async () => {
+    getSessionMock.mockResolvedValueOnce({ data: { session: { user: { id: 'me' } } } });
+    const chain = makeChain({ data: [{ id: 'r1', title: 'Mine' }], error: null });
+    fromQueue.push(chain);
+
+    await listRoutines();
+
+    expect(chain.eq).toHaveBeenCalledWith('user_id', 'me');
+  });
+
+  it('getCurrentUserId falls back to null (RLS-only) when getSession rejects', async () => {
+    getSessionMock.mockRejectedValueOnce(new Error('network down'));
+    const chain = makeChain({ data: [{ id: 'r1', title: 'Anything' }], error: null });
+    fromQueue.push(chain);
+
+    await listRoutines();
+
+    expect(chain.eq).not.toHaveBeenCalled();
   });
 
   it('searchRoutines delegates to listRoutines when query is empty after trim', async () => {

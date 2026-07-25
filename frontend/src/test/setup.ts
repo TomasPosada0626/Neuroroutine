@@ -4,6 +4,9 @@
 // Some browser APIs may be missing in jsdom; add shims here when needed.
 
 import '@testing-library/jest-dom/vitest';
+import { toHaveNoViolations } from 'jest-axe';
+
+expect.extend(toHaveNoViolations);
 
 Object.defineProperty(window.navigator, 'onLine', {
   configurable: true,

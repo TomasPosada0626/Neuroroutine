@@ -153,6 +153,144 @@ describe('taskSyncQueue', () => {
     (indexedDB as { open: IDBFactory['open'] }).open = originalOpen;
   });
 
+  it('swallows a write-transaction error during enqueueTaskInsert', async () => {
+    const originalOpen = indexedDB.open.bind(indexedDB);
+
+    const failingWriteOpen: IDBFactory['open'] = () => {
+      const req = {
+        result: {
+          objectStoreNames: { contains: () => true },
+          createObjectStore: vi.fn(),
+          close: vi.fn(),
+          transaction: vi.fn(() => {
+            const tx = {
+              objectStore: () => ({ put: vi.fn() }),
+              oncomplete: null,
+              onerror: null,
+              error: new DOMException('write failed'),
+            } as unknown as IDBTransaction;
+            queueMicrotask(() => {
+              (tx as unknown as { onerror: (() => void) | null }).onerror?.();
+            });
+            return tx;
+          }),
+        },
+        error: null,
+        onsuccess: null,
+        onerror: null,
+        onupgradeneeded: null,
+      } as unknown as IDBOpenDBRequest;
+
+      queueMicrotask(() => {
+        req.onsuccess?.call(req, new Event('success'));
+      });
+
+      return req;
+    };
+
+    (indexedDB as { open: IDBFactory['open'] }).open = failingWriteOpen;
+
+    await expect(
+      enqueueTaskInsert({
+        local_id: 'write-err',
+        user_id: 'u1',
+        routine_id: 'r1',
+        title: 'write-err',
+        queued_at: '2026-07-18T10:00:00.000Z',
+      }),
+    ).resolves.toBeUndefined();
+
+    (indexedDB as { open: IDBFactory['open'] }).open = originalOpen;
+  });
+
+  it('swallows a delete-transaction error during removeQueuedTaskInsert', async () => {
+    const originalOpen = indexedDB.open.bind(indexedDB);
+
+    const failingDeleteOpen: IDBFactory['open'] = () => {
+      const req = {
+        result: {
+          objectStoreNames: { contains: () => true },
+          createObjectStore: vi.fn(),
+          close: vi.fn(),
+          transaction: vi.fn(() => {
+            const tx = {
+              objectStore: () => ({ delete: vi.fn() }),
+              oncomplete: null,
+              onerror: null,
+              error: new DOMException('delete failed'),
+            } as unknown as IDBTransaction;
+            queueMicrotask(() => {
+              (tx as unknown as { onerror: (() => void) | null }).onerror?.();
+            });
+            return tx;
+          }),
+        },
+        error: null,
+        onsuccess: null,
+        onerror: null,
+        onupgradeneeded: null,
+      } as unknown as IDBOpenDBRequest;
+
+      queueMicrotask(() => {
+        req.onsuccess?.call(req, new Event('success'));
+      });
+
+      return req;
+    };
+
+    (indexedDB as { open: IDBFactory['open'] }).open = failingDeleteOpen;
+
+    await expect(removeQueuedTaskInsert('delete-err')).resolves.toBeUndefined();
+
+    (indexedDB as { open: IDBFactory['open'] }).open = originalOpen;
+  });
+
+  it('falls back to an empty array when getAll resolves with no result', async () => {
+    const originalOpen = indexedDB.open.bind(indexedDB);
+
+    const nullResultOpen: IDBFactory['open'] = () => {
+      const req = {
+        result: {
+          objectStoreNames: { contains: () => true },
+          createObjectStore: vi.fn(),
+          close: vi.fn(),
+          transaction: vi.fn(() => ({
+            objectStore: () => ({
+              getAll: () => {
+                const getReq = {
+                  result: null,
+                  error: null,
+                  onsuccess: null,
+                  onerror: null,
+                } as unknown as IDBRequest;
+                queueMicrotask(() => {
+                  getReq.onsuccess?.call(getReq, new Event('success'));
+                });
+                return getReq;
+              },
+            }),
+          })),
+        },
+        error: null,
+        onsuccess: null,
+        onerror: null,
+        onupgradeneeded: null,
+      } as unknown as IDBOpenDBRequest;
+
+      queueMicrotask(() => {
+        req.onsuccess?.call(req, new Event('success'));
+      });
+
+      return req;
+    };
+
+    (indexedDB as { open: IDBFactory['open'] }).open = nullResultOpen;
+
+    await expect(listQueuedTaskInserts()).resolves.toEqual([]);
+
+    (indexedDB as { open: IDBFactory['open'] }).open = originalOpen;
+  });
+
   it('returns [] when getAll fails in readonly transaction', async () => {
     const originalOpen = indexedDB.open.bind(indexedDB);
 

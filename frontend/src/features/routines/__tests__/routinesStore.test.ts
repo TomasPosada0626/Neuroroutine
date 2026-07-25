@@ -196,6 +196,67 @@ describe('useRoutinesStore', () => {
     expect(s.tasksByRoutineId.r1?.[0]?.id).toBe('t1');
   });
 
+  it('hydrateFromCache clears state instead of showing stale data when asked for a user with no cache yet', async () => {
+    localStorage.clear();
+
+    vi.resetModules();
+    const { useRoutinesStore } = await import('../routinesStore');
+    // Seed some in-memory state first so we can prove it actually gets cleared, not just
+    // left at its already-empty initial value.
+    useRoutinesStore.setState({
+      routines: [{ id: 'stale', user_id: 'someone-else' } as never],
+      selectedRoutineId: 'stale',
+    });
+
+    useRoutinesStore.getState().hydrateFromCache('brand-new-user');
+
+    const s = useRoutinesStore.getState();
+    expect(s.routines).toEqual([]);
+    expect(s.selectedRoutineId).toBeNull();
+  });
+
+  it('hydrateFromCache refuses to show user A cached data to user B (cross-account leak guard)', async () => {
+    const cached = {
+      ts: '2026-07-16T10:00:00.000Z',
+      userId: 'user-a',
+      selectedRoutineId: 'r1',
+      routines: [{ id: 'r1', user_id: 'user-a', title: 'User A routine' }],
+      allTasks: [],
+      taskEvents: [],
+    };
+    localStorage.setItem('nr-cache-routines-v1', JSON.stringify(cached));
+
+    vi.resetModules();
+    const { useRoutinesStore } = await import('../routinesStore');
+
+    useRoutinesStore.getState().hydrateFromCache('user-b');
+
+    const s = useRoutinesStore.getState();
+    expect(s.routines).toEqual([]);
+    expect(s.selectedRoutineId).toBeNull();
+  });
+
+  it('hydrateFromCache loads normally when the cache belongs to the requesting user', async () => {
+    const cached = {
+      ts: '2026-07-16T10:00:00.000Z',
+      userId: 'user-a',
+      selectedRoutineId: 'r1',
+      routines: [{ id: 'r1', user_id: 'user-a', title: 'User A routine' }],
+      allTasks: [],
+      taskEvents: [],
+    };
+    localStorage.setItem('nr-cache-routines-v1', JSON.stringify(cached));
+
+    vi.resetModules();
+    const { useRoutinesStore } = await import('../routinesStore');
+
+    useRoutinesStore.getState().hydrateFromCache('user-a');
+
+    const s = useRoutinesStore.getState();
+    expect(s.routines).toHaveLength(1);
+    expect(s.selectedRoutineId).toBe('r1');
+  });
+
   it('refreshAll loads lists, groups tasks by routine and clears offline', async () => {
     const { storeMod, serviceMod } = await freshStore();
     const { useRoutinesStore } = storeMod;
@@ -947,7 +1008,7 @@ describe('useRoutinesStore', () => {
     expect(vi.mocked(queueMod.removeQueuedTaskInsert)).toHaveBeenCalledWith('local_1');
   });
 
-  it('syncOfflineTasks keeps queue item when sync fails', async () => {
+  it('syncOfflineTasks keeps queue item and marks offline on a real network failure', async () => {
     const { storeMod, serviceMod, queueMod } = await freshStore();
     const { useRoutinesStore } = storeMod;
 
@@ -963,15 +1024,97 @@ describe('useRoutinesStore', () => {
         queued_at: '2026-07-18T10:00:00.000Z',
       },
     ]);
-    vi.mocked(serviceMod.createTask).mockRejectedValue(new Error('network fail'));
+    // Browsers throw a bare TypeError for a failed fetch (offline/DNS/CORS) — this is the one
+    // failure shape that should just retry silently rather than nag the user about it.
+    vi.mocked(serviceMod.createTask).mockRejectedValue(new TypeError('Failed to fetch'));
 
     const synced = await useRoutinesStore.getState().syncOfflineTasks();
     const s = useRoutinesStore.getState();
 
     expect(synced).toBe(0);
     expect(s.offline).toBe(true);
-    expect(s.error).toBe('Some offline tasks could not be synced yet');
+    expect(s.offlineSyncIssues).toEqual([]);
     expect(vi.mocked(queueMod.removeQueuedTaskInsert)).not.toHaveBeenCalled();
+  });
+
+  it('syncOfflineTasks surfaces a specific, actionable issue for a non-network failure', async () => {
+    const { storeMod, serviceMod, queueMod } = await freshStore();
+    const { useRoutinesStore } = storeMod;
+
+    vi.mocked(queueMod.listQueuedTaskInserts).mockResolvedValue([
+      {
+        local_id: 'local_3',
+        user_id: 'u1',
+        routine_id: 'deleted-routine',
+        title: 'Orphaned task',
+        description: null,
+        due_date: null,
+        due_time: null,
+        queued_at: '2026-07-18T10:00:00.000Z',
+      },
+    ]);
+    const fkError = Object.assign(new Error('violates foreign key constraint'), {
+      code: '23503',
+    });
+    vi.mocked(serviceMod.createTask).mockRejectedValue(fkError);
+
+    const synced = await useRoutinesStore.getState().syncOfflineTasks();
+    const s = useRoutinesStore.getState();
+
+    expect(synced).toBe(0);
+    // We're still online — this task specifically can't be created, retrying won't help.
+    expect(s.offline).toBe(false);
+    expect(s.offlineSyncIssues).toEqual([
+      {
+        localId: 'local_3',
+        title: 'Orphaned task',
+        message: 'La rutina de esta tarea ya no existe.',
+      },
+    ]);
+    expect(vi.mocked(queueMod.removeQueuedTaskInsert)).not.toHaveBeenCalled();
+  });
+
+  it('discardOfflineTask removes the queue entry and the local placeholder task', async () => {
+    const { storeMod, queueMod } = await freshStore();
+    const { useRoutinesStore } = storeMod;
+
+    useRoutinesStore.setState({
+      offlineSyncIssues: [
+        { localId: 'stuck-1', title: 'Orphaned task', message: 'La rutina ya no existe.' },
+      ],
+      allTasks: [
+        {
+          id: 'stuck-1',
+          user_id: 'u1',
+          routine_id: 'r1',
+          title: 'Orphaned task',
+          is_done: false,
+          created_at: '2026-07-18T10:00:00.000Z',
+          updated_at: '2026-07-18T10:00:00.000Z',
+        } as never,
+      ],
+      tasksByRoutineId: {
+        r1: [
+          {
+            id: 'stuck-1',
+            user_id: 'u1',
+            routine_id: 'r1',
+            title: 'Orphaned task',
+            is_done: false,
+            created_at: '2026-07-18T10:00:00.000Z',
+            updated_at: '2026-07-18T10:00:00.000Z',
+          } as never,
+        ],
+      },
+    });
+
+    await useRoutinesStore.getState().discardOfflineTask('stuck-1');
+
+    expect(vi.mocked(queueMod.removeQueuedTaskInsert)).toHaveBeenCalledWith('stuck-1');
+    const s = useRoutinesStore.getState();
+    expect(s.offlineSyncIssues).toEqual([]);
+    expect(s.allTasks).toEqual([]);
+    expect(s.tasksByRoutineId.r1).toEqual([]);
   });
 
   it('addTask offline enqueues local task and marks store offline', async () => {
