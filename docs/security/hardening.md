@@ -31,6 +31,14 @@ This guide complements the existing RLS-first model with practical hardening act
    - Risk: medium
    - Mitigation: secret-only deploy credentials, workflow gate checks, protected branches
 
+6. Username enumeration via `get_email_by_username`
+   - Risk: medium
+   - Mitigation: login always performs an equivalent-cost dummy Supabase Auth call when
+     a username doesn't resolve, so a nonexistent username can't be distinguished from a
+     wrong password by response time alone. The RPC itself still has no server-side rate
+     limit; a bulk-guessing attacker unbounded by request volume is a residual risk (see
+     `docs/security/controls-gap-analysis.md`).
+
 ## Hardening Checklist
 
 ### App and Client
@@ -38,6 +46,11 @@ This guide complements the existing RLS-first model with practical hardening act
 - [x] Add CSP headers in production hosting config (`frontend/vercel.json`, `frontend/nginx.conf`).
 - [x] Add `X-Frame-Options` / frame-ancestors strategy.
 - [x] Add strict `Referrer-Policy` and `Permissions-Policy`.
+- [x] Drop `'unsafe-inline'` from `script-src` (the built app has no inline `<script>`, only an
+      external module bundle, so it was never actually needed). `style-src` keeps
+      `'unsafe-inline'` because inline `style` attributes from React/`@dnd-kit` depend on it.
+- [x] Raise new-account password minimum from 6 to 10 characters (`registerSchema`); login keeps
+      accepting existing shorter passwords so current accounts aren't locked out.
 - [ ] Ensure all external dependencies are pinned and reviewed.
 
 ### Auth and Session

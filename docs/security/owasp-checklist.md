@@ -36,7 +36,11 @@ This checklist tracks practical controls aligned with common OWASP risks.
 ## A07 Identification and Authentication Failures
 
 - [x] Supabase Auth-based flows.
+- [x] New-account password minimum raised to 10 characters; username-login lookup performs a
+      timing-equalized dummy auth call to reduce user-enumeration via response time.
 - [ ] Review redirect URLs/session settings and bot resistance.
+- [ ] Add server-side rate limiting on `get_email_by_username` (currently only client-side timing
+      mitigation; request-volume limiting still needs an Edge Function proxy or Supabase-level control).
 
 ## A08 Software and Data Integrity Failures
 

@@ -1,17 +1,18 @@
-import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import { RoutineWizardModal } from '../RoutineWizardModal'
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { RoutineWizardModal } from '../RoutineWizardModal';
 
 vi.mock('@/shared/state/uiStore', () => {
   return {
-    useUiStore: (selector: (s: { theme: 'day' | 'night' }) => unknown) => selector({ theme: 'day' }),
-  }
-})
+    useUiStore: (selector: (s: { theme: 'day' | 'night' }) => unknown) =>
+      selector({ theme: 'day' }),
+  };
+});
 
-const addRoutine = vi.fn()
-const addTasksBulk = vi.fn()
-let offline = false
-let authUser: { id: string } | null = { id: 'u1' }
+const addRoutine = vi.fn();
+const addTasksBulk = vi.fn();
+let offline = false;
+let authUser: { id: string } | null = { id: 'u1' };
 
 vi.mock('@/features/routines/routinesStore', () => {
   return {
@@ -20,75 +21,79 @@ vi.mock('@/features/routines/routinesStore', () => {
       addRoutine,
       addTasksBulk,
     }),
-  }
-})
+  };
+});
 
 vi.mock('@/features/auth/authStore', () => {
   return {
     useAuth: () => ({
       user: authUser,
     }),
-  }
-})
+  };
+});
 
 describe('RoutineWizardModal', () => {
   it('requires a routine title before enabling submit', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup();
 
-    addRoutine.mockResolvedValueOnce({ id: 'r1' })
-    addTasksBulk.mockResolvedValueOnce(undefined)
+    addRoutine.mockResolvedValueOnce({ id: 'r1' });
+    addTasksBulk.mockResolvedValueOnce(undefined);
 
-    render(<RoutineWizardModal open onClose={() => {}} />)
+    render(<RoutineWizardModal open onClose={() => {}} />);
 
-    const submit = screen.getByRole('button', { name: 'Crear rutina' })
-    expect((submit as HTMLButtonElement).disabled).toBe(true)
+    const submit = screen.getByRole('button', { name: 'Crear rutina' });
+    expect((submit as HTMLButtonElement).disabled).toBe(true);
 
-    await user.type(screen.getByPlaceholderText('Ej: Mañana enfocada'), 'Mi rutina')
-    expect((submit as HTMLButtonElement).disabled).toBe(false)
-  })
+    await user.type(screen.getByPlaceholderText('Ej: Mañana enfocada'), 'Mi rutina');
+    expect((submit as HTMLButtonElement).disabled).toBe(false);
+  });
 
   it('creates a routine and bulk-creates normalized tasks', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup();
 
-    addRoutine.mockResolvedValueOnce({ id: 'r1' })
-    addTasksBulk.mockResolvedValueOnce(undefined)
+    addRoutine.mockResolvedValueOnce({ id: 'r1' });
+    addTasksBulk.mockResolvedValueOnce(undefined);
 
-    const onClose = vi.fn()
-    const onCreated = vi.fn()
+    const onClose = vi.fn();
+    const onCreated = vi.fn();
 
-    render(<RoutineWizardModal open onClose={onClose} onCreated={onCreated} />)
+    render(<RoutineWizardModal open onClose={onClose} onCreated={onCreated} />);
 
     // Routine title
-    const routineTitle = screen.getByPlaceholderText('Ej: Mañana enfocada')
-    await user.type(routineTitle, '  Mi rutina  ')
+    const routineTitle = screen.getByPlaceholderText('Ej: Mañana enfocada');
+    await user.type(routineTitle, '  Mi rutina  ');
 
     // First task
-    const taskTitles = screen.getAllByPlaceholderText('Ej: Tomar agua')
-    await user.type(taskTitles[0]!, '  Tarea 1  ')
+    const taskTitles = screen.getAllByPlaceholderText('Ej: Tomar agua');
+    await user.type(taskTitles[0]!, '  Tarea 1  ');
 
     // Add second task row
-    await user.click(screen.getByRole('button', { name: '+ Tarea' }))
+    await user.click(screen.getByRole('button', { name: '+ Tarea' }));
 
-    const taskTitles2 = screen.getAllByPlaceholderText('Ej: Tomar agua')
-    await user.type(taskTitles2[1]!, 'Tarea 2')
+    const taskTitles2 = screen.getAllByPlaceholderText('Ej: Tomar agua');
+    await user.type(taskTitles2[1]!, 'Tarea 2');
 
-    const taskDescs = screen.getAllByPlaceholderText('Ej: 2 litros')
-    await user.type(taskDescs[1]!, '  desc  ')
+    const taskDescs = screen.getAllByPlaceholderText('Ej: 2 litros');
+    await user.type(taskDescs[1]!, '  desc  ');
 
-    const dateInputs = Array.from(document.querySelectorAll('input[type="date"]')) as HTMLInputElement[]
-    const timeInputs = Array.from(document.querySelectorAll('input[type="time"]')) as HTMLInputElement[]
+    const dateInputs = Array.from(
+      document.querySelectorAll('input[type="date"]'),
+    ) as HTMLInputElement[];
+    const timeInputs = Array.from(
+      document.querySelectorAll('input[type="time"]'),
+    ) as HTMLInputElement[];
 
     // Fill the second row date/time.
-    await user.type(dateInputs[1]!, '2025-01-05')
-    await user.type(timeInputs[1]!, '8:00:00')
+    await user.type(dateInputs[1]!, '2025-01-05');
+    await user.type(timeInputs[1]!, '8:00:00');
 
-    await user.click(screen.getByRole('button', { name: 'Crear rutina' }))
+    await user.click(screen.getByRole('button', { name: 'Crear rutina' }));
 
     expect(addRoutine).toHaveBeenCalledWith({
       user_id: 'u1',
       title: 'Mi rutina',
       notes: null,
-    })
+    });
 
     expect(addTasksBulk).toHaveBeenCalledWith({
       user_id: 'u1',
@@ -97,123 +102,130 @@ describe('RoutineWizardModal', () => {
         { title: 'Tarea 1', description: null, due_date: null, due_time: null },
         { title: 'Tarea 2', description: 'desc', due_date: '2025-01-05', due_time: '08:00' },
       ],
-    })
+    });
 
-    expect(onCreated).toHaveBeenCalledWith('r1')
-    expect(onClose).toHaveBeenCalled()
-  })
+    expect(onCreated).toHaveBeenCalledWith('r1');
+    expect(onClose).toHaveBeenCalled();
+  });
 
   it('disables submit when offline', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup();
 
-    offline = true
-    addRoutine.mockReset()
-    addTasksBulk.mockReset()
+    offline = true;
+    addRoutine.mockReset();
+    addTasksBulk.mockReset();
 
-    render(<RoutineWizardModal open onClose={() => {}} />)
+    render(<RoutineWizardModal open onClose={() => {}} />);
 
-    const routineTitle = screen.getByPlaceholderText('Ej: Mañana enfocada')
-    await user.type(routineTitle, 'Mi rutina')
+    const routineTitle = screen.getByPlaceholderText('Ej: Mañana enfocada');
+    await user.type(routineTitle, 'Mi rutina');
 
-    expect((screen.getByRole('button', { name: 'Crear rutina' }) as HTMLButtonElement).disabled).toBe(true)
-    expect(screen.getByText('Modo offline: puedes ver, pero no crear.')).not.toBeNull()
+    expect(
+      (screen.getByRole('button', { name: 'Crear rutina' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(screen.getByText('Modo offline: puedes ver, pero no crear.')).not.toBeNull();
 
     // Single task row cannot be removed.
-    expect((screen.getByRole('button', { name: 'Debe existir al menos una fila' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(
+      (screen.getByRole('button', { name: 'Debe existir al menos una fila' }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
 
-    offline = false
-  })
+    offline = false;
+  });
 
   it('disables submit when user is missing', async () => {
-    const user = userEvent.setup()
-    authUser = null
+    const user = userEvent.setup();
+    authUser = null;
 
-    render(<RoutineWizardModal open onClose={() => {}} />)
-    await user.type(screen.getByPlaceholderText('Ej: Mañana enfocada'), 'Mi rutina')
+    render(<RoutineWizardModal open onClose={() => {}} />);
+    await user.type(screen.getByPlaceholderText('Ej: Mañana enfocada'), 'Mi rutina');
 
-    expect((screen.getByRole('button', { name: 'Crear rutina' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(
+      (screen.getByRole('button', { name: 'Crear rutina' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
 
-    authUser = { id: 'u1' }
-  })
+    authUser = { id: 'u1' };
+  });
 
   it('shows generic error message when create fails with non-Error value', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup();
 
-    addRoutine.mockRejectedValueOnce('boom')
+    addRoutine.mockRejectedValueOnce('boom');
 
-    render(<RoutineWizardModal open onClose={() => {}} />)
+    render(<RoutineWizardModal open onClose={() => {}} />);
 
-    await user.type(screen.getByPlaceholderText('Ej: Mañana enfocada'), 'Mi rutina')
-    await user.click(screen.getByRole('button', { name: 'Crear rutina' }))
+    await user.type(screen.getByPlaceholderText('Ej: Mañana enfocada'), 'Mi rutina');
+    await user.click(screen.getByRole('button', { name: 'Crear rutina' }));
 
-    expect(screen.getByText('No se pudo crear la rutina')).not.toBeNull()
-  })
+    expect(screen.getByText('No se pudo crear la rutina')).not.toBeNull();
+  });
 
   it('creates routine without calling addTasksBulk when all task titles are blank', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup();
 
-    addRoutine.mockResolvedValueOnce({ id: 'r2' })
-    addTasksBulk.mockReset()
+    addRoutine.mockResolvedValueOnce({ id: 'r2' });
+    addTasksBulk.mockReset();
 
-    render(<RoutineWizardModal open onClose={() => {}} />)
+    render(<RoutineWizardModal open onClose={() => {}} />);
 
-    await user.type(screen.getByPlaceholderText('Ej: Mañana enfocada'), 'Routine only')
-    await user.click(screen.getByRole('button', { name: 'Crear rutina' }))
+    await user.type(screen.getByPlaceholderText('Ej: Mañana enfocada'), 'Routine only');
+    await user.click(screen.getByRole('button', { name: 'Crear rutina' }));
 
-    expect(addRoutine).toHaveBeenCalled()
-    expect(addTasksBulk).not.toHaveBeenCalled()
-  })
+    expect(addRoutine).toHaveBeenCalled();
+    expect(addTasksBulk).not.toHaveBeenCalled();
+  });
 
   it('passes trimmed notes when provided', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup();
 
-    addRoutine.mockResolvedValueOnce({ id: 'r-notes' })
-    addTasksBulk.mockReset()
+    addRoutine.mockResolvedValueOnce({ id: 'r-notes' });
+    addTasksBulk.mockReset();
 
-    render(<RoutineWizardModal open onClose={() => {}} />)
+    render(<RoutineWizardModal open onClose={() => {}} />);
 
-    await user.type(screen.getByPlaceholderText('Ej: Mañana enfocada'), 'Routine with notes')
-    await user.type(screen.getByLabelText('Notas'), '  nota importante  ')
-    await user.click(screen.getByRole('button', { name: 'Crear rutina' }))
+    await user.type(screen.getByPlaceholderText('Ej: Mañana enfocada'), 'Routine with notes');
+    await user.type(screen.getByLabelText('Notas'), '  nota importante  ');
+    await user.click(screen.getByRole('button', { name: 'Crear rutina' }));
 
     expect(addRoutine).toHaveBeenCalledWith({
       user_id: 'u1',
       title: 'Routine with notes',
       notes: 'nota importante',
-    })
-  })
+    });
+  });
 
   it('removes a non-first task row when Eliminar is clicked', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup();
 
-    render(<RoutineWizardModal open onClose={() => {}} />)
+    render(<RoutineWizardModal open onClose={() => {}} />);
 
-    await user.click(screen.getByRole('button', { name: '+ Tarea' }))
-    expect(screen.getAllByPlaceholderText('Ej: Tomar agua')).toHaveLength(2)
+    await user.click(screen.getByRole('button', { name: '+ Tarea' }));
+    expect(screen.getAllByPlaceholderText('Ej: Tomar agua')).toHaveLength(2);
 
-    await user.click(screen.getByRole('button', { name: 'Eliminar tarea 2' }))
-    expect(screen.getAllByPlaceholderText('Ej: Tomar agua')).toHaveLength(1)
-  })
+    await user.click(screen.getByRole('button', { name: 'Eliminar tarea 2' }));
+    expect(screen.getAllByPlaceholderText('Ej: Tomar agua')).toHaveLength(1);
+  });
 
   it('uses modal close button and triggers close callback', async () => {
-    const user = userEvent.setup()
-    const onClose = vi.fn()
+    const user = userEvent.setup();
+    const onClose = vi.fn();
 
-    render(<RoutineWizardModal open onClose={onClose} />)
+    render(<RoutineWizardModal open onClose={onClose} />);
 
-    await user.click(screen.getByRole('button', { name: 'Cerrar' }))
-    expect(onClose).toHaveBeenCalled()
-  })
+    await user.click(screen.getByRole('button', { name: 'Cerrar' }));
+    expect(onClose).toHaveBeenCalled();
+  });
 
   it('closes and resets state when cancel is pressed', async () => {
-    const user = userEvent.setup()
-    const onClose = vi.fn()
+    const user = userEvent.setup();
+    const onClose = vi.fn();
 
-    render(<RoutineWizardModal open onClose={onClose} />)
+    render(<RoutineWizardModal open onClose={onClose} />);
 
-    await user.type(screen.getByPlaceholderText('Ej: Mañana enfocada'), 'Temporary title')
-    await user.click(screen.getByRole('button', { name: 'Cancelar' }))
+    await user.type(screen.getByPlaceholderText('Ej: Mañana enfocada'), 'Temporary title');
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
 
-    expect(onClose).toHaveBeenCalled()
-  })
-})
+    expect(onClose).toHaveBeenCalled();
+  });
+});

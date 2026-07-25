@@ -1,12 +1,12 @@
-import type { InputHTMLAttributes } from 'react'
-import { cn } from '@/shared/lib/cn'
-import { useUiStore } from '@/shared/state/uiStore'
+import type { InputHTMLAttributes } from 'react';
+import { cn } from '@/shared/lib/cn';
+import { useUiStore } from '@/shared/state/uiStore';
 
-type Props = InputHTMLAttributes<HTMLInputElement>
+type Props = InputHTMLAttributes<HTMLInputElement>;
 
 export function Input({ className, ...props }: Props) {
-  const theme = useUiStore((s) => s.theme)
-  const isDay = theme === 'day'
+  const theme = useUiStore((s) => s.theme);
+  const isDay = theme === 'day';
 
   return (
     <input
@@ -19,5 +19,5 @@ export function Input({ className, ...props }: Props) {
       )}
       {...props}
     />
-  )
+  );
 }

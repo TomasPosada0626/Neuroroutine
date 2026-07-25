@@ -1,20 +1,20 @@
-import { zodResolver } from '@hookform/resolvers/zod'
-import type { ReactNode } from 'react'
-import { useEffect } from 'react'
-import { useForm } from 'react-hook-form'
-import { routineSchema, type RoutineValues } from '@/features/routines/schemas'
-import { Button, Input, Modal, Textarea } from '@/shared/ui'
+import { zodResolver } from '@hookform/resolvers/zod';
+import type { ReactNode } from 'react';
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { routineSchema, type RoutineValues } from '@/features/routines/schemas';
+import { Button, Input, Modal, Textarea } from '@/shared/ui';
 
 type Props = {
-  open: boolean
-  title: string
-  initialValues?: Partial<RoutineValues>
-  confirmLabel: string
-  loading?: boolean
-  children?: ReactNode
-  onClose: () => void
-  onConfirm: (values: RoutineValues) => Promise<void> | void
-}
+  open: boolean;
+  title: string;
+  initialValues?: Partial<RoutineValues>;
+  confirmLabel: string;
+  loading?: boolean;
+  children?: ReactNode;
+  onClose: () => void;
+  onConfirm: (values: RoutineValues) => Promise<void> | void;
+};
 
 export function RoutineFormModal({
   open,
@@ -32,24 +32,24 @@ export function RoutineFormModal({
       title: initialValues?.title ?? '',
       notes: initialValues?.notes ?? '',
     },
-  })
+  });
 
   useEffect(() => {
-    if (!open) return
+    if (!open) return;
     form.reset({
       title: initialValues?.title ?? '',
       notes: initialValues?.notes ?? '',
-    })
-  }, [open, initialValues?.title, initialValues?.notes, form])
+    });
+  }, [open, initialValues?.title, initialValues?.notes, form]);
 
   const onSubmit = form.handleSubmit(async (values) => {
     try {
-      await onConfirm(values)
-      onClose()
+      await onConfirm(values);
+      onClose();
     } catch (e) {
-      form.setError('root', { message: e instanceof Error ? e.message : 'Something went wrong' })
+      form.setError('root', { message: e instanceof Error ? e.message : 'Something went wrong' });
     }
-  })
+  });
 
   return (
     <Modal
@@ -79,7 +79,10 @@ export function RoutineFormModal({
 
         <div className="space-y-1">
           <label className="text-sm font-medium">Notas (opcional)</label>
-          <Textarea placeholder="Pequeñas reglas, intención, recordatorios…" {...form.register('notes')} />
+          <Textarea
+            placeholder="Pequeñas reglas, intención, recordatorios…"
+            {...form.register('notes')}
+          />
           {form.formState.errors.notes ? (
             <div className="text-xs text-rose-600">{form.formState.errors.notes.message}</div>
           ) : null}
@@ -92,5 +95,5 @@ export function RoutineFormModal({
         ) : null}
       </form>
     </Modal>
-  )
+  );
 }

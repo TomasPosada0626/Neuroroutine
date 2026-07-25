@@ -1,39 +1,50 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useAuth } from '@/features/auth/authStore'
-import { useRoutines } from '@/features/routines/routinesStore'
-import { RoutineFormModal } from '@/features/routines/components'
-import { useDashboardPrefs, type RoutineSchedule } from '@/features/dashboard/store/dashboardPrefsStore'
-import { listRoutines, searchRoutines } from '@/features/routines/routinesService'
-import { Button, Card, Input, Textarea } from '@/shared/ui'
-import { useUiStore } from '@/shared/state/uiStore'
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/features/auth/authStore';
+import { useRoutines } from '@/features/routines/routinesStore';
+import { RoutineFormModal } from '@/features/routines/components';
+import {
+  useDashboardPrefs,
+  type RoutineSchedule,
+} from '@/features/dashboard/store/dashboardPrefsStore';
+import { listRoutines, searchRoutines } from '@/features/routines/routinesService';
+import { Button, Card, Input, Textarea } from '@/shared/ui';
+import { useUiStore } from '@/shared/state/uiStore';
 
 export function RoutinePanel() {
-  const { user } = useAuth()
-  const userId = user?.id ?? null
-  const theme = useUiStore((s) => s.theme)
-  const isDay = theme === 'day'
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
+  const theme = useUiStore((s) => s.theme);
+  const isDay = theme === 'day';
 
-  const prefs = useDashboardPrefs()
-  const queryClient = useQueryClient()
+  const prefs = useDashboardPrefs();
+  const queryClient = useQueryClient();
 
-  const subtleText = isDay ? 'text-slate-500' : 'text-slate-300'
-  const secondaryText = isDay ? 'text-slate-600' : 'text-slate-200'
+  const subtleText = isDay ? 'text-slate-500' : 'text-slate-300';
+  const secondaryText = isDay ? 'text-slate-600' : 'text-slate-200';
 
   const emptyStateClass = isDay
     ? 'rounded-lg bg-slate-50 p-3 text-sm text-slate-600 ring-1 ring-slate-200'
-    : 'rounded-lg bg-white/5 p-3 text-sm text-slate-200 ring-1 ring-white/10'
+    : 'rounded-lg bg-white/5 p-3 text-sm text-slate-200 ring-1 ring-white/10';
 
   const routineItemClass = (selected: boolean) => {
-    const base = 'w-full rounded-lg px-3 py-2 text-left text-sm ring-1 transition '
+    const base = 'w-full rounded-lg px-3 py-2 text-left text-sm ring-1 transition ';
     if (isDay) {
       return (
-        base + (selected ? 'bg-slate-900 text-white ring-slate-900' : 'bg-white ring-slate-200 hover:bg-slate-50')
-      )
+        base +
+        (selected
+          ? 'bg-slate-900 text-white ring-slate-900'
+          : 'bg-white ring-slate-200 hover:bg-slate-50')
+      );
     }
 
-    return base + (selected ? 'bg-white/12 text-white ring-white/20' : 'bg-white/5 text-slate-50 ring-white/10 hover:bg-white/7')
-  }
+    return (
+      base +
+      (selected
+        ? 'bg-white/12 text-white ring-white/20'
+        : 'bg-white/5 text-slate-50 ring-white/10 hover:bg-white/7')
+    );
+  };
   const {
     loading: actionLoading,
     error,
@@ -47,133 +58,153 @@ export function RoutinePanel() {
     addTask,
     setTaskDone,
     removeTask,
-  } = useRoutines()
+  } = useRoutines();
 
-  const [newTaskTitle, setNewTaskTitle] = useState('')
-  const [bulkMode, setBulkMode] = useState(false)
-  const [bulkText, setBulkText] = useState('')
-  const [routineQuery, setRoutineQuery] = useState('')
-  const [debouncedRoutineQuery, setDebouncedRoutineQuery] = useState('')
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkText, setBulkText] = useState('');
+  const [routineQuery, setRoutineQuery] = useState('');
+  const [debouncedRoutineQuery, setDebouncedRoutineQuery] = useState('');
 
-  const [scheduleOpen, setScheduleOpen] = useState(false)
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const [panelCollapsed, setPanelCollapsed] = useState<boolean>(() => {
     try {
-      return localStorage.getItem('nr-routine-panel-collapsed') === '1'
+      return localStorage.getItem('nr-routine-panel-collapsed') === '1';
     } catch {
-      return false
+      return false;
     }
-  })
+  });
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => {
     try {
-      const raw = localStorage.getItem('nr-fav-routines')
-      const ids = raw ? (JSON.parse(raw) as string[]) : []
-      return new Set(ids)
+      const raw = localStorage.getItem('nr-fav-routines');
+      const ids = raw ? (JSON.parse(raw) as string[]) : [];
+      return new Set(ids);
     } catch {
-      return new Set()
+      return new Set();
     }
-  })
+  });
 
-  const [editOpen, setEditOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false);
 
   const routinesQuery = useQuery({
     queryKey: ['routines', userId],
     queryFn: () => listRoutines(),
     enabled: Boolean(userId),
-  })
+  });
 
   const routinesSearchQuery = useQuery({
     queryKey: ['routines', 'search', userId, debouncedRoutineQuery],
     queryFn: () => searchRoutines(debouncedRoutineQuery),
     enabled: Boolean(userId) && debouncedRoutineQuery.trim().length > 0,
     staleTime: 60 * 1000,
-  })
+  });
 
   const routines = useMemo(() => {
-    const hasSearch = debouncedRoutineQuery.trim().length > 0
-    if (hasSearch) return routinesSearchQuery.data ?? []
-    return routinesQuery.data ?? []
-  }, [debouncedRoutineQuery, routinesSearchQuery.data, routinesQuery.data])
+    const hasSearch = debouncedRoutineQuery.trim().length > 0;
+    if (hasSearch) return routinesSearchQuery.data ?? [];
+    return routinesQuery.data ?? [];
+  }, [debouncedRoutineQuery, routinesSearchQuery.data, routinesQuery.data]);
 
   const routinesLoading =
-    !userId || actionLoading || routinesQuery.isLoading || routinesQuery.isFetching || routinesSearchQuery.isFetching
+    !userId ||
+    actionLoading ||
+    routinesQuery.isLoading ||
+    routinesQuery.isFetching ||
+    routinesSearchQuery.isFetching;
   const routinesError =
     error ??
     (routinesQuery.error instanceof Error
       ? routinesQuery.error.message
       : routinesSearchQuery.error instanceof Error
         ? routinesSearchQuery.error.message
-        : null)
+        : null);
 
   const persistPanelCollapsed = (next: boolean) => {
-    setPanelCollapsed(next)
+    setPanelCollapsed(next);
     try {
-      localStorage.setItem('nr-routine-panel-collapsed', next ? '1' : '0')
+      localStorage.setItem('nr-routine-panel-collapsed', next ? '1' : '0');
     } catch {
       // ignore
     }
-  }
+  };
 
   const dayPillClass = (active: boolean) => {
-    const base = 'rounded-lg px-2 py-1 text-xs font-medium ring-1 transition'
-    if (isDay) return base + (active ? ' bg-slate-900 text-white ring-slate-900' : ' bg-white text-slate-700 ring-slate-200 hover:bg-slate-50')
-    return base + (active ? ' bg-white/15 text-white ring-white/25' : ' bg-white/5 text-slate-200 ring-white/10 hover:bg-white/10')
-  }
+    const base = 'rounded-lg px-2 py-1 text-xs font-medium ring-1 transition';
+    if (isDay)
+      return (
+        base +
+        (active
+          ? ' bg-slate-900 text-white ring-slate-900'
+          : ' bg-white text-slate-700 ring-slate-200 hover:bg-slate-50')
+      );
+    return (
+      base +
+      (active
+        ? ' bg-white/15 text-white ring-white/25'
+        : ' bg-white/5 text-slate-200 ring-white/10 hover:bg-white/10')
+    );
+  };
 
   const scheduleSummary = (sched: RoutineSchedule | undefined) => {
-    const days = sched?.daysOfWeek ?? []
-    const hour = sched?.hour ?? null
-    if (days.length === 0 && hour === null) return 'Sin programación'
-    const labels = ['D', 'L', 'M', 'X', 'J', 'V', 'S']
-    const daysText = days.length ? days.sort((a, b) => a - b).map((d) => labels[d] ?? String(d)).join(' ') : 'Sin días'
-    const hourText = hour === null ? '' : ` · ${String(hour).padStart(2, '0')}:00`
-    return `${daysText}${hourText}`
-  }
+    const days = sched?.daysOfWeek ?? [];
+    const hour = sched?.hour ?? null;
+    if (days.length === 0 && hour === null) return 'Sin programación';
+    const labels = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+    const daysText = days.length
+      ? days
+          .sort((a, b) => a - b)
+          .map((d) => labels[d] ?? String(d))
+          .join(' ')
+      : 'Sin días';
+    const hourText = hour === null ? '' : ` · ${String(hour).padStart(2, '0')}:00`;
+    return `${daysText}${hourText}`;
+  };
 
   useEffect(() => {
     const id = window.setTimeout(() => {
-      setDebouncedRoutineQuery(routineQuery)
-    }, 250)
-    return () => window.clearTimeout(id)
-  }, [routineQuery])
+      setDebouncedRoutineQuery(routineQuery);
+    }, 250);
+    return () => window.clearTimeout(id);
+  }, [routineQuery]);
 
   useEffect(() => {
-    if (selectedRoutineId) void loadTasks(selectedRoutineId)
-  }, [selectedRoutineId, loadTasks])
+    if (selectedRoutineId) void loadTasks(selectedRoutineId);
+  }, [selectedRoutineId, loadTasks]);
 
   useEffect(() => {
     if (selectedRoutineId && !routines.some((r) => r.id === selectedRoutineId)) {
-      selectRoutine(null)
+      selectRoutine(null);
     }
-  }, [selectedRoutineId, routines, selectRoutine])
+  }, [selectedRoutineId, routines, selectRoutine]);
 
   const selectedRoutine = useMemo(
     () => routines.find((r) => r.id === selectedRoutineId) ?? null,
     [routines, selectedRoutineId],
-  )
+  );
 
-  const tasks = selectedRoutineId ? tasksByRoutineId[selectedRoutineId] ?? [] : []
+  const tasks = selectedRoutineId ? (tasksByRoutineId[selectedRoutineId] ?? []) : [];
 
   const filteredRoutines = useMemo(() => {
     return [...routines].sort((a, b) => {
-      const af = favoriteIds.has(a.id) ? 1 : 0
-      const bf = favoriteIds.has(b.id) ? 1 : 0
-      return bf - af
-    })
-  }, [routines, favoriteIds])
+      const af = favoriteIds.has(a.id) ? 1 : 0;
+      const bf = favoriteIds.has(b.id) ? 1 : 0;
+      return bf - af;
+    });
+  }, [routines, favoriteIds]);
 
   const toggleFavorite = (routineId: string) => {
     setFavoriteIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(routineId)) next.delete(routineId)
-      else next.add(routineId)
+      const next = new Set(prev);
+      if (next.has(routineId)) next.delete(routineId);
+      else next.add(routineId);
       try {
-        localStorage.setItem('nr-fav-routines', JSON.stringify(Array.from(next)))
+        localStorage.setItem('nr-fav-routines', JSON.stringify(Array.from(next)));
       } catch {
         // ignore
       }
-      return next
-    })
-  }
+      return next;
+    });
+  };
 
   if (panelCollapsed) {
     return (
@@ -181,367 +212,422 @@ export function RoutinePanel() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="text-sm font-semibold">Rutinas y tareas</div>
-            <div className={'text-xs ' + subtleText}>Panel minimizado. Vuelve a abrirlo cuando lo necesites.</div>
+            <div className={'text-xs ' + subtleText}>
+              Panel minimizado. Vuelve a abrirlo cuando lo necesites.
+            </div>
           </div>
           <Button variant="secondary" onClick={() => persistPanelCollapsed(false)}>
             Abrir panel
           </Button>
         </div>
       </Card>
-    )
+    );
   }
 
   return (
     <div>
       <div className="mb-3">
         <div className="text-sm font-semibold">Rutinas y tareas</div>
-        <div className={'text-xs ' + subtleText}>Las tareas pertenecen a una rutina. La fecha/hora se define en cada tarea.</div>
+        <div className={'text-xs ' + subtleText}>
+          Las tareas pertenecen a una rutina. La fecha/hora se define en cada tarea.
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-      <RoutineFormModal
-        open={editOpen}
-        title="Editar rutina"
-        confirmLabel="Guardar"
-        loading={actionLoading}
-        initialValues={{
-          title: selectedRoutine?.title ?? '',
-          notes: selectedRoutine?.notes ?? '',
-        }}
-        onClose={() => setEditOpen(false)}
-        onConfirm={async (values) => {
-          if (!selectedRoutine) return
-          await editRoutine({
-            id: selectedRoutine.id,
-            title: values.title,
-            notes: values.notes?.trim() ? values.notes.trim() : null,
-          })
-          await queryClient.invalidateQueries({ queryKey: ['routines', user?.id] })
-          await queryClient.invalidateQueries({ queryKey: ['routines', 'search', user?.id] })
-        }}
-      />
-      <Card className="lg:col-span-1">
-        <div className="mb-3 flex items-center justify-between">
-          <div>
-            <div className="text-sm font-semibold">Rutinas</div>
-            <div className={'text-xs ' + subtleText}>Solo las tuyas (RLS)</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="secondary"
-              onClick={() => {
-                void queryClient.invalidateQueries({ queryKey: ['routines', user?.id] })
-                if (debouncedRoutineQuery.trim().length > 0) {
-                  void queryClient.invalidateQueries({ queryKey: ['routines', 'search', user?.id] })
-                }
-              }}
-              disabled={routinesLoading}
-            >
-              Refrescar
-            </Button>
-          </div>
-        </div>
-
-        <div className="mb-3">
-          <Input
-            placeholder="Buscar rutina…"
-            value={routineQuery}
-            onChange={(e) => setRoutineQuery(e.target.value)}
-          />
-        </div>
-
-        <div className="space-y-2">
-          {filteredRoutines.length === 0 ? (
-            <div className={emptyStateClass}>Aún no tienes rutinas.</div>
-          ) : (
-            <div className="space-y-2">
-              {filteredRoutines.map((r) => (
-                <div key={r.id} className="flex items-stretch gap-2">
-                  <button
-                    className={routineItemClass(r.id === selectedRoutineId) + ' flex-1'}
-                    onClick={() => selectRoutine(r.id)}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="font-medium">{r.title}</div>
-                      {favoriteIds.has(r.id) ? (
-                        <span className={isDay ? 'text-amber-500' : 'text-amber-300'} aria-label="Favorita">
-                          ★
-                        </span>
-                      ) : null}
-                    </div>
-                    {r.notes ? <div className="mt-1 text-xs opacity-80">{r.notes}</div> : null}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => toggleFavorite(r.id)}
-                    className={
-                      'grid w-10 place-items-center rounded-lg text-sm ring-1 transition ' +
-                      (isDay
-                        ? 'bg-white text-slate-700 ring-slate-200 hover:bg-slate-50'
-                        : 'bg-white/5 text-slate-200 ring-white/10 hover:bg-white/7')
-                    }
-                    aria-label={favoriteIds.has(r.id) ? 'Quitar de favoritas' : 'Marcar como favorita'}
-                    title={favoriteIds.has(r.id) ? 'Quitar de favoritas' : 'Marcar como favorita'}
-                  >
-                    {favoriteIds.has(r.id) ? '★' : '☆'}
-                  </button>
-                </div>
-              ))}
+        <RoutineFormModal
+          open={editOpen}
+          title="Editar rutina"
+          confirmLabel="Guardar"
+          loading={actionLoading}
+          initialValues={{
+            title: selectedRoutine?.title ?? '',
+            notes: selectedRoutine?.notes ?? '',
+          }}
+          onClose={() => setEditOpen(false)}
+          onConfirm={async (values) => {
+            if (!selectedRoutine) return;
+            await editRoutine({
+              id: selectedRoutine.id,
+              title: values.title,
+              notes: values.notes?.trim() ? values.notes.trim() : null,
+            });
+            await queryClient.invalidateQueries({ queryKey: ['routines', user?.id] });
+            await queryClient.invalidateQueries({ queryKey: ['routines', 'search', user?.id] });
+          }}
+        />
+        <Card className="lg:col-span-1">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <div className="text-sm font-semibold">Rutinas</div>
+              <div className={'text-xs ' + subtleText}>Solo las tuyas (RLS)</div>
             </div>
-          )}
-        </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  void queryClient.invalidateQueries({ queryKey: ['routines', user?.id] });
+                  if (debouncedRoutineQuery.trim().length > 0) {
+                    void queryClient.invalidateQueries({
+                      queryKey: ['routines', 'search', user?.id],
+                    });
+                  }
+                }}
+                disabled={routinesLoading}
+              >
+                Refrescar
+              </Button>
+            </div>
+          </div>
 
-        {routinesError ? <div className="mt-3 text-sm text-rose-600">{routinesError}</div> : null}
-      </Card>
+          <div className="mb-3">
+            <Input
+              placeholder="Buscar rutina…"
+              value={routineQuery}
+              onChange={(e) => setRoutineQuery(e.target.value)}
+            />
+          </div>
 
-      <Card className="lg:col-span-2">
-        {!selectedRoutine ? (
-          <div className={'text-sm ' + secondaryText}>Selecciona una rutina para ver tareas.</div>
-        ) : (
-          <div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <div className="text-lg font-semibold">{selectedRoutine.title}</div>
-                {selectedRoutine.notes ? (
-                  <div className={'text-sm ' + secondaryText}>{selectedRoutine.notes}</div>
-                ) : null}
-
-                <div className="mt-2">
-                  <div className={'text-xs ' + subtleText}>Programación (para “Hoy/Próximo”)</div>
-                  <div className="mt-1 flex flex-wrap items-center gap-2">
-                    <div
-                      className={
-                        'rounded-lg px-2 py-1 text-xs ring-1 ' +
-                        (isDay ? 'bg-slate-50 text-slate-700 ring-slate-200' : 'bg-white/5 text-slate-200 ring-white/10')
-                      }
+          <div className="space-y-2">
+            {filteredRoutines.length === 0 ? (
+              <div className={emptyStateClass}>Aún no tienes rutinas.</div>
+            ) : (
+              <div className="space-y-2">
+                {filteredRoutines.map((r) => (
+                  <div key={r.id} className="flex items-stretch gap-2">
+                    <button
+                      className={routineItemClass(r.id === selectedRoutineId) + ' flex-1'}
+                      onClick={() => selectRoutine(r.id)}
                     >
-                      {scheduleSummary(prefs.routineScheduleById[selectedRoutine.id])}
-                    </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="font-medium">{r.title}</div>
+                        {favoriteIds.has(r.id) ? (
+                          <span
+                            className={isDay ? 'text-amber-500' : 'text-amber-300'}
+                            aria-label="Favorita"
+                          >
+                            ★
+                          </span>
+                        ) : null}
+                      </div>
+                      {r.notes ? <div className="mt-1 text-xs opacity-80">{r.notes}</div> : null}
+                    </button>
                     <button
                       type="button"
-                      className={'text-xs underline ' + (isDay ? 'text-slate-700' : 'text-slate-200')}
-                      onClick={() => setScheduleOpen((v) => !v)}
+                      onClick={() => toggleFavorite(r.id)}
+                      className={
+                        'grid w-10 place-items-center rounded-lg text-sm ring-1 transition ' +
+                        (isDay
+                          ? 'bg-white text-slate-700 ring-slate-200 hover:bg-slate-50'
+                          : 'bg-white/5 text-slate-200 ring-white/10 hover:bg-white/7')
+                      }
+                      aria-label={
+                        favoriteIds.has(r.id) ? 'Quitar de favoritas' : 'Marcar como favorita'
+                      }
+                      title={favoriteIds.has(r.id) ? 'Quitar de favoritas' : 'Marcar como favorita'}
                     >
-                      {scheduleOpen ? 'Ocultar' : 'Editar'}
+                      {favoriteIds.has(r.id) ? '★' : '☆'}
                     </button>
                   </div>
+                ))}
+              </div>
+            )}
+          </div>
 
-                  {scheduleOpen ? (
-                    <div className={isDay ? 'mt-2 rounded-lg bg-slate-50 p-3 ring-1 ring-slate-200' : 'mt-2 rounded-lg bg-white/5 p-3 ring-1 ring-white/10'}>
-                      <div className={'text-xs ' + subtleText}>Días</div>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {['D', 'L', 'M', 'X', 'J', 'V', 'S'].map((label, dow) => {
-                          const current = prefs.routineScheduleById[selectedRoutine.id] as RoutineSchedule | undefined
-                          const days = current?.daysOfWeek ?? []
-                          const active = days.includes(dow)
-                          return (
-                            <button
-                              key={dow}
-                              type="button"
-                              className={dayPillClass(active)}
-                              onClick={() => {
-                                const nextDays = active ? days.filter((x) => x !== dow) : [...days, dow].sort((a, b) => a - b)
-                                prefs.setRoutineSchedule(selectedRoutine.id, { daysOfWeek: nextDays, hour: current?.hour ?? null })
-                              }}
-                            >
-                              {label}
-                            </button>
-                          )
-                        })}
-                      </div>
+          {routinesError ? <div className="mt-3 text-sm text-rose-600">{routinesError}</div> : null}
+        </Card>
 
-                      <div className={'mt-3 text-xs ' + subtleText}>Hora (opcional)</div>
-                      <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center">
-                        <Input
-                          type="number"
-                          min={0}
-                          max={23}
-                          placeholder="0-23"
-                          value={prefs.routineScheduleById[selectedRoutine.id]?.hour ?? ''}
-                          onChange={(e) => {
-                            const raw = e.target.value.trim()
-                            const nextHour = raw === '' ? null : Math.max(0, Math.min(23, Number(raw)))
-                            const current = prefs.routineScheduleById[selectedRoutine.id] as RoutineSchedule | undefined
-                            prefs.setRoutineSchedule(selectedRoutine.id, { daysOfWeek: current?.daysOfWeek ?? [], hour: nextHour })
-                          }}
-                        />
-                        <Button
-                          variant="secondary"
-                          onClick={() => {
-                            const current = prefs.routineScheduleById[selectedRoutine.id] as RoutineSchedule | undefined
-                            prefs.setRoutineSchedule(selectedRoutine.id, { daysOfWeek: current?.daysOfWeek ?? [], hour: null })
-                          }}
-                        >
-                          Limpiar
-                        </Button>
-                      </div>
-                    </div>
+        <Card className="lg:col-span-2">
+          {!selectedRoutine ? (
+            <div className={'text-sm ' + secondaryText}>Selecciona una rutina para ver tareas.</div>
+          ) : (
+            <div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <div className="text-lg font-semibold">{selectedRoutine.title}</div>
+                  {selectedRoutine.notes ? (
+                    <div className={'text-sm ' + secondaryText}>{selectedRoutine.notes}</div>
                   ) : null}
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  disabled={offline}
-                  variant="secondary"
-                  onClick={() => {
-                    setEditOpen(true)
-                  }}
-                >
-                  Editar
-                </Button>
-                <Button
-                  disabled={offline}
-                  variant="danger"
-                  onClick={() => {
-                    if (confirm('¿Eliminar esta rutina?')) {
-                      void (async () => {
-                        await removeRoutine(selectedRoutine.id)
-                        selectRoutine(null)
-                        await queryClient.invalidateQueries({ queryKey: ['routines', user?.id] })
-                        await queryClient.invalidateQueries({ queryKey: ['routines', 'search', user?.id] })
-                      })()
-                    }
-                  }}
-                >
-                  Eliminar
-                </Button>
-              </div>
-            </div>
 
-            <div className="mt-4">
-              <div className="mb-2 text-sm font-semibold">Tareas</div>
-              <div className={'mb-2 text-xs ' + subtleText}>
-                Estas tareas viven dentro de esta rutina. Si pones fecha/hora, aparecen como planificadas.
-              </div>
-
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <button
-                  type="button"
-                  className={'text-xs underline ' + (isDay ? 'text-slate-700' : 'text-slate-200')}
-                  onClick={() => {
-                    setBulkMode((v) => !v)
-                    setBulkText('')
-                  }}
-                >
-                  {bulkMode ? 'Volver a una sola' : 'Añadir varias'}
-                </button>
-              </div>
-
-              {bulkMode ? (
-                <div className="space-y-2">
-                  <Textarea
-                    placeholder={"Escribe una tarea por línea\nEj: Tomar agua\nEj: 10 min estiramiento\nEj: Revisar agenda"}
-                    value={bulkText}
-                    onChange={(e) => setBulkText(e.target.value)}
-                    className={isDay ? '' : 'bg-slate-950/40 ring-white/10'}
-                  />
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      disabled={offline || !user || !selectedRoutineId || actionLoading || bulkText.trim().length === 0}
-                      onClick={async () => {
-                        if (!user) return
-                        if (!selectedRoutineId) return
-                        if (offline) return
-                        const lines = bulkText
-                          .split(/\r?\n/)
-                          .map((x) => x.trim())
-                          .filter(Boolean)
-                          .slice(0, 20)
-
-                        for (const title of lines) {
-                          await addTask({ user_id: user.id, routine_id: selectedRoutineId, title })
+                  <div className="mt-2">
+                    <div className={'text-xs ' + subtleText}>Programación (para “Hoy/Próximo”)</div>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      <div
+                        className={
+                          'rounded-lg px-2 py-1 text-xs ring-1 ' +
+                          (isDay
+                            ? 'bg-slate-50 text-slate-700 ring-slate-200'
+                            : 'bg-white/5 text-slate-200 ring-white/10')
                         }
-                        setBulkText('')
-                      }}
-                    >
-                      Añadir tareas
-                    </Button>
-                    <Button variant="secondary" onClick={() => setBulkText('')}>
-                      Limpiar
-                    </Button>
-                  </div>
-                  <div className={'text-xs ' + subtleText}>Tip: máximo 20 tareas por batch.</div>
-                </div>
-              ) : (
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Nueva tarea (paso pequeño)…"
-                  value={newTaskTitle}
-                  onChange={(e) => setNewTaskTitle(e.target.value)}
-                />
-                <Button
-                  disabled={offline || !user || !newTaskTitle.trim() || actionLoading}
-                  onClick={() => {
-                    if (!user) return
-                    if (!selectedRoutineId) return
-                    void addTask({ user_id: user.id, routine_id: selectedRoutineId, title: newTaskTitle.trim() })
-                    setNewTaskTitle('')
-                  }}
-                >
-                  Añadir
-                </Button>
-              </div>
-              )}
+                      >
+                        {scheduleSummary(prefs.routineScheduleById[selectedRoutine.id])}
+                      </div>
+                      <button
+                        type="button"
+                        className={
+                          'text-xs underline ' + (isDay ? 'text-slate-700' : 'text-slate-200')
+                        }
+                        onClick={() => setScheduleOpen((v) => !v)}
+                      >
+                        {scheduleOpen ? 'Ocultar' : 'Editar'}
+                      </button>
+                    </div>
 
-              <div className="mt-3 space-y-2">
-                {tasks.length === 0 ? (
-                  <div className={emptyStateClass}>Aún no hay tareas.</div>
-                ) : (
-                  tasks.map((t) => (
-                    <div
-                      key={t.id}
-                      className={
-                        'flex items-center justify-between gap-3 rounded-lg p-3 ring-1 ' +
-                        (isDay ? 'bg-white ring-slate-200' : 'bg-white/5 ring-white/10')
+                    {scheduleOpen ? (
+                      <div
+                        className={
+                          isDay
+                            ? 'mt-2 rounded-lg bg-slate-50 p-3 ring-1 ring-slate-200'
+                            : 'mt-2 rounded-lg bg-white/5 p-3 ring-1 ring-white/10'
+                        }
+                      >
+                        <div className={'text-xs ' + subtleText}>Días</div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {['D', 'L', 'M', 'X', 'J', 'V', 'S'].map((label, dow) => {
+                            const current = prefs.routineScheduleById[selectedRoutine.id] as
+                              RoutineSchedule | undefined;
+                            const days = current?.daysOfWeek ?? [];
+                            const active = days.includes(dow);
+                            return (
+                              <button
+                                key={dow}
+                                type="button"
+                                className={dayPillClass(active)}
+                                onClick={() => {
+                                  const nextDays = active
+                                    ? days.filter((x) => x !== dow)
+                                    : [...days, dow].sort((a, b) => a - b);
+                                  prefs.setRoutineSchedule(selectedRoutine.id, {
+                                    daysOfWeek: nextDays,
+                                    hour: current?.hour ?? null,
+                                  });
+                                }}
+                              >
+                                {label}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        <div className={'mt-3 text-xs ' + subtleText}>Hora (opcional)</div>
+                        <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center">
+                          <Input
+                            type="number"
+                            min={0}
+                            max={23}
+                            placeholder="0-23"
+                            value={prefs.routineScheduleById[selectedRoutine.id]?.hour ?? ''}
+                            onChange={(e) => {
+                              const raw = e.target.value.trim();
+                              const nextHour =
+                                raw === '' ? null : Math.max(0, Math.min(23, Number(raw)));
+                              const current = prefs.routineScheduleById[selectedRoutine.id] as
+                                RoutineSchedule | undefined;
+                              prefs.setRoutineSchedule(selectedRoutine.id, {
+                                daysOfWeek: current?.daysOfWeek ?? [],
+                                hour: nextHour,
+                              });
+                            }}
+                          />
+                          <Button
+                            variant="secondary"
+                            onClick={() => {
+                              const current = prefs.routineScheduleById[selectedRoutine.id] as
+                                RoutineSchedule | undefined;
+                              prefs.setRoutineSchedule(selectedRoutine.id, {
+                                daysOfWeek: current?.daysOfWeek ?? [],
+                                hour: null,
+                              });
+                            }}
+                          >
+                            Limpiar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    disabled={offline}
+                    variant="secondary"
+                    onClick={() => {
+                      setEditOpen(true);
+                    }}
+                  >
+                    Editar
+                  </Button>
+                  <Button
+                    disabled={offline}
+                    variant="danger"
+                    onClick={() => {
+                      if (confirm('¿Eliminar esta rutina?')) {
+                        void (async () => {
+                          await removeRoutine(selectedRoutine.id);
+                          selectRoutine(null);
+                          await queryClient.invalidateQueries({ queryKey: ['routines', user?.id] });
+                          await queryClient.invalidateQueries({
+                            queryKey: ['routines', 'search', user?.id],
+                          });
+                        })();
                       }
-                    >
-                      <label className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={t.is_done}
-                          disabled={offline}
-                          onChange={(e) => {
-                            if (!selectedRoutineId) return
-                            if (offline) return
-                            void setTaskDone({
-                              id: t.id,
-                              routine_id: selectedRoutineId,
-                              is_done: e.target.checked,
-                            })
-                          }}
-                        />
-                        <span className={t.is_done ? 'line-through text-slate-400' : ''}>
-                          {t.title}
-                          {(t.due_date || t.due_time || t.description) ? (
-                            <span className={'ml-2 text-xs ' + subtleText}>
-                              {t.description ? `· ${t.description}` : ''}
-                              {t.due_date ? ` · ${t.due_date}` : ''}
-                              {t.due_time ? ` · ${String(t.due_time).slice(0, 5)}` : ''}
-                            </span>
-                          ) : null}
-                        </span>
-                      </label>
+                    }}
+                  >
+                    Eliminar
+                  </Button>
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <div className="mb-2 text-sm font-semibold">Tareas</div>
+                <div className={'mb-2 text-xs ' + subtleText}>
+                  Estas tareas viven dentro de esta rutina. Si pones fecha/hora, aparecen como
+                  planificadas.
+                </div>
+
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    className={'text-xs underline ' + (isDay ? 'text-slate-700' : 'text-slate-200')}
+                    onClick={() => {
+                      setBulkMode((v) => !v);
+                      setBulkText('');
+                    }}
+                  >
+                    {bulkMode ? 'Volver a una sola' : 'Añadir varias'}
+                  </button>
+                </div>
+
+                {bulkMode ? (
+                  <div className="space-y-2">
+                    <Textarea
+                      placeholder={
+                        'Escribe una tarea por línea\nEj: Tomar agua\nEj: 10 min estiramiento\nEj: Revisar agenda'
+                      }
+                      value={bulkText}
+                      onChange={(e) => setBulkText(e.target.value)}
+                      className={isDay ? '' : 'bg-slate-950/40 ring-white/10'}
+                    />
+                    <div className="flex flex-wrap items-center gap-2">
                       <Button
-                        variant="danger"
-                        disabled={offline}
-                        onClick={() => {
-                          if (!selectedRoutineId) return
-                          if (confirm('¿Eliminar esta tarea?')) {
-                            void removeTask({ id: t.id, routine_id: selectedRoutineId })
+                        disabled={
+                          offline ||
+                          !user ||
+                          !selectedRoutineId ||
+                          actionLoading ||
+                          bulkText.trim().length === 0
+                        }
+                        onClick={async () => {
+                          if (!user) return;
+                          if (!selectedRoutineId) return;
+                          if (offline) return;
+                          const lines = bulkText
+                            .split(/\r?\n/)
+                            .map((x) => x.trim())
+                            .filter(Boolean)
+                            .slice(0, 20);
+
+                          for (const title of lines) {
+                            await addTask({
+                              user_id: user.id,
+                              routine_id: selectedRoutineId,
+                              title,
+                            });
                           }
+                          setBulkText('');
                         }}
                       >
-                        Quitar
+                        Añadir tareas
+                      </Button>
+                      <Button variant="secondary" onClick={() => setBulkText('')}>
+                        Limpiar
                       </Button>
                     </div>
-                  ))
+                    <div className={'text-xs ' + subtleText}>Tip: máximo 20 tareas por batch.</div>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Nueva tarea (paso pequeño)…"
+                      value={newTaskTitle}
+                      onChange={(e) => setNewTaskTitle(e.target.value)}
+                    />
+                    <Button
+                      disabled={offline || !user || !newTaskTitle.trim() || actionLoading}
+                      onClick={() => {
+                        if (!user) return;
+                        if (!selectedRoutineId) return;
+                        void addTask({
+                          user_id: user.id,
+                          routine_id: selectedRoutineId,
+                          title: newTaskTitle.trim(),
+                        });
+                        setNewTaskTitle('');
+                      }}
+                    >
+                      Añadir
+                    </Button>
+                  </div>
                 )}
+
+                <div className="mt-3 space-y-2">
+                  {tasks.length === 0 ? (
+                    <div className={emptyStateClass}>Aún no hay tareas.</div>
+                  ) : (
+                    tasks.map((t) => (
+                      <div
+                        key={t.id}
+                        className={
+                          'flex items-center justify-between gap-3 rounded-lg p-3 ring-1 ' +
+                          (isDay ? 'bg-white ring-slate-200' : 'bg-white/5 ring-white/10')
+                        }
+                      >
+                        <label className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={t.is_done}
+                            disabled={offline}
+                            onChange={(e) => {
+                              if (!selectedRoutineId) return;
+                              if (offline) return;
+                              void setTaskDone({
+                                id: t.id,
+                                routine_id: selectedRoutineId,
+                                is_done: e.target.checked,
+                              });
+                            }}
+                          />
+                          <span className={t.is_done ? 'line-through text-slate-400' : ''}>
+                            {t.title}
+                            {t.due_date || t.due_time || t.description ? (
+                              <span className={'ml-2 text-xs ' + subtleText}>
+                                {t.description ? `· ${t.description}` : ''}
+                                {t.due_date ? ` · ${t.due_date}` : ''}
+                                {t.due_time ? ` · ${String(t.due_time).slice(0, 5)}` : ''}
+                              </span>
+                            ) : null}
+                          </span>
+                        </label>
+                        <Button
+                          variant="danger"
+                          disabled={offline}
+                          onClick={() => {
+                            if (!selectedRoutineId) return;
+                            if (confirm('¿Eliminar esta tarea?')) {
+                              void removeTask({ id: t.id, routine_id: selectedRoutineId });
+                            }
+                          }}
+                        >
+                          Quitar
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        )}
-      </Card>
+          )}
+        </Card>
       </div>
     </div>
-  )
+  );
 }

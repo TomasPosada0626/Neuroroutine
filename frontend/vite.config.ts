@@ -1,6 +1,6 @@
-import { defineConfig } from 'vitest/config'
-import react from '@vitejs/plugin-react'
-import { fileURLToPath, URL } from 'node:url'
+import { defineConfig } from 'vitest/config';
+import react from '@vitejs/plugin-react';
+import { fileURLToPath, URL } from 'node:url';
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -17,13 +17,14 @@ export default defineConfig({
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
     exclude: ['e2e/**', 'node_modules/**', 'dist/**'],
     coverage: {
-      exclude: [
-        '**/*.d.ts',
-        'src/**/index.ts',
-        'src/features/dashboard/store/dashboardPrefsStore.ts',
-        'src/features/dashboard/utils/dashboardUtils.ts',
-      ],
+      exclude: ['**/*.d.ts', 'src/**/index.ts'],
       reporter: ['text', 'html'],
+      thresholds: {
+        statements: 90,
+        branches: 78,
+        functions: 90,
+        lines: 90,
+      },
     },
   },
-})
+});

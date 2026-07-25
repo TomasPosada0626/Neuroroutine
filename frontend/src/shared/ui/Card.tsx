@@ -1,10 +1,10 @@
-import type { PropsWithChildren } from 'react'
-import { cn } from '@/shared/lib/cn'
-import { useUiStore } from '@/shared/state/uiStore'
+import type { PropsWithChildren } from 'react';
+import { cn } from '@/shared/lib/cn';
+import { useUiStore } from '@/shared/state/uiStore';
 
 export function Card({ className, children }: PropsWithChildren<{ className?: string }>) {
-  const theme = useUiStore((s) => s.theme)
-  const isDay = theme === 'day'
+  const theme = useUiStore((s) => s.theme);
+  const isDay = theme === 'day';
 
   return (
     <div
@@ -17,5 +17,5 @@ export function Card({ className, children }: PropsWithChildren<{ className?: st
     >
       {children}
     </div>
-  )
+  );
 }

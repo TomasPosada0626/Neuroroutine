@@ -1,20 +1,20 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Card, ThemeToggle } from '@/shared/ui'
-import { useUiStore, type ThemeMode } from '@/shared/state/uiStore'
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Card, ThemeToggle } from '@/shared/ui';
+import { useUiStore, type ThemeMode } from '@/shared/state/uiStore';
 
 const primaryLinkClass =
-  'inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-slate-400 bg-slate-900 text-white hover:bg-slate-800'
+  'inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-slate-400 bg-slate-900 text-white hover:bg-slate-800';
 
 const secondaryLinkClass =
-  'inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50'
+  'inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50';
 
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
+const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 const parseFirstInt = (value: string) => {
-  const m = value.match(/-?\d+/)
-  return m ? Number(m[0]) : 0
-}
+  const m = value.match(/-?\d+/);
+  return m ? Number(m[0]) : 0;
+};
 
 function Sparkline() {
   return (
@@ -38,7 +38,7 @@ function Sparkline() {
         opacity="0.12"
       />
     </svg>
-  )
+  );
 }
 
 function MiniBars({ bars }: { bars: number[] }) {
@@ -52,38 +52,38 @@ function MiniBars({ bars }: { bars: number[] }) {
         />
       ))}
     </div>
-  )
+  );
 }
 
-type UseCase = 'study' | 'fitness' | 'work'
-type Preset = 'starter' | 'sprint' | 'light'
-type EnergyLevel = 'low' | 'medium' | 'high'
+type UseCase = 'study' | 'fitness' | 'work';
+type Preset = 'starter' | 'sprint' | 'light';
+type EnergyLevel = 'low' | 'medium' | 'high';
 
 const presetForEnergy = (level: EnergyLevel): Preset => {
-  if (level === 'low') return 'light'
-  if (level === 'high') return 'sprint'
-  return 'starter'
-}
+  if (level === 'low') return 'light';
+  if (level === 'high') return 'sprint';
+  return 'starter';
+};
 
 function UseCaseTabs({
   value,
   onChange,
   theme,
 }: {
-  value: UseCase
-  onChange: (v: UseCase) => void
-  theme?: ThemeMode
+  value: UseCase;
+  onChange: (v: UseCase) => void;
+  theme?: ThemeMode;
 }) {
-  const isDay = theme === 'day'
+  const isDay = theme === 'day';
   const wrapClass = isDay
     ? 'inline-flex rounded-lg bg-slate-900/5 p-1 ring-1 ring-slate-200'
-    : 'inline-flex rounded-lg bg-white/5 p-1 ring-1 ring-white/10'
+    : 'inline-flex rounded-lg bg-white/5 p-1 ring-1 ring-white/10';
   const selectedClass = isDay
     ? 'bg-slate-900 text-white ring-1 ring-slate-900/15'
-    : 'bg-white/10 text-white ring-1 ring-white/15'
+    : 'bg-white/10 text-white ring-1 ring-white/15';
   const unselectedClass = isDay
     ? 'text-slate-600 hover:bg-slate-900/5 hover:text-slate-900'
-    : 'text-slate-300 hover:bg-white/5 hover:text-white'
+    : 'text-slate-300 hover:bg-white/5 hover:text-white';
 
   return (
     <div className={wrapClass}>
@@ -118,192 +118,251 @@ function UseCaseTabs({
         Trabajo
       </button>
     </div>
-  )
+  );
 }
 
 export function LandingPage() {
-  const [useCase, setUseCase] = useState<UseCase>('study')
-  const [preset, setPreset] = useState<Preset>('starter')
-  const [energy, setEnergy] = useState<EnergyLevel>('medium')
-  const theme = useUiStore((s) => s.theme)
-  const [isSwitching, setIsSwitching] = useState(false)
-  const [demoStep, setDemoStep] = useState(0)
-  const switchTimerRef = useRef<number | null>(null)
+  const [useCase, setUseCase] = useState<UseCase>('study');
+  const [preset, setPreset] = useState<Preset>('starter');
+  const [energy, setEnergy] = useState<EnergyLevel>('medium');
+  const theme = useUiStore((s) => s.theme);
+  const [isSwitching, setIsSwitching] = useState(false);
+  const [demoStep, setDemoStep] = useState(0);
+  const switchTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
       if (switchTimerRef.current != null) {
-        window.clearTimeout(switchTimerRef.current)
+        window.clearTimeout(switchTimerRef.current);
       }
-    }
-  }, [])
+    };
+  }, []);
 
   const handleUseCaseChange = (next: UseCase) => {
-    setUseCase(next)
-    setPreset('starter')
-    setEnergy('medium')
-    setDemoStep(0)
-    setIsSwitching(true)
+    setUseCase(next);
+    setPreset('starter');
+    setEnergy('medium');
+    setDemoStep(0);
+    setIsSwitching(true);
     if (switchTimerRef.current != null) {
-      window.clearTimeout(switchTimerRef.current)
+      window.clearTimeout(switchTimerRef.current);
     }
-    switchTimerRef.current = window.setTimeout(() => setIsSwitching(false), 260)
-  }
+    switchTimerRef.current = window.setTimeout(() => setIsSwitching(false), 260);
+  };
 
   const content = useMemo(() => {
     const base = (() => {
       if (useCase === 'study') {
         return {
-        badge: 'Para estudiar sin procrastinar',
-        subtitle:
-          'Organiza tu sesión en pasos cortos. Menos “¿por dónde empiezo?” y más avance real.',
-        stat1Label: 'Constancia',
-        stat1Value: '+28%',
-        stat2Label: 'Bloques hoy',
-        stat2Value: '3',
-        stat3Label: 'Racha',
-        stat3Value: '7 días',
-        weeklyTargetPct: 72,
-        bars: [6, 10, 14, 9, 18, 12, 20],
-        presets: {
-          starter: {
-            label: 'Sesión rápida',
-            metricPill: '10s para armar tu sesión',
-            tableTitle: 'Sesión (Rápida)',
-            tableRows: [
-              { title: 'Repaso 10 min', tasks: 2, status: 'Listo', tone: 'emerald' as const },
-              { title: 'Problemas 25 min', tasks: 4, status: 'En progreso', tone: 'cyan' as const },
-              { title: 'Resumen 5 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
-            ],
-          },
-          sprint: {
-            label: 'Sprint',
-            metricPill: 'Una meta, sin distracciones',
-            tableTitle: 'Sesión (Sprint)',
-            tableRows: [
-              { title: 'Preparar 2 min', tasks: 1, status: 'Listo', tone: 'emerald' as const },
-              { title: 'Deep study 35 min', tasks: 3, status: 'Listo', tone: 'emerald' as const },
-              { title: 'Cierre 3 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
-            ],
-          },
-          light: {
-            label: 'Suave',
-            metricPill: 'Empieza pequeño, hoy cuenta',
-            tableTitle: 'Sesión (Suave)',
-            tableRows: [
-              { title: 'Lectura 10 min', tasks: 1, status: 'En progreso', tone: 'cyan' as const },
-              { title: 'Ejercicio 10 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
-              { title: 'Nota 2 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
-            ],
-          },
-        } satisfies Record<Preset, { label: string; metricPill: string; tableTitle: string; tableRows: { title: string; tasks: number; status: string; tone: 'emerald' | 'cyan' | 'neutral' }[] }>,
-        }
+          badge: 'Para estudiar sin procrastinar',
+          subtitle:
+            'Organiza tu sesión en pasos cortos. Menos “¿por dónde empiezo?” y más avance real.',
+          stat1Label: 'Constancia',
+          stat1Value: '+28%',
+          stat2Label: 'Bloques hoy',
+          stat2Value: '3',
+          stat3Label: 'Racha',
+          stat3Value: '7 días',
+          weeklyTargetPct: 72,
+          bars: [6, 10, 14, 9, 18, 12, 20],
+          presets: {
+            starter: {
+              label: 'Sesión rápida',
+              metricPill: '10s para armar tu sesión',
+              tableTitle: 'Sesión (Rápida)',
+              tableRows: [
+                { title: 'Repaso 10 min', tasks: 2, status: 'Listo', tone: 'emerald' as const },
+                {
+                  title: 'Problemas 25 min',
+                  tasks: 4,
+                  status: 'En progreso',
+                  tone: 'cyan' as const,
+                },
+                { title: 'Resumen 5 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
+              ],
+            },
+            sprint: {
+              label: 'Sprint',
+              metricPill: 'Una meta, sin distracciones',
+              tableTitle: 'Sesión (Sprint)',
+              tableRows: [
+                { title: 'Preparar 2 min', tasks: 1, status: 'Listo', tone: 'emerald' as const },
+                { title: 'Deep study 35 min', tasks: 3, status: 'Listo', tone: 'emerald' as const },
+                { title: 'Cierre 3 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
+              ],
+            },
+            light: {
+              label: 'Suave',
+              metricPill: 'Empieza pequeño, hoy cuenta',
+              tableTitle: 'Sesión (Suave)',
+              tableRows: [
+                { title: 'Lectura 10 min', tasks: 1, status: 'En progreso', tone: 'cyan' as const },
+                {
+                  title: 'Ejercicio 10 min',
+                  tasks: 1,
+                  status: 'Siguiente',
+                  tone: 'neutral' as const,
+                },
+                { title: 'Nota 2 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
+              ],
+            },
+          } satisfies Record<
+            Preset,
+            {
+              label: string;
+              metricPill: string;
+              tableTitle: string;
+              tableRows: {
+                title: string;
+                tasks: number;
+                status: string;
+                tone: 'emerald' | 'cyan' | 'neutral';
+              }[];
+            }
+          >,
+        };
       }
 
       if (useCase === 'fitness') {
         return {
-        badge: 'Para entrenar y no fallar',
+          badge: 'Para entrenar y no fallar',
+          subtitle:
+            'Convierte “tengo que entrenar” en un plan simple. Pequeñas acciones, gran consistencia.',
+          stat1Label: 'Constancia',
+          stat1Value: '+19%',
+          stat2Label: 'Sesiones',
+          stat2Value: '2',
+          stat3Label: 'Racha',
+          stat3Value: '5 días',
+          weeklyTargetPct: 64,
+          bars: [8, 12, 9, 14, 11, 16, 13],
+          presets: {
+            starter: {
+              label: 'Rutina base',
+              metricPill: 'Rutina lista en 30s',
+              tableTitle: 'Rutina (Base)',
+              tableRows: [
+                { title: 'Calentamiento', tasks: 3, status: 'Listo', tone: 'emerald' as const },
+                { title: 'Fuerza', tasks: 5, status: 'En progreso', tone: 'cyan' as const },
+                { title: 'Estiramiento', tasks: 2, status: 'Siguiente', tone: 'neutral' as const },
+              ],
+            },
+            sprint: {
+              label: 'Express',
+              metricPill: 'Hoy cuenta, aunque sea poco',
+              tableTitle: 'Rutina (Express)',
+              tableRows: [
+                { title: 'Movilidad 4 min', tasks: 2, status: 'Listo', tone: 'emerald' as const },
+                { title: 'Circuito 12 min', tasks: 4, status: 'Listo', tone: 'emerald' as const },
+                { title: 'Respira 2 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
+              ],
+            },
+            light: {
+              label: 'Suave',
+              metricPill: 'Sin presión, solo movimiento',
+              tableTitle: 'Rutina (Suave)',
+              tableRows: [
+                {
+                  title: 'Caminata 10 min',
+                  tasks: 1,
+                  status: 'En progreso',
+                  tone: 'cyan' as const,
+                },
+                { title: 'Estira 5 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
+                { title: 'Agua', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
+              ],
+            },
+          } satisfies Record<
+            Preset,
+            {
+              label: string;
+              metricPill: string;
+              tableTitle: string;
+              tableRows: {
+                title: string;
+                tasks: number;
+                status: string;
+                tone: 'emerald' | 'cyan' | 'neutral';
+              }[];
+            }
+          >,
+        };
+      }
+
+      return {
+        badge: 'Para trabajar con calma',
         subtitle:
-          'Convierte “tengo que entrenar” en un plan simple. Pequeñas acciones, gran consistencia.',
-        stat1Label: 'Constancia',
-        stat1Value: '+19%',
-        stat2Label: 'Sesiones',
-        stat2Value: '2',
+          'Define 3 prioridades, conviértelas en tareas y avanza sin ruido. Lo esencial, claro.',
+        stat1Label: 'Claridad',
+        stat1Value: '+22%',
+        stat2Label: 'Prioridades',
+        stat2Value: '3',
         stat3Label: 'Racha',
-        stat3Value: '5 días',
-        weeklyTargetPct: 64,
-        bars: [8, 12, 9, 14, 11, 16, 13],
+        stat3Value: '6 días',
+        weeklyTargetPct: 68,
+        bars: [10, 9, 13, 11, 15, 12, 18],
         presets: {
           starter: {
-            label: 'Rutina base',
-            metricPill: 'Rutina lista en 30s',
-            tableTitle: 'Rutina (Base)',
+            label: 'Día claro',
+            metricPill: 'Plan del día en 1 min',
+            tableTitle: 'Día (Claro)',
             tableRows: [
-              { title: 'Calentamiento', tasks: 3, status: 'Listo', tone: 'emerald' as const },
-              { title: 'Fuerza', tasks: 5, status: 'En progreso', tone: 'cyan' as const },
-              { title: 'Estiramiento', tasks: 2, status: 'Siguiente', tone: 'neutral' as const },
+              { title: 'Inbox 10 min', tasks: 2, status: 'Listo', tone: 'emerald' as const },
+              { title: 'Proyecto 45 min', tasks: 3, status: 'En progreso', tone: 'cyan' as const },
+              { title: 'Cierre 5 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
             ],
           },
           sprint: {
-            label: 'Express',
-            metricPill: 'Hoy cuenta, aunque sea poco',
-            tableTitle: 'Rutina (Express)',
+            label: 'Deep work',
+            metricPill: '1 tarea importante, primero',
+            tableTitle: 'Día (Deep work)',
             tableRows: [
-              { title: 'Movilidad 4 min', tasks: 2, status: 'Listo', tone: 'emerald' as const },
-              { title: 'Circuito 12 min', tasks: 4, status: 'Listo', tone: 'emerald' as const },
-              { title: 'Respira 2 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
+              { title: 'Prioridad #1', tasks: 1, status: 'Listo', tone: 'emerald' as const },
+              { title: 'Reunión / update', tasks: 1, status: 'En progreso', tone: 'cyan' as const },
+              { title: 'Cierre 5 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
             ],
           },
           light: {
             label: 'Suave',
-            metricPill: 'Sin presión, solo movimiento',
-            tableTitle: 'Rutina (Suave)',
+            metricPill: 'Haz lo mínimo, gana el día',
+            tableTitle: 'Día (Suave)',
             tableRows: [
-              { title: 'Caminata 10 min', tasks: 1, status: 'En progreso', tone: 'cyan' as const },
-              { title: 'Estira 5 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
-              { title: 'Agua', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
+              { title: '3 prioridades', tasks: 3, status: 'Listo', tone: 'emerald' as const },
+              {
+                title: '1 pendiente fácil',
+                tasks: 1,
+                status: 'En progreso',
+                tone: 'cyan' as const,
+              },
+              { title: 'Cierre 2 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
             ],
           },
-        } satisfies Record<Preset, { label: string; metricPill: string; tableTitle: string; tableRows: { title: string; tasks: number; status: string; tone: 'emerald' | 'cyan' | 'neutral' }[] }>,
-        }
-      }
+        } satisfies Record<
+          Preset,
+          {
+            label: string;
+            metricPill: string;
+            tableTitle: string;
+            tableRows: {
+              title: string;
+              tasks: number;
+              status: string;
+              tone: 'emerald' | 'cyan' | 'neutral';
+            }[];
+          }
+        >,
+      };
+    })();
 
-      return {
-      badge: 'Para trabajar con calma',
-      subtitle:
-        'Define 3 prioridades, conviértelas en tareas y avanza sin ruido. Lo esencial, claro.',
-      stat1Label: 'Claridad',
-      stat1Value: '+22%',
-      stat2Label: 'Prioridades',
-      stat2Value: '3',
-      stat3Label: 'Racha',
-      stat3Value: '6 días',
-      weeklyTargetPct: 68,
-      bars: [10, 9, 13, 11, 15, 12, 18],
-      presets: {
-        starter: {
-          label: 'Día claro',
-          metricPill: 'Plan del día en 1 min',
-          tableTitle: 'Día (Claro)',
-          tableRows: [
-            { title: 'Inbox 10 min', tasks: 2, status: 'Listo', tone: 'emerald' as const },
-            { title: 'Proyecto 45 min', tasks: 3, status: 'En progreso', tone: 'cyan' as const },
-            { title: 'Cierre 5 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
-          ],
-        },
-        sprint: {
-          label: 'Deep work',
-          metricPill: '1 tarea importante, primero',
-          tableTitle: 'Día (Deep work)',
-          tableRows: [
-            { title: 'Prioridad #1', tasks: 1, status: 'Listo', tone: 'emerald' as const },
-            { title: 'Reunión / update', tasks: 1, status: 'En progreso', tone: 'cyan' as const },
-            { title: 'Cierre 5 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
-          ],
-        },
-        light: {
-          label: 'Suave',
-          metricPill: 'Haz lo mínimo, gana el día',
-          tableTitle: 'Día (Suave)',
-          tableRows: [
-            { title: '3 prioridades', tasks: 3, status: 'Listo', tone: 'emerald' as const },
-            { title: '1 pendiente fácil', tasks: 1, status: 'En progreso', tone: 'cyan' as const },
-            { title: 'Cierre 2 min', tasks: 1, status: 'Siguiente', tone: 'neutral' as const },
-          ],
-        },
-      } satisfies Record<Preset, { label: string; metricPill: string; tableTitle: string; tableRows: { title: string; tasks: number; status: string; tone: 'emerald' | 'cyan' | 'neutral' }[] }>,
-      }
-    })()
+    const pct = parseFirstInt(base.stat1Value);
+    const count = parseFirstInt(base.stat2Value);
+    const days = parseFirstInt(base.stat3Value);
 
-    const pct = parseFirstInt(base.stat1Value)
-    const count = parseFirstInt(base.stat2Value)
-    const days = parseFirstInt(base.stat3Value)
-
-    const pctDelta = energy === 'low' ? -12 : energy === 'high' ? 9 : 0
-    const countDelta = energy === 'low' ? -1 : energy === 'high' ? 1 : 0
-    const daysDelta = energy === 'low' ? -3 : energy === 'high' ? 4 : 0
-    const weeklyDelta = energy === 'low' ? -16 : energy === 'high' ? 12 : 0
-    const barScale = energy === 'low' ? 0.86 : energy === 'high' ? 1.12 : 1
+    const pctDelta = energy === 'low' ? -12 : energy === 'high' ? 9 : 0;
+    const countDelta = energy === 'low' ? -1 : energy === 'high' ? 1 : 0;
+    const daysDelta = energy === 'low' ? -3 : energy === 'high' ? 4 : 0;
+    const weeklyDelta = energy === 'low' ? -16 : energy === 'high' ? 12 : 0;
+    const barScale = energy === 'low' ? 0.86 : energy === 'high' ? 1.12 : 1;
 
     return {
       ...base,
@@ -312,73 +371,82 @@ export function LandingPage() {
       stat3Value: `${clamp(days + daysDelta, 1, 30)} días`,
       weeklyTargetPct: clamp(base.weeklyTargetPct + weeklyDelta, 35, 95),
       bars: base.bars.map((v) => clamp(Math.round(v * barScale), 4, 22)),
-    }
-  }, [useCase, energy])
+    };
+  }, [useCase, energy]);
 
-  const activePreset = content.presets[preset]
+  const activePreset = content.presets[preset];
   const energyHint =
     energy === 'high'
       ? 'Alta energía: más impulso y más avance'
       : energy === 'low'
         ? 'Baja energía: lo esencial, sin presión'
-        : 'Energía media: ritmo constante'
+        : 'Energía media: ritmo constante';
   const demoItems = useMemo(
     () => activePreset.tableRows.map((r) => r.title).slice(0, 3),
-    [activePreset.tableRows]
-  )
+    [activePreset.tableRows],
+  );
 
   useEffect(() => {
     const id = window.setInterval(() => {
       setDemoStep((s) => {
-        if (demoItems.length <= 0) return 0
-        return s >= demoItems.length ? 0 : s + 1
-      })
-    }, 1100)
-    return () => window.clearInterval(id)
-  }, [useCase, preset, demoItems.length])
+        if (demoItems.length <= 0) return 0;
+        return s >= demoItems.length ? 0 : s + 1;
+      });
+    }, 1100);
+    return () => window.clearInterval(id);
+  }, [useCase, preset, demoItems.length]);
 
-  const isDay = theme === 'day'
+  const isDay = theme === 'day';
   const panelClass = isDay
     ? 'bg-white text-slate-900 ring-1 ring-slate-200'
-    : 'bg-white/5 text-slate-50 ring-1 ring-white/10'
-  const panelMutedText = isDay ? 'text-slate-600' : 'text-slate-300'
-  const panelSoft = isDay ? 'bg-slate-50 ring-1 ring-slate-200' : 'bg-slate-950/40 ring-1 ring-white/10'
-  const panelDivider = isDay ? 'bg-slate-200' : 'bg-white/10'
+    : 'bg-white/5 text-slate-50 ring-1 ring-white/10';
+  const panelMutedText = isDay ? 'text-slate-600' : 'text-slate-300';
+  const panelSoft = isDay
+    ? 'bg-slate-50 ring-1 ring-slate-200'
+    : 'bg-slate-950/40 ring-1 ring-white/10';
+  const panelDivider = isDay ? 'bg-slate-200' : 'bg-white/10';
 
-  const rootClass = isDay ? 'h-dvh overflow-hidden bg-slate-50 text-slate-900' : 'h-dvh overflow-hidden bg-slate-950 text-slate-50'
+  const rootClass = isDay
+    ? 'h-dvh overflow-hidden bg-slate-50 text-slate-900'
+    : 'h-dvh overflow-hidden bg-slate-950 text-slate-50';
   const headerClass = isDay
     ? 'relative z-10 border-b border-slate-200 bg-white/70 backdrop-blur'
-    : 'relative z-10 border-b border-white/10 bg-slate-950/50 backdrop-blur'
-  const subtleText = isDay ? 'text-slate-600' : 'text-slate-300'
+    : 'relative z-10 border-b border-white/10 bg-slate-950/50 backdrop-blur';
+  const subtleText = isDay ? 'text-slate-600' : 'text-slate-300';
   const chipClass = isDay
     ? 'inline-flex items-center gap-2 rounded-full bg-slate-900/5 px-3 py-1 text-xs ring-1 ring-slate-200'
-    : 'inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs ring-1 ring-white/15'
+    : 'inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs ring-1 ring-white/15';
   const badgePillClass = isDay
     ? 'inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-xs text-slate-700 ring-1 ring-slate-200'
-    : 'inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-200 ring-1 ring-white/10'
+    : 'inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-200 ring-1 ring-white/10';
   const heroGradientClass = isDay
     ? 'bg-gradient-to-r from-cyan-700 to-violet-700 bg-clip-text text-transparent'
-    : 'bg-gradient-to-r from-cyan-300 to-violet-300 bg-clip-text text-transparent'
+    : 'bg-gradient-to-r from-cyan-300 to-violet-300 bg-clip-text text-transparent';
   const secondaryCtaClass = isDay
     ? secondaryLinkClass + ' motion-safe:transition motion-safe:duration-300 hover:-translate-y-0.5'
     : secondaryLinkClass +
-      ' bg-white/10 text-white ring-1 ring-white/15 hover:bg-white/15 motion-safe:transition motion-safe:duration-300 hover:-translate-y-0.5'
+      ' bg-white/10 text-white ring-1 ring-white/15 hover:bg-white/15 motion-safe:transition motion-safe:duration-300 hover:-translate-y-0.5';
   const headerLoginClass = isDay
     ? secondaryLinkClass
-    : secondaryLinkClass + ' bg-white/10 text-white ring-1 ring-white/15 hover:bg-white/15 focus:ring-white/30'
+    : secondaryLinkClass +
+      ' bg-white/10 text-white ring-1 ring-white/15 hover:bg-white/15 focus:ring-white/30';
 
   const heroPillClass = isDay
     ? 'inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs text-slate-700 ring-1 ring-slate-200'
-    : 'inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-200 ring-1 ring-white/10'
+    : 'inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-xs text-slate-200 ring-1 ring-white/10';
 
   const statCardClass = isDay
     ? 'bg-white p-3 ring-1 ring-slate-200 sm:p-4 motion-safe:transition motion-safe:duration-300 hover:bg-slate-50 hover:-translate-y-0.5'
-    : 'bg-white/5 p-3 ring-1 ring-white/10 sm:p-4 motion-safe:transition motion-safe:duration-300 hover:bg-white/7 hover:-translate-y-0.5'
+    : 'bg-white/5 p-3 ring-1 ring-white/10 sm:p-4 motion-safe:transition motion-safe:duration-300 hover:bg-white/7 hover:-translate-y-0.5';
 
-  const statLabelClass = isDay ? 'text-[11px] text-slate-600 sm:text-xs' : 'text-[11px] text-slate-300 sm:text-xs'
+  const statLabelClass = isDay
+    ? 'text-[11px] text-slate-600 sm:text-xs'
+    : 'text-[11px] text-slate-300 sm:text-xs';
 
-  const trustCardClass = isDay ? 'bg-white p-4 ring-1 ring-slate-200' : 'bg-white/5 p-4 ring-1 ring-white/10'
-  const trustTextClass = isDay ? 'mt-1 text-sm text-slate-600' : 'mt-1 text-sm text-slate-300'
+  const trustCardClass = isDay
+    ? 'bg-white p-4 ring-1 ring-slate-200'
+    : 'bg-white/5 p-4 ring-1 ring-white/10';
+  const trustTextClass = isDay ? 'mt-1 text-sm text-slate-600' : 'mt-1 text-sm text-slate-300';
 
   return (
     <div className={rootClass}>
@@ -392,15 +460,24 @@ export function LandingPage() {
               : 'bg-gradient-to-r from-cyan-500/30 via-violet-500/20 to-fuchsia-500/20')
           }
         />
-        <div className={"absolute -bottom-24 left-10 h-72 w-72 rounded-full blur-3xl " + (isDay ? 'bg-cyan-500/6' : 'bg-cyan-500/10')} />
-        <div className={"absolute -bottom-24 right-10 h-72 w-72 rounded-full blur-3xl " + (isDay ? 'bg-violet-500/6' : 'bg-violet-500/10')} />
+        <div
+          className={
+            'absolute -bottom-24 left-10 h-72 w-72 rounded-full blur-3xl ' +
+            (isDay ? 'bg-cyan-500/6' : 'bg-cyan-500/10')
+          }
+        />
+        <div
+          className={
+            'absolute -bottom-24 right-10 h-72 w-72 rounded-full blur-3xl ' +
+            (isDay ? 'bg-violet-500/6' : 'bg-violet-500/10')
+          }
+        />
         <div
           className="absolute inset-0 opacity-[0.08]"
           style={{
-            backgroundImage:
-              isDay
-                ? 'radial-gradient(circle at 1px 1px, rgba(15,23,42,0.35) 1px, transparent 0)'
-                : 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.6) 1px, transparent 0)',
+            backgroundImage: isDay
+              ? 'radial-gradient(circle at 1px 1px, rgba(15,23,42,0.35) 1px, transparent 0)'
+              : 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.6) 1px, transparent 0)',
             backgroundSize: '18px 18px',
           }}
         />
@@ -409,7 +486,10 @@ export function LandingPage() {
       <header className={headerClass}>
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
-            <div className="grid h-8 w-8 place-items-center overflow-hidden rounded-lg bg-gradient-to-br from-cyan-400 to-violet-500" aria-hidden="true">
+            <div
+              className="grid h-8 w-8 place-items-center overflow-hidden rounded-lg bg-gradient-to-br from-cyan-400 to-violet-500"
+              aria-hidden="true"
+            >
               <svg
                 viewBox="0 0 24 24"
                 className="h-5 w-5"
@@ -429,16 +509,13 @@ export function LandingPage() {
             </div>
             <div className="leading-tight">
               <div className="text-sm font-semibold">NeuroRoutine</div>
-              <div className={"text-xs " + subtleText}>Rutinas simples. Hábitos sostenibles.</div>
+              <div className={'text-xs ' + subtleText}>Rutinas simples. Hábitos sostenibles.</div>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <ThemeToggle compact />
-            <Link
-              to="/login"
-              className={headerLoginClass}
-            >
+            <Link to="/login" className={headerLoginClass}>
               Iniciar sesión
             </Link>
             <Link
@@ -478,13 +555,10 @@ export function LandingPage() {
 
             <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-5xl">
               Rutinas inteligentes,
-              <span className={heroGradientClass}>
-                {' '}
-                progreso visible.
-              </span>
+              <span className={heroGradientClass}> progreso visible.</span>
             </h1>
 
-            <p className={"mt-3 max-w-xl text-sm sm:mt-4 sm:text-lg " + subtleText}>
+            <p className={'mt-3 max-w-xl text-sm sm:mt-4 sm:text-lg ' + subtleText}>
               {content.subtitle}
             </p>
 
@@ -500,14 +574,11 @@ export function LandingPage() {
                 <span className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 hover:opacity-100" />
                 Empezar gratis
               </Link>
-              <Link
-                to="/login"
-                className={secondaryCtaClass}
-              >
+              <Link to="/login" className={secondaryCtaClass}>
                 Ya tengo cuenta
               </Link>
 
-              <div className={"flex items-center gap-2 text-xs " + subtleText}>
+              <div className={'flex items-center gap-2 text-xs ' + subtleText}>
                 <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400" />
                 Listo para empezar hoy
               </div>
@@ -518,10 +589,17 @@ export function LandingPage() {
               </div>
             </div>
 
-            <div className={"mt-5 grid grid-cols-3 gap-2 sm:mt-6 sm:gap-3 " + (isSwitching ? 'motion-safe:animate-pulse' : '')}>
+            <div
+              className={
+                'mt-5 grid grid-cols-3 gap-2 sm:mt-6 sm:gap-3 ' +
+                (isSwitching ? 'motion-safe:animate-pulse' : '')
+              }
+            >
               <Card className={statCardClass}>
                 <div className={statLabelClass}>{content.stat1Label}</div>
-                <div className="mt-0.5 text-base font-semibold sm:mt-1 sm:text-lg">{content.stat1Value}</div>
+                <div className="mt-0.5 text-base font-semibold sm:mt-1 sm:text-lg">
+                  {content.stat1Value}
+                </div>
                 <div className="mt-2 hidden sm:block">
                   <Sparkline />
                 </div>
@@ -529,7 +607,9 @@ export function LandingPage() {
 
               <Card className={statCardClass}>
                 <div className={statLabelClass}>{content.stat2Label}</div>
-                <div className="mt-0.5 text-base font-semibold sm:mt-1 sm:text-lg">{content.stat2Value}</div>
+                <div className="mt-0.5 text-base font-semibold sm:mt-1 sm:text-lg">
+                  {content.stat2Value}
+                </div>
                 <div className="mt-2 hidden sm:block">
                   <MiniBars bars={content.bars} />
                 </div>
@@ -537,18 +617,23 @@ export function LandingPage() {
 
               <Card className={statCardClass}>
                 <div className={statLabelClass}>Racha</div>
-                <div className="mt-0.5 text-base font-semibold sm:mt-1 sm:text-lg">{content.stat3Value}</div>
+                <div className="mt-0.5 text-base font-semibold sm:mt-1 sm:text-lg">
+                  {content.stat3Value}
+                </div>
                 <div className="mt-2 hidden items-center gap-3 sm:flex">
                   <div
                     className="h-12 w-12 rounded-full"
                     style={{
-                      background:
-                        `conic-gradient(rgba(34,211,238,0.9) 0 ${(content.weeklyTargetPct / 100) * 360}deg, rgba(255,255,255,0.12) ${(content.weeklyTargetPct / 100) * 360}deg 360deg)`,
+                      background: `conic-gradient(rgba(34,211,238,0.9) 0 ${(content.weeklyTargetPct / 100) * 360}deg, rgba(255,255,255,0.12) ${(content.weeklyTargetPct / 100) * 360}deg 360deg)`,
                     }}
                   />
-                  <div className={"text-xs " + (isDay ? 'text-slate-600' : 'text-slate-300')}>
+                  <div className={'text-xs ' + (isDay ? 'text-slate-600' : 'text-slate-300')}>
                     Meta semanal
-                    <div className={"text-sm font-semibold " + (isDay ? 'text-slate-900' : 'text-white')}>
+                    <div
+                      className={
+                        'text-sm font-semibold ' + (isDay ? 'text-slate-900' : 'text-white')
+                      }
+                    >
                       {content.weeklyTargetPct}%
                     </div>
                   </div>
@@ -565,9 +650,7 @@ export function LandingPage() {
               </Card>
               <Card className={trustCardClass}>
                 <div className="text-sm font-semibold">Entra como prefieras</div>
-                <div className={trustTextClass}>
-                  Accede con tu usuario, tu email o Google.
-                </div>
+                <div className={trustTextClass}>Accede con tu usuario, tu email o Google.</div>
               </Card>
             </div>
           </div>
@@ -578,20 +661,20 @@ export function LandingPage() {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="text-sm font-semibold">Vista previa</div>
-                  <div className={"text-xs " + panelMutedText}>Así se vería tu sesión hoy</div>
+                  <div className={'text-xs ' + panelMutedText}>Así se vería tu sesión hoy</div>
                 </div>
                 <div className="shrink-0">
                   <UseCaseTabs value={useCase} onChange={handleUseCaseChange} theme={theme} />
                 </div>
               </div>
 
-              <div className={"mt-3 rounded-xl p-3 " + panelSoft}>
+              <div className={'mt-3 rounded-xl p-3 ' + panelSoft}>
                 <div className="flex items-center justify-between">
-                  <div className={"text-xs " + panelMutedText}>{activePreset.tableTitle}</div>
-                  <div className={"text-xs " + panelMutedText}>Hoy</div>
+                  <div className={'text-xs ' + panelMutedText}>{activePreset.tableTitle}</div>
+                  <div className={'text-xs ' + panelMutedText}>Hoy</div>
                 </div>
 
-                <div className={"mt-2 space-y-2"}>
+                <div className={'mt-2 space-y-2'}>
                   {activePreset.tableRows.slice(0, 3).map((r) => (
                     <div
                       key={r.title}
@@ -601,8 +684,17 @@ export function LandingPage() {
                       }
                     >
                       <div className="min-w-0">
-                        <div className={"truncate text-xs font-medium " + (isDay ? 'text-slate-900' : 'text-white')}>{r.title}</div>
-                        <div className={"mt-0.5 text-[11px] " + panelMutedText}>{r.tasks} tareas</div>
+                        <div
+                          className={
+                            'truncate text-xs font-medium ' +
+                            (isDay ? 'text-slate-900' : 'text-white')
+                          }
+                        >
+                          {r.title}
+                        </div>
+                        <div className={'mt-0.5 text-[11px] ' + panelMutedText}>
+                          {r.tasks} tareas
+                        </div>
                       </div>
                       <div
                         className={
@@ -631,32 +723,48 @@ export function LandingPage() {
 
           {/* Right: dashboard preview (hidden on small screens to prevent scroll) */}
           <div className="hidden lg:col-span-5 lg:block">
-            <div className={"h-full rounded-2xl p-5 " + panelClass}>
+            <div className={'h-full rounded-2xl p-5 ' + panelClass}>
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-sm font-semibold">Vista previa</div>
-                  <div className={"text-xs " + panelMutedText}>Elige un caso y mira cómo se ve</div>
+                  <div className={'text-xs ' + panelMutedText}>Elige un caso y mira cómo se ve</div>
                 </div>
                 <UseCaseTabs value={useCase} onChange={handleUseCaseChange} theme={theme} />
               </div>
 
               <div className="mt-4 grid gap-3">
-                <div className={"rounded-xl p-4 " + panelSoft}>
+                <div className={'rounded-xl p-4 ' + panelSoft}>
                   <div className="flex items-center justify-between">
-                    <div className={"text-xs " + panelMutedText}>{activePreset.tableTitle}</div>
-                    <div className={"text-xs " + panelMutedText}>Hoy</div>
+                    <div className={'text-xs ' + panelMutedText}>{activePreset.tableTitle}</div>
+                    <div className={'text-xs ' + panelMutedText}>Hoy</div>
                   </div>
 
-                  <div className={"mt-3 overflow-hidden rounded-lg ring-1 " + (isDay ? 'ring-slate-200' : 'ring-white/10')}>
+                  <div
+                    className={
+                      'mt-3 overflow-hidden rounded-lg ring-1 ' +
+                      (isDay ? 'ring-slate-200' : 'ring-white/10')
+                    }
+                  >
                     <table className="w-full text-left text-xs">
-                      <thead className={isDay ? 'bg-slate-100 text-slate-600' : 'bg-white/5 text-slate-300'}>
+                      <thead
+                        className={
+                          isDay ? 'bg-slate-100 text-slate-600' : 'bg-white/5 text-slate-300'
+                        }
+                      >
                         <tr>
                           <th className="px-3 py-2 font-medium">Título</th>
                           <th className="px-3 py-2 font-medium">Tareas</th>
                           <th className="px-3 py-2 font-medium">Estado</th>
                         </tr>
                       </thead>
-                      <tbody className={"divide-y " + (isDay ? 'divide-slate-200 text-slate-900' : 'divide-white/10 text-slate-200')}>
+                      <tbody
+                        className={
+                          'divide-y ' +
+                          (isDay
+                            ? 'divide-slate-200 text-slate-900'
+                            : 'divide-white/10 text-slate-200')
+                        }
+                      >
                         {activePreset.tableRows.map((r) => (
                           <tr key={r.title} className={isSwitching ? 'opacity-70' : 'opacity-100'}>
                             <td className="px-3 py-2">{r.title}</td>
@@ -705,37 +813,51 @@ export function LandingPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <div className={"rounded-xl p-4 " + panelSoft}>
-                    <div className={"text-xs " + panelMutedText}>Avance</div>
+                  <div className={'rounded-xl p-4 ' + panelSoft}>
+                    <div className={'text-xs ' + panelMutedText}>Avance</div>
                     <div className="mt-1 text-base font-semibold">Se siente mejor</div>
-                    <div className={"mt-3 h-2 rounded-full " + panelDivider}>
+                    <div className={'mt-3 h-2 rounded-full ' + panelDivider}>
                       <div
                         className="h-2 rounded-full bg-gradient-to-r from-cyan-400 to-violet-500 motion-safe:transition-all motion-safe:duration-300"
                         style={{ width: `${content.weeklyTargetPct}%` }}
                       />
                     </div>
-                    <div className={"mt-2 text-xs " + panelMutedText}>{energyHint}</div>
+                    <div className={'mt-2 text-xs ' + panelMutedText}>{energyHint}</div>
                   </div>
-                  <div className={"rounded-xl p-4 " + panelSoft}>
-                    <div className={"text-xs " + panelMutedText}>Hoy</div>
+                  <div className={'rounded-xl p-4 ' + panelSoft}>
+                    <div className={'text-xs ' + panelMutedText}>Hoy</div>
                     <div className="mt-1 text-base font-semibold">Hecho es mejor</div>
                     <div className="mt-3 flex gap-2">
                       <div className="h-6 flex-1 rounded-md bg-cyan-400/25 ring-1 ring-cyan-400/20" />
                       <div className="h-6 flex-1 rounded-md bg-violet-400/25 ring-1 ring-violet-400/20" />
-                      <div className={"h-6 flex-1 rounded-md ring-1 " + (isDay ? 'bg-slate-900/5 ring-slate-200' : 'bg-white/10 ring-white/10')} />
+                      <div
+                        className={
+                          'h-6 flex-1 rounded-md ring-1 ' +
+                          (isDay ? 'bg-slate-900/5 ring-slate-200' : 'bg-white/10 ring-white/10')
+                        }
+                      />
                     </div>
-                    <div className={"mt-2 text-xs " + panelMutedText}>{energyHint}</div>
+                    <div className={'mt-2 text-xs ' + panelMutedText}>{energyHint}</div>
                   </div>
                 </div>
 
-                <div className={"rounded-xl p-3 " + (isDay ? 'bg-slate-50 ring-1 ring-slate-200' : 'bg-white/5 ring-1 ring-white/10')}>
+                <div
+                  className={
+                    'rounded-xl p-3 ' +
+                    (isDay
+                      ? 'bg-slate-50 ring-1 ring-slate-200'
+                      : 'bg-white/5 ring-1 ring-white/10')
+                  }
+                >
                   <div className="flex items-start justify-between gap-4">
                     {/* Left: animated checklist simulation */}
                     <div className="min-w-0">
-                      <div className={"text-xs font-medium " + panelMutedText}>Marcando progreso</div>
+                      <div className={'text-xs font-medium ' + panelMutedText}>
+                        Marcando progreso
+                      </div>
                       <ul className="mt-2 space-y-1.5">
                         {demoItems.map((label, idx) => {
-                          const checked = idx < demoStep
+                          const checked = idx < demoStep;
                           return (
                             <li key={label} className="flex items-center gap-2">
                               <span
@@ -780,14 +902,14 @@ export function LandingPage() {
                                 {label}
                               </span>
                             </li>
-                          )
+                          );
                         })}
                       </ul>
                     </div>
 
                     {/* Right: energy + weekly */}
                     <div className="shrink-0">
-                      <div className={"text-[11px] " + panelMutedText}>Energía</div>
+                      <div className={'text-[11px] ' + panelMutedText}>Energía</div>
                       <div
                         className={
                           'mt-1 inline-flex rounded-lg p-1 ring-1 ' +
@@ -796,22 +918,20 @@ export function LandingPage() {
                         role="group"
                         aria-label="Nivel de energía"
                       >
-                        {(
-                          [
-                            { key: 'low' as const, label: 'Baja' },
-                            { key: 'medium' as const, label: 'Media' },
-                            { key: 'high' as const, label: 'Alta' },
-                          ]
-                        ).map((opt) => {
-                          const selected = energy === opt.key
+                        {[
+                          { key: 'low' as const, label: 'Baja' },
+                          { key: 'medium' as const, label: 'Media' },
+                          { key: 'high' as const, label: 'Alta' },
+                        ].map((opt) => {
+                          const selected = energy === opt.key;
                           return (
                             <button
                               key={opt.key}
                               type="button"
                               onClick={() => {
-                                setEnergy(opt.key)
-                                setPreset(presetForEnergy(opt.key))
-                                setDemoStep(0)
+                                setEnergy(opt.key);
+                                setPreset(presetForEnergy(opt.key));
+                                setDemoStep(0);
                               }}
                               className={
                                 'rounded-md px-2 py-1 text-[11px] font-medium motion-safe:transition motion-safe:duration-200 ' +
@@ -827,18 +947,22 @@ export function LandingPage() {
                             >
                               {opt.label}
                             </button>
-                          )
+                          );
                         })}
                       </div>
 
                       <div className="mt-2">
-                        <div className={"flex items-center justify-between text-[11px] " + panelMutedText}>
+                        <div
+                          className={
+                            'flex items-center justify-between text-[11px] ' + panelMutedText
+                          }
+                        >
                           <span>Esta semana</span>
                           <span className={isDay ? 'text-slate-500' : 'text-slate-400'}>
                             {content.weeklyTargetPct}%
                           </span>
                         </div>
-                        <div className={"mt-1 h-1.5 w-36 rounded-full " + panelDivider}>
+                        <div className={'mt-1 h-1.5 w-36 rounded-full ' + panelDivider}>
                           <div
                             className="h-1.5 rounded-full bg-gradient-to-r from-cyan-400 to-violet-500 motion-safe:transition-all motion-safe:duration-300"
                             style={{ width: `${content.weeklyTargetPct}%` }}
@@ -849,11 +973,10 @@ export function LandingPage() {
                   </div>
                 </div>
               </div>
-
             </div>
           </div>
         </div>
       </main>
     </div>
-  )
+  );
 }

@@ -53,6 +53,8 @@
 
 ## Quick Start (60s)
 
+Requires Node.js 26.x (see `frontend/.nvmrc`; `nvm use` picks it up automatically).
+
 ```bash
 cd frontend
 copy .env.example .env.local
@@ -263,14 +265,21 @@ Quality pipeline includes:
 - `npm run build`
 - Playwright smoke checks
 
-Coverage snapshot:
+Coverage snapshot (`npm run test:coverage`, Node 26):
 
-- **Statements:** 52.6%
-- **Branches:** 34.44%
-- **Functions:** 48.14%
-- **Lines:** 53.52%
+- **Statements:** 95.05%
+- **Branches:** 81.51%
+- **Functions:** 97.05%
+- **Lines:** 97.19%
 
-**Last updated:** 2026-07-18  
+Mutation testing (`npm run test:mutation`, Stryker, scoped to `features/routines` + `shared/lib`):
+**45.48%** mutation score. This is intentionally reported alongside line coverage rather than
+instead of it: high statement coverage means the code *ran* during tests, mutation score measures
+whether the assertions would actually *catch* a bug. The gap between 95% coverage and 45%
+mutation score is the honest signal that some passing tests don't assert precisely enough yet —
+tracked as a real backlog item, not smoothed over.
+
+**Last updated:** 2026-07-25  
 CI reference: https://github.com/TomasPosada0626/Neuroroutine/actions/workflows/ci.yml
 
 ---
@@ -357,8 +366,8 @@ This MVP intentionally focuses on core engineering fundamentals. Current scope b
 
 ### Coverage Gaps
 
-- Current test coverage: 52.6% (target 75%+ over roadmap iterations).
-- Priority expansion areas: dashboard utilities, auth edge cases, service-level integration.
+- Current test coverage: 95.83% statements / 85.09% branches (target: keep statements/lines above 90% and branches above 85% as new features land).
+- Priority expansion areas: remaining branch gaps in `routinesService.ts` and `routinesStore.ts` (see coverage report), and the RLS cross-user E2E job once re-enabled in CI.
 
 ---
 
@@ -367,7 +376,7 @@ This MVP intentionally focuses on core engineering fundamentals. Current scope b
 - **Database Security:** database-layer RLS is more robust than app-layer-only guards.
 - **State Management:** Zustand provides excellent speed-to-value for MVP complexity.
 - **Offline-first Design:** IndexedDB solves core persistence; service workers require lifecycle discipline.
-- **Testing Strategy:** 50%+ enabled safe iteration; next milestone is deeper integration confidence.
+- **Testing Strategy:** ~96% statement coverage enabled safe iteration; next milestone is wiring the already-written cross-user RLS E2E test into CI for deeper integration confidence.
 - **Architecture Discipline:** clear module boundaries reduce feature creep and regression risk.
 - **Deployment Maturity:** SPA routing and environment configuration are key production details.
 

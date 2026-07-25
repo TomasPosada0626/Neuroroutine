@@ -44,5 +44,9 @@ frontend/coverage/
 # Supabase local metadata
 backend/supabase/.temp/
 
+# Stryker mutation testing
+frontend/.stryker-tmp/
+frontend/reports/
+
 # Private local strategy notes (never commit)
 Pilares.md

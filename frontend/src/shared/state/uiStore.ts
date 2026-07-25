@@ -1,13 +1,13 @@
-import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
-export type ThemeMode = 'night' | 'day'
+export type ThemeMode = 'night' | 'day';
 
 type UiState = {
-  theme: ThemeMode
-  setTheme: (theme: ThemeMode) => void
-  toggleTheme: () => void
-}
+  theme: ThemeMode;
+  setTheme: (theme: ThemeMode) => void;
+  toggleTheme: () => void;
+};
 
 export const useUiStore = create<UiState>()(
   persist(
@@ -20,6 +20,6 @@ export const useUiStore = create<UiState>()(
       name: 'nr-ui',
       version: 1,
       partialize: (state) => ({ theme: state.theme }),
-    }
-  )
-)
+    },
+  ),
+);

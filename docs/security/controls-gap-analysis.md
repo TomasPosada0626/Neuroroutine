@@ -13,7 +13,9 @@
    - Alternative: enforce equivalent headers at edge/server (Vercel + Nginx config already added).
 
 2. Rate limiting
-   - Status: not implemented in app layer.
+   - Status: not implemented at the request-volume level. A timing side-channel in the
+     username-login lookup (`get_email_by_username`) is mitigated (see `hardening.md`), but
+     nothing yet caps how many guesses per minute an attacker can send.
    - Alternative: add rate limits on API gateway/edge function endpoints when write APIs expand.
 
 3. Refresh token rotation

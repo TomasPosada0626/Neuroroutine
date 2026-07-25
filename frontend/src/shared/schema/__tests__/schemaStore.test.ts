@@ -1,28 +1,28 @@
 vi.mock('../schemaService', () => {
   return {
     fetchNrSchemaStatus: vi.fn(),
-  }
-})
+  };
+});
 
 async function freshStore() {
-  vi.resetModules()
-  vi.clearAllMocks()
-  localStorage.clear()
-  const storeMod = await import('../schemaStore')
-  const serviceMod = await import('../schemaService')
-  return { storeMod, serviceMod }
+  vi.resetModules();
+  vi.clearAllMocks();
+  localStorage.clear();
+  const storeMod = await import('../schemaStore');
+  const serviceMod = await import('../schemaService');
+  return { storeMod, serviceMod };
 }
 
 describe('useSchemaStore', () => {
   it('hydrateFromCache no-ops cleanly when cache key does not exist', async () => {
-    const { storeMod } = await freshStore()
-    const { useSchemaStore } = storeMod
+    const { storeMod } = await freshStore();
+    const { useSchemaStore } = storeMod;
 
-    useSchemaStore.getState().hydrateFromCache()
+    useSchemaStore.getState().hydrateFromCache();
 
-    expect(useSchemaStore.getState().status).toBeNull()
-    expect(useSchemaStore.getState().lastCheckedAt).toBeNull()
-  })
+    expect(useSchemaStore.getState().status).toBeNull();
+    expect(useSchemaStore.getState().lastCheckedAt).toBeNull();
+  });
 
   it('hydrateFromCache restores cached schema status', async () => {
     const cached = {
@@ -32,98 +32,98 @@ describe('useSchemaStore', () => {
         task_metadata: { description: true, due_date: true, due_time: false },
         has_app_events: true,
       },
-    }
+    };
 
-    localStorage.setItem('nr-schema-status-v1', JSON.stringify(cached))
+    localStorage.setItem('nr-schema-status-v1', JSON.stringify(cached));
 
-    vi.resetModules()
-    const { useSchemaStore } = await import('../schemaStore')
+    vi.resetModules();
+    const { useSchemaStore } = await import('../schemaStore');
 
-    useSchemaStore.getState().hydrateFromCache()
+    useSchemaStore.getState().hydrateFromCache();
 
-    expect(useSchemaStore.getState().lastCheckedAt).toBe(cached.ts)
-    expect(useSchemaStore.getState().status).toEqual(cached.status)
-  })
+    expect(useSchemaStore.getState().lastCheckedAt).toBe(cached.ts);
+    expect(useSchemaStore.getState().status).toEqual(cached.status);
+  });
 
   it('hydrateFromCache ignores malformed cache', async () => {
-    const { storeMod } = await freshStore()
-    const { useSchemaStore } = storeMod
+    const { storeMod } = await freshStore();
+    const { useSchemaStore } = storeMod;
 
-    localStorage.setItem('nr-schema-status-v1', '{broken-json')
+    localStorage.setItem('nr-schema-status-v1', '{broken-json');
 
-    expect(() => useSchemaStore.getState().hydrateFromCache()).not.toThrow()
-    expect(useSchemaStore.getState().status).toBeNull()
-    expect(useSchemaStore.getState().lastCheckedAt).toBeNull()
-  })
+    expect(() => useSchemaStore.getState().hydrateFromCache()).not.toThrow();
+    expect(useSchemaStore.getState().status).toBeNull();
+    expect(useSchemaStore.getState().lastCheckedAt).toBeNull();
+  });
 
   it('refresh stores latest status and timestamp', async () => {
-    const { storeMod, serviceMod } = await freshStore()
-    const { useSchemaStore } = storeMod
+    const { storeMod, serviceMod } = await freshStore();
+    const { useSchemaStore } = storeMod;
 
-    const fetchMock = vi.mocked(serviceMod.fetchNrSchemaStatus)
+    const fetchMock = vi.mocked(serviceMod.fetchNrSchemaStatus);
     fetchMock.mockResolvedValue({
       version: 5,
       task_metadata: { description: true, due_date: true, due_time: true },
       has_app_events: true,
-    })
+    });
 
-    await useSchemaStore.getState().refresh()
+    await useSchemaStore.getState().refresh();
 
-    const state = useSchemaStore.getState()
-    expect(state.loading).toBe(false)
-    expect(state.error).toBeNull()
-    expect(state.status?.version).toBe(5)
-    expect(state.lastCheckedAt).not.toBeNull()
-    expect(localStorage.getItem('nr-schema-status-v1')).not.toBeNull()
-  })
+    const state = useSchemaStore.getState();
+    expect(state.loading).toBe(false);
+    expect(state.error).toBeNull();
+    expect(state.status?.version).toBe(5);
+    expect(state.lastCheckedAt).not.toBeNull();
+    expect(localStorage.getItem('nr-schema-status-v1')).not.toBeNull();
+  });
 
   it('refresh is guarded when already loading', async () => {
-    const { storeMod, serviceMod } = await freshStore()
-    const { useSchemaStore } = storeMod
+    const { storeMod, serviceMod } = await freshStore();
+    const { useSchemaStore } = storeMod;
 
-    const fetchMock = vi.mocked(serviceMod.fetchNrSchemaStatus)
-    useSchemaStore.setState({ loading: true })
+    const fetchMock = vi.mocked(serviceMod.fetchNrSchemaStatus);
+    useSchemaStore.setState({ loading: true });
 
-    await useSchemaStore.getState().refresh()
+    await useSchemaStore.getState().refresh();
 
-    expect(fetchMock).not.toHaveBeenCalled()
-  })
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 
   it('refresh handles null status and still updates timestamp', async () => {
-    const { storeMod, serviceMod } = await freshStore()
-    const { useSchemaStore } = storeMod
+    const { storeMod, serviceMod } = await freshStore();
+    const { useSchemaStore } = storeMod;
 
-    vi.mocked(serviceMod.fetchNrSchemaStatus).mockResolvedValue(null)
+    vi.mocked(serviceMod.fetchNrSchemaStatus).mockResolvedValue(null);
 
-    await useSchemaStore.getState().refresh()
+    await useSchemaStore.getState().refresh();
 
-    const s = useSchemaStore.getState()
-    expect(s.status).toBeNull()
-    expect(s.lastCheckedAt).not.toBeNull()
-    expect(s.error).toBeNull()
-  })
+    const s = useSchemaStore.getState();
+    expect(s.status).toBeNull();
+    expect(s.lastCheckedAt).not.toBeNull();
+    expect(s.error).toBeNull();
+  });
 
   it('refresh stores fallback error for non-Error throws', async () => {
-    const { storeMod, serviceMod } = await freshStore()
-    const { useSchemaStore } = storeMod
+    const { storeMod, serviceMod } = await freshStore();
+    const { useSchemaStore } = storeMod;
 
-    vi.mocked(serviceMod.fetchNrSchemaStatus).mockRejectedValue('x')
+    vi.mocked(serviceMod.fetchNrSchemaStatus).mockRejectedValue('x');
 
-    await useSchemaStore.getState().refresh()
+    await useSchemaStore.getState().refresh();
 
-    expect(useSchemaStore.getState().error).toBe('Schema check failed')
-    expect(useSchemaStore.getState().loading).toBe(false)
-  })
+    expect(useSchemaStore.getState().error).toBe('Schema check failed');
+    expect(useSchemaStore.getState().loading).toBe(false);
+  });
 
   it('refresh stores Error.message when fetch throws Error', async () => {
-    const { storeMod, serviceMod } = await freshStore()
-    const { useSchemaStore } = storeMod
+    const { storeMod, serviceMod } = await freshStore();
+    const { useSchemaStore } = storeMod;
 
-    vi.mocked(serviceMod.fetchNrSchemaStatus).mockRejectedValue(new Error('schema unavailable'))
+    vi.mocked(serviceMod.fetchNrSchemaStatus).mockRejectedValue(new Error('schema unavailable'));
 
-    await useSchemaStore.getState().refresh()
+    await useSchemaStore.getState().refresh();
 
-    expect(useSchemaStore.getState().error).toBe('schema unavailable')
-    expect(useSchemaStore.getState().loading).toBe(false)
-  })
-})
+    expect(useSchemaStore.getState().error).toBe('schema unavailable');
+    expect(useSchemaStore.getState().loading).toBe(false);
+  });
+});

@@ -1,15 +1,15 @@
-import type { InputHTMLAttributes } from 'react'
-import { useId, useState } from 'react'
-import { cn } from '@/shared/lib/cn'
-import { Input } from './Input'
+import type { InputHTMLAttributes } from 'react';
+import { useId, useState } from 'react';
+import { cn } from '@/shared/lib/cn';
+import { Input } from './Input';
 
 type Props = Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> & {
-  toggleClassName?: string
-}
+  toggleClassName?: string;
+};
 
 export function PasswordInput({ className, toggleClassName, ...props }: Props) {
-  const [visible, setVisible] = useState(false)
-  const inputId = useId()
+  const [visible, setVisible] = useState(false);
+  const inputId = useId();
 
   return (
     <div className="relative">
@@ -32,5 +32,5 @@ export function PasswordInput({ className, toggleClassName, ...props }: Props) {
         {visible ? 'Ocultar' : 'Mostrar'}
       </button>
     </div>
-  )
+  );
 }

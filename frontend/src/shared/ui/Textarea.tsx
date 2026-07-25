@@ -1,12 +1,12 @@
-import type { TextareaHTMLAttributes } from 'react'
-import { cn } from '@/shared/lib/cn'
-import { useUiStore } from '@/shared/state/uiStore'
+import type { TextareaHTMLAttributes } from 'react';
+import { cn } from '@/shared/lib/cn';
+import { useUiStore } from '@/shared/state/uiStore';
 
-type Props = TextareaHTMLAttributes<HTMLTextAreaElement>
+type Props = TextareaHTMLAttributes<HTMLTextAreaElement>;
 
 export function Textarea({ className, ...props }: Props) {
-  const theme = useUiStore((s) => s.theme)
-  const isDay = theme === 'day'
+  const theme = useUiStore((s) => s.theme);
+  const isDay = theme === 'day';
 
   return (
     <textarea
@@ -19,5 +19,5 @@ export function Textarea({ className, ...props }: Props) {
       )}
       {...props}
     />
-  )
+  );
 }

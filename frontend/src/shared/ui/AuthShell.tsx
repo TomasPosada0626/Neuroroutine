@@ -1,31 +1,35 @@
-import type { PropsWithChildren, ReactNode } from 'react'
-import { Link } from 'react-router-dom'
-import { cn } from '@/shared/lib/cn'
-import { useUiStore } from '@/shared/state/uiStore'
-import { ThemeToggle } from '@/shared/ui/ThemeToggle'
+import type { PropsWithChildren, ReactNode } from 'react';
+import { Link } from 'react-router-dom';
+import { cn } from '@/shared/lib/cn';
+import { useUiStore } from '@/shared/state/uiStore';
+import { ThemeToggle } from '@/shared/ui/ThemeToggle';
 
 type Props = PropsWithChildren<{
-  title: string
-  subtitle?: string
-  badge?: string
-  footer?: ReactNode
-  className?: string
-}>
+  title: string;
+  subtitle?: string;
+  badge?: string;
+  footer?: ReactNode;
+  className?: string;
+}>;
 
 export function AuthShell({ title, subtitle, badge, footer, className, children }: Props) {
-  const theme = useUiStore((s) => s.theme)
-  const isDay = theme === 'day'
+  const theme = useUiStore((s) => s.theme);
+  const isDay = theme === 'day';
 
-  const rootClass = isDay ? 'min-h-dvh bg-slate-50 text-slate-900' : 'min-h-dvh bg-slate-950 text-slate-50'
-  const subtleText = isDay ? 'text-slate-600' : 'text-slate-300'
-  const cardClass = isDay ? 'rounded-xl bg-white/70 p-4 ring-1 ring-slate-200' : 'rounded-xl bg-white/5 p-4 ring-1 ring-white/10'
+  const rootClass = isDay
+    ? 'min-h-dvh bg-slate-50 text-slate-900'
+    : 'min-h-dvh bg-slate-950 text-slate-50';
+  const subtleText = isDay ? 'text-slate-600' : 'text-slate-300';
+  const cardClass = isDay
+    ? 'rounded-xl bg-white/70 p-4 ring-1 ring-slate-200'
+    : 'rounded-xl bg-white/5 p-4 ring-1 ring-white/10';
   const chipClass = isDay
     ? 'rounded-full bg-white/70 px-2 py-1 ring-1 ring-slate-200'
-    : 'rounded-full bg-white/5 px-2 py-1 ring-1 ring-white/10'
+    : 'rounded-full bg-white/5 px-2 py-1 ring-1 ring-white/10';
 
   const backClass = isDay
     ? 'inline-flex items-center gap-2 rounded-lg bg-white/70 px-2.5 py-2 text-xs font-medium text-slate-800 ring-1 ring-slate-200 hover:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/25'
-    : 'inline-flex items-center gap-2 rounded-lg bg-white/10 px-2.5 py-2 text-xs font-medium text-slate-100 ring-1 ring-white/15 hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white/30'
+    : 'inline-flex items-center gap-2 rounded-lg bg-white/10 px-2.5 py-2 text-xs font-medium text-slate-100 ring-1 ring-white/15 hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white/30';
 
   return (
     <div className={cn(rootClass, className)}>
@@ -39,15 +43,24 @@ export function AuthShell({ title, subtitle, badge, footer, className, children 
               : 'bg-gradient-to-r from-cyan-500/30 via-violet-500/20 to-fuchsia-500/20')
           }
         />
-        <div className={"absolute -bottom-24 left-10 h-72 w-72 rounded-full blur-3xl " + (isDay ? 'bg-cyan-500/6' : 'bg-cyan-500/10')} />
-        <div className={"absolute -bottom-24 right-10 h-72 w-72 rounded-full blur-3xl " + (isDay ? 'bg-violet-500/6' : 'bg-violet-500/10')} />
+        <div
+          className={
+            'absolute -bottom-24 left-10 h-72 w-72 rounded-full blur-3xl ' +
+            (isDay ? 'bg-cyan-500/6' : 'bg-cyan-500/10')
+          }
+        />
+        <div
+          className={
+            'absolute -bottom-24 right-10 h-72 w-72 rounded-full blur-3xl ' +
+            (isDay ? 'bg-violet-500/6' : 'bg-violet-500/10')
+          }
+        />
         <div
           className="absolute inset-0 opacity-[0.08]"
           style={{
-            backgroundImage:
-              isDay
-                ? 'radial-gradient(circle at 1px 1px, rgba(15,23,42,0.35) 1px, transparent 0)'
-                : 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.6) 1px, transparent 0)',
+            backgroundImage: isDay
+              ? 'radial-gradient(circle at 1px 1px, rgba(15,23,42,0.35) 1px, transparent 0)'
+              : 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.6) 1px, transparent 0)',
             backgroundSize: '18px 18px',
           }}
         />
@@ -58,7 +71,10 @@ export function AuthShell({ title, subtitle, badge, footer, className, children 
         <div className="lg:col-span-6">
           <div className="flex items-start justify-between gap-3">
             <Link to="/" className="inline-flex items-center gap-2">
-              <div className="grid h-9 w-9 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-cyan-400 to-violet-500" aria-hidden="true">
+              <div
+                className="grid h-9 w-9 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-cyan-400 to-violet-500"
+                aria-hidden="true"
+              >
                 <svg
                   viewBox="0 0 24 24"
                   className="h-5 w-5"
@@ -78,7 +94,9 @@ export function AuthShell({ title, subtitle, badge, footer, className, children 
               </div>
               <div className="leading-tight">
                 <div className="text-sm font-semibold">NeuroRoutine</div>
-                <div className={cn('text-xs', subtleText)}>Rutinas simples. Hábitos sostenibles.</div>
+                <div className={cn('text-xs', subtleText)}>
+                  Rutinas simples. Hábitos sostenibles.
+                </div>
               </div>
             </Link>
             <div className="flex items-center gap-2">
@@ -106,7 +124,9 @@ export function AuthShell({ title, subtitle, badge, footer, className, children 
           ) : null}
 
           <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h1>
-          {subtitle ? <p className={cn('mt-2 max-w-md text-sm sm:text-base', subtleText)}>{subtitle}</p> : null}
+          {subtitle ? (
+            <p className={cn('mt-2 max-w-md text-sm sm:text-base', subtleText)}>{subtitle}</p>
+          ) : null}
 
           <div className="mt-6 hidden max-w-md grid-cols-2 gap-3 sm:grid">
             <div className={cardClass}>
@@ -133,5 +153,5 @@ export function AuthShell({ title, subtitle, badge, footer, className, children 
         {footer ? <div className="lg:col-span-12">{footer}</div> : null}
       </div>
     </div>
-  )
+  );
 }

@@ -25,7 +25,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 26
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -35,8 +35,11 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Unit tests
-        run: npm run test
+      - name: Format check
+        run: npm run format:check
+
+      - name: Unit tests (with coverage gate)
+        run: npm run test:coverage
 
       - name: Build
         run: npm run build
@@ -56,7 +59,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 26
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -68,4 +71,49 @@ jobs:
 
       - name: E2E tests
         run: npm run e2e
+
+  e2e-rls-regression:
+    name: RLS regression E2E (cross-user attack test)
+    runs-on: ubuntu-latest
+    # `secrets` isn't readable from `if:` conditionals, only from `env:`, so resolve
+    # secret presence into a plain env var first and branch on that instead.
+    env:
+      RLS_SECRETS_READY: ${{ secrets.E2E_USER_A_IDENTIFIER != '' && secrets.E2E_USER_A_PASSWORD != '' && secrets.E2E_USER_B_IDENTIFIER != '' && secrets.E2E_USER_B_PASSWORD != '' && secrets.VITE_SUPABASE_URL != '' && secrets.VITE_SUPABASE_ANON_KEY != '' }}
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Install Playwright (Chromium)
+        run: npx playwright install --with-deps chromium
+
+      - name: RLS isolation tests
+        if: env.RLS_SECRETS_READY == 'true'
+        env:
+          E2E_USER_A_IDENTIFIER: ${{ secrets.E2E_USER_A_IDENTIFIER }}
+          E2E_USER_A_PASSWORD: ${{ secrets.E2E_USER_A_PASSWORD }}
+          E2E_USER_B_IDENTIFIER: ${{ secrets.E2E_USER_B_IDENTIFIER }}
+          E2E_USER_B_PASSWORD: ${{ secrets.E2E_USER_B_PASSWORD }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: npx playwright test e2e/routines.spec.ts -g "RLS"
+
+      - name: RLS tests skipped (missing secrets)
+        if: env.RLS_SECRETS_READY != 'true'
+        run: |
+          echo "::warning::Skipping RLS cross-user E2E because required secrets are not configured. See docs/github/manual-actions-checklist.md."
 

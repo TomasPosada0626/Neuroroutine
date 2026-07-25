@@ -1,27 +1,27 @@
-import { supabase } from '@/shared/api'
+import { supabase } from '@/shared/api';
 
 export type NrSchemaStatus = {
-  version: number
+  version: number;
   task_metadata: {
-    description: boolean
-    due_date: boolean
-    due_time: boolean
-  }
-  has_app_events: boolean
-}
+    description: boolean;
+    due_date: boolean;
+    due_time: boolean;
+  };
+  has_app_events: boolean;
+};
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
+  return typeof value === 'object' && value !== null;
 }
 
 export async function fetchNrSchemaStatus(): Promise<NrSchemaStatus | null> {
   try {
-    const { data, error } = await supabase.rpc('get_nr_schema_status')
-    if (error) return null
+    const { data, error } = await supabase.rpc('get_nr_schema_status');
+    if (error) return null;
 
-    if (!isRecord(data)) return null
+    if (!isRecord(data)) return null;
 
-    const taskMeta = isRecord(data.task_metadata) ? data.task_metadata : {}
+    const taskMeta = isRecord(data.task_metadata) ? data.task_metadata : {};
 
     return {
       version: typeof data.version === 'number' ? data.version : 0,
@@ -31,8 +31,8 @@ export async function fetchNrSchemaStatus(): Promise<NrSchemaStatus | null> {
         due_time: taskMeta.due_time === true,
       },
       has_app_events: data.has_app_events === true,
-    }
+    };
   } catch {
-    return null
+    return null;
   }
 }
