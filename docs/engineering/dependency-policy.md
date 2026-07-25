@@ -33,6 +33,19 @@ Keep dependencies secure, maintainable, and predictable.
 - Do not edit lockfiles manually.
 - Keep lockfile updates bundled with related dependency changes.
 
+## Node version policy
+
+Pin `engines.node` (and `.nvmrc`, CI, Docker, Render) to the newest version that **every actual
+deploy target supports today** — not just the newest Node release. This was learned the hard
+way: Node 26 was pinned everywhere on 2026-07-24 (it worked fine in GitHub Actions and Docker,
+both of which install whatever version you ask for), but Vercel's build platform rejected it
+outright on the next deploy: `Found invalid or discontinued Node.js Version: ">=26.0.0"`. Vercel
+only supports specific LTS lines on its build image, and a release that's days old — even a
+real, published, working Node version — isn't necessarily one of them yet. Reverted to Node
+24.x (`24.18.0`) everywhere on 2026-07-25 once builds were verified locally under both 24 and 26.
+Before bumping this again, confirm the target version deploys successfully on Vercel first —
+GitHub Actions and Docker passing is necessary but not sufficient.
+
 ## Current `npm audit --audit-level=high` exceptions (2026-07-24)
 
 - **`brace-expansion` (GHSA-mh99-v99m-4gvg)** and **`fast-uri` (GHSA-v2hh-gcrm-f6hx)**: fixed via

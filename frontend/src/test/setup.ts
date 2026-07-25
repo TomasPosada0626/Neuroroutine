@@ -11,12 +11,15 @@ Object.defineProperty(window.navigator, 'onLine', {
   value: true,
 });
 
-// Node 22+ ships an experimental native `localStorage`/`sessionStorage` global that is
-// inert unless the process is started with `--localstorage-file`. When present, it shadows
-// jsdom's real Storage implementation on `globalThis` (vitest's jsdom env only copies window
-// properties that aren't already defined on global), which breaks anything backed by
+// Newer Node versions ship an experimental native `localStorage`/`sessionStorage` global
+// that can shadow jsdom's own Storage on `globalThis`, breaking anything backed by
 // localStorage (e.g. Zustand's `persist` middleware) with "Cannot read properties of
-// undefined (reading 'setItem')". Force both globals back to jsdom's working implementation.
+// undefined (reading 'setItem')". jsdom's own implementation isn't reliable to detect either:
+// on some Node/jsdom combinations the `window.localStorage` getter returns a fresh instance
+// per access instead of a memoized singleton, which silently breaks anything that grabs a
+// reference once and reuses it (again, exactly what Zustand's `persist` does). Rather than
+// try to detect which behavior the current Node/jsdom pairing has, always install one fixed,
+// known-good instance so tests behave identically across Node versions.
 class MemoryStorage implements Storage {
   private store = new Map<string, string>();
 
@@ -45,13 +48,7 @@ class MemoryStorage implements Storage {
   }
 }
 
-function ensureWorkingStorage(key: 'localStorage' | 'sessionStorage') {
-  const current = typeof window !== 'undefined' ? window[key] : undefined;
-  const isWorking = Boolean(
-    current && typeof current.setItem === 'function' && typeof current.getItem === 'function',
-  );
-  if (isWorking) return;
-
+function installFixedStorage(key: 'localStorage' | 'sessionStorage') {
   const storage = new MemoryStorage();
   for (const target of [globalThis, window] as const) {
     Object.defineProperty(target, key, {
@@ -62,5 +59,5 @@ function ensureWorkingStorage(key: 'localStorage' | 'sessionStorage') {
   }
 }
 
-ensureWorkingStorage('localStorage');
-ensureWorkingStorage('sessionStorage');
+installFixedStorage('localStorage');
+installFixedStorage('sessionStorage');

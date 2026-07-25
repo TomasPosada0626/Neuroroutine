@@ -10,7 +10,7 @@ Important:
 ## Verified project metrics (from current repository)
 
 - CI quality gates on every push/PR: lint, format check, tests + coverage gate, build, Playwright smoke E2E.
-- Test coverage snapshot (2026-07-25, `npm run test:coverage` on Node 26): 95.05% statements, 81.51% branches, 97.05% functions, 97.19% lines.
+- Test coverage snapshot (2026-07-25, `npm run test:coverage` on Node 24): 95.05% statements, 81.51% branches, 97.05% functions, 97.19% lines.
 - Mutation testing snapshot (2026-07-25, `npm run test:mutation`, Stryker, scoped to `features/routines` + `shared/lib`): **45.48% mutation score** (733 killed / 836 survived / 21 timeout out of 1658 covered mutants). Reported honestly alongside coverage rather than omitted — it's the more meaningful number and the gap versus 95% line coverage is a real, tracked backlog item, not hidden.
 - Dual deployment paths: Vercel and Render.
 - Security model: Supabase RLS policies scoped by authenticated user identity, verified with an automated cross-user mutation attack test (Playwright).

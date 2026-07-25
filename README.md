@@ -53,7 +53,9 @@
 
 ## Quick Start (60s)
 
-Requires Node.js 26.x (see `frontend/.nvmrc`; `nvm use` picks it up automatically).
+Requires Node.js 24.x (see `frontend/.nvmrc`; `nvm use` picks it up automatically). This is
+pinned to what Vercel's build platform actually supports today, not just the newest Node release
+— check `docs/engineering/dependency-policy.md` before bumping it again.
 
 ```bash
 cd frontend
@@ -265,7 +267,7 @@ Quality pipeline includes:
 - `npm run build`
 - Playwright smoke checks
 
-Coverage snapshot (`npm run test:coverage`, Node 26):
+Coverage snapshot (`npm run test:coverage`, Node 24):
 
 - **Statements:** 95.05%
 - **Branches:** 81.51%
