@@ -163,9 +163,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   signOut: async () => {
-    set({ loading: true });
+    // Clear local session state before the network call resolves, not after: callers (e.g.
+    // the dashboard's sign-out handler) navigate away immediately without awaiting this
+    // function, so if `session` stayed truthy in the meantime, a fast-enough re-navigation to
+    // /login would see the stale session and bounce straight back to /app via its
+    // already-authenticated redirect.
+    set({ loading: true, session: null, user: null });
     const { error } = await supabase.auth.signOut();
-    set({ loading: false, session: null, user: null });
+    set({ loading: false });
     if (error) throw error;
   },
 }));

@@ -109,12 +109,28 @@ async function attemptCrossUserMutation(
   );
 }
 
+async function logout(page: import('@playwright/test').Page) {
+  await page.getByRole('button', { name: 'Salir' }).click();
+  await expect(page).toHaveURL(/\/$/);
+  // Belt and suspenders: sign-out navigates away before the Supabase network call resolves,
+  // so a fast enough re-login could still race a lingering session token in storage. Clearing
+  // storage directly guarantees the next login() starts from a truly clean slate regardless of
+  // that timing, since these tests reuse a single page/browser context across both accounts.
+  await page.evaluate(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+}
+
 async function login(page: import('@playwright/test').Page, identifier: string, password: string) {
   await page.goto('/login');
   await page.getByTestId('login-identifier').fill(identifier);
   await page.getByTestId('login-password').fill(password);
   await page.getByTestId('login-submit').click();
-  await expect(page).toHaveURL(/\/app/);
+  // Real sign-in against a live Supabase project: password grant + profile sync are two
+  // sequential network round trips before the redirect fires, plus dev-server cold-start
+  // compilation on the first hit. The 5s default expect timeout is too tight for that.
+  await expect(page).toHaveURL(/\/app/, { timeout: 15000 });
 }
 
 test('authenticated happy path: create routine + tasks and complete one task', async ({ page }) => {
@@ -150,12 +166,15 @@ test('authenticated happy path: create routine + tasks and complete one task', a
 
   await page.getByRole('button', { name: 'Crear rutina' }).click();
 
-  // Routine should be visible in the routines list.
-  await expect(page.getByRole('button', { name: routineTitle })).toBeVisible();
+  // Routine should be visible somewhere on the dashboard (the routine title also appears
+  // inline inside other widgets, e.g. a task card showing which routine it belongs to, so a
+  // strict single-match assertion would be ambiguous; existence anywhere is what matters here).
+  await expect(page.getByRole('button', { name: routineTitle }).first()).toBeVisible();
 
-  // Tasks should be visible.
-  await expect(page.getByText(task1, { exact: true })).toBeVisible();
-  await expect(page.getByText(task2, { exact: true })).toBeVisible();
+  // Tasks should be visible (task titles can legitimately render in more than one widget,
+  // e.g. also inside the "today focus" list, so match existence rather than a single element).
+  await expect(page.getByText(task1, { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(task2, { exact: true }).first()).toBeVisible();
 
   // Complete one task.
   const checkbox = page.locator('label', { hasText: task1 }).locator('input[type="checkbox"]');
@@ -163,88 +182,98 @@ test('authenticated happy path: create routine + tasks and complete one task', a
   await expect(checkbox).toBeChecked();
 });
 
-test('RLS isolation (optional): user B cannot see user A routine', async ({ page }) => {
-  test.skip(
-    !hasRealBackendEnv(),
-    'Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to enable real backend E2E',
-  );
-  test.skip(
-    !env.E2E_USER_A_IDENTIFIER ||
-      !env.E2E_USER_A_PASSWORD ||
-      !env.E2E_USER_B_IDENTIFIER ||
-      !env.E2E_USER_B_PASSWORD,
-    'Set E2E_USER_A_IDENTIFIER/PASSWORD and E2E_USER_B_IDENTIFIER/PASSWORD to enable this test',
-  );
+// Both tests below log in against the SAME two real E2E_USER_A/B accounts and mutate their
+// routines. Running them concurrently (Playwright's default) caused resource contention on
+// CI (2 Chromium instances + 2 concurrent Supabase round trips on a 2-core runner) severe
+// enough to blow the 30s login timeout, and risks one test's writes leaking into the other's
+// assertions. Force them to run one after another instead.
+test.describe.serial('RLS regression (shared accounts)', () => {
+  // Up to 3 real logins per test (each with a password grant + profile sync round trip) plus
+  // routine/task CRUD and REST mutation attempts; the 30s default is too tight for that much
+  // real network I/O against a live Supabase project.
+  test.describe.configure({ timeout: 60000 });
 
-  const routineTitle = `E2E RLS ${Date.now()}`;
+  test('RLS isolation (optional): user B cannot see user A routine', async ({ page }) => {
+    test.skip(
+      !hasRealBackendEnv(),
+      'Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to enable real backend E2E',
+    );
+    test.skip(
+      !env.E2E_USER_A_IDENTIFIER ||
+        !env.E2E_USER_A_PASSWORD ||
+        !env.E2E_USER_B_IDENTIFIER ||
+        !env.E2E_USER_B_PASSWORD,
+      'Set E2E_USER_A_IDENTIFIER/PASSWORD and E2E_USER_B_IDENTIFIER/PASSWORD to enable this test',
+    );
 
-  // Login as user A and create a routine.
-  await login(page, env.E2E_USER_A_IDENTIFIER!, env.E2E_USER_A_PASSWORD!);
-  await page.getByRole('button', { name: 'Nueva rutina' }).click();
-  await page.getByPlaceholder('Ej: Mañana enfocada').fill(routineTitle);
-  await page.getByRole('button', { name: 'Crear rutina' }).click();
+    const routineTitle = `E2E RLS ${Date.now()}`;
 
-  await expect(page.getByRole('button', { name: routineTitle })).toBeVisible();
+    // Login as user A and create a routine.
+    await login(page, env.E2E_USER_A_IDENTIFIER!, env.E2E_USER_A_PASSWORD!);
+    await page.getByRole('button', { name: 'Nueva rutina' }).click();
+    await page.getByPlaceholder('Ej: Mañana enfocada').fill(routineTitle);
+    await page.getByRole('button', { name: 'Crear rutina' }).click();
 
-  // Sign out.
-  await page.getByRole('button', { name: 'Salir' }).click();
-  await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole('button', { name: routineTitle }).first()).toBeVisible();
 
-  // Login as user B and verify the routine is not visible.
-  await login(page, env.E2E_USER_B_IDENTIFIER!, env.E2E_USER_B_PASSWORD!);
+    // Sign out.
+    await logout(page);
 
-  // Ensure routines are loaded (button becomes enabled).
-  await expect(page.getByRole('button', { name: 'Refrescar' })).toBeEnabled();
+    // Login as user B and verify the routine is not visible.
+    await login(page, env.E2E_USER_B_IDENTIFIER!, env.E2E_USER_B_PASSWORD!);
 
-  await expect(page.getByRole('button', { name: routineTitle })).toHaveCount(0);
-});
+    // Ensure routines are loaded (button becomes enabled).
+    await expect(page.getByRole('button', { name: 'Refrescar' })).toBeEnabled();
 
-test('RLS mutation denial: user B cannot edit or delete user A data', async ({ page }) => {
-  test.skip(
-    !hasRealBackendEnv(),
-    'Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to enable real backend E2E',
-  );
-  test.skip(
-    !env.E2E_USER_A_IDENTIFIER ||
-      !env.E2E_USER_A_PASSWORD ||
-      !env.E2E_USER_B_IDENTIFIER ||
-      !env.E2E_USER_B_PASSWORD,
-    'Set E2E_USER_A_IDENTIFIER/PASSWORD and E2E_USER_B_IDENTIFIER/PASSWORD to enable this test',
-  );
+    // No `.first()` here on purpose: a leak into ANY widget on the page should fail this.
+    await expect(page.getByRole('button', { name: routineTitle })).toHaveCount(0);
+  });
 
-  const routineTitle = `E2E RLS MUT ${Date.now()}`;
-  const taskTitle = `E2E RLS TASK ${Date.now()}`;
+  test('RLS mutation denial: user B cannot edit or delete user A data', async ({ page }) => {
+    test.skip(
+      !hasRealBackendEnv(),
+      'Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to enable real backend E2E',
+    );
+    test.skip(
+      !env.E2E_USER_A_IDENTIFIER ||
+        !env.E2E_USER_A_PASSWORD ||
+        !env.E2E_USER_B_IDENTIFIER ||
+        !env.E2E_USER_B_PASSWORD,
+      'Set E2E_USER_A_IDENTIFIER/PASSWORD and E2E_USER_B_IDENTIFIER/PASSWORD to enable this test',
+    );
 
-  await login(page, env.E2E_USER_A_IDENTIFIER!, env.E2E_USER_A_PASSWORD!);
+    const routineTitle = `E2E RLS MUT ${Date.now()}`;
+    const taskTitle = `E2E RLS TASK ${Date.now()}`;
 
-  await page.getByRole('button', { name: 'Nueva rutina' }).click();
-  await page.getByPlaceholder('Ej: Mañana enfocada').fill(routineTitle);
-  await page.getByPlaceholder('Ej: Tomar agua').first().fill(taskTitle);
-  await page.getByRole('button', { name: 'Crear rutina' }).click();
+    await login(page, env.E2E_USER_A_IDENTIFIER!, env.E2E_USER_A_PASSWORD!);
 
-  await expect(page.getByRole('button', { name: routineTitle })).toBeVisible();
-  await expect(page.getByText(taskTitle, { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Nueva rutina' }).click();
+    await page.getByPlaceholder('Ej: Mañana enfocada').fill(routineTitle);
+    await page.getByPlaceholder('Ej: Tomar agua').first().fill(taskTitle);
+    await page.getByRole('button', { name: 'Crear rutina' }).click();
 
-  await page.getByRole('button', { name: 'Salir' }).click();
-  await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole('button', { name: routineTitle }).first()).toBeVisible();
+    await expect(page.getByText(taskTitle, { exact: true }).first()).toBeVisible();
 
-  await login(page, env.E2E_USER_B_IDENTIFIER!, env.E2E_USER_B_PASSWORD!);
+    await logout(page);
 
-  await expect(page.getByRole('button', { name: routineTitle })).toHaveCount(0);
+    await login(page, env.E2E_USER_B_IDENTIFIER!, env.E2E_USER_B_PASSWORD!);
 
-  const mutation = await attemptCrossUserMutation(page, { routineTitle, taskTitle });
+    await expect(page.getByRole('button', { name: routineTitle })).toHaveCount(0);
 
-  expect([200, 204]).toContain(mutation.patchStatus);
-  expect([200, 204]).toContain(mutation.deleteStatus);
-  expect(mutation.patchRows).toBe(0);
-  expect(mutation.deleteRows).toBe(0);
+    const mutation = await attemptCrossUserMutation(page, { routineTitle, taskTitle });
 
-  await page.getByRole('button', { name: 'Salir' }).click();
-  await expect(page).toHaveURL(/\/$/);
+    expect([200, 204]).toContain(mutation.patchStatus);
+    expect([200, 204]).toContain(mutation.deleteStatus);
+    expect(mutation.patchRows).toBe(0);
+    expect(mutation.deleteRows).toBe(0);
 
-  await login(page, env.E2E_USER_A_IDENTIFIER!, env.E2E_USER_A_PASSWORD!);
-  await expect(page.getByRole('button', { name: routineTitle })).toBeVisible();
-  await expect(page.getByText(taskTitle, { exact: true })).toBeVisible();
+    await logout(page);
+
+    await login(page, env.E2E_USER_A_IDENTIFIER!, env.E2E_USER_A_PASSWORD!);
+    await expect(page.getByRole('button', { name: routineTitle }).first()).toBeVisible();
+    await expect(page.getByText(taskTitle, { exact: true }).first()).toBeVisible();
+  });
 });
 
 test('offline cycle (optional): create local task, reconnect and sync', async ({ page }) => {
@@ -265,18 +294,18 @@ test('offline cycle (optional): create local task, reconnect and sync', async ({
   await page.getByRole('button', { name: 'Nueva rutina' }).click();
   await page.getByPlaceholder('Ej: Mañana enfocada').fill(routineTitle);
   await page.getByRole('button', { name: 'Crear rutina' }).click();
-  await expect(page.getByRole('button', { name: routineTitle })).toBeVisible();
+  await expect(page.getByRole('button', { name: routineTitle }).first()).toBeVisible();
 
   await page.context().setOffline(true);
 
   await page.getByPlaceholder('Nueva tarea (paso pequeño)…').fill(offlineTaskTitle);
   await page.getByRole('button', { name: 'Añadir' }).click();
-  await expect(page.getByText(offlineTaskTitle, { exact: true })).toBeVisible();
+  await expect(page.getByText(offlineTaskTitle, { exact: true }).first()).toBeVisible();
   await expect(page.getByText(/modo offline/i)).toBeVisible();
 
   await page.context().setOffline(false);
   await page.evaluate(() => window.dispatchEvent(new Event('online')));
 
   await expect(page.getByText(/modo offline/i)).toHaveCount(0);
-  await expect(page.getByText(offlineTaskTitle, { exact: true })).toBeVisible();
+  await expect(page.getByText(offlineTaskTitle, { exact: true }).first()).toBeVisible();
 });
