@@ -12,6 +12,9 @@ export function initSentry() {
     release,
     // Keep it minimal and privacy-friendly.
     sendDefaultPii: false,
-    tracesSampleRate: 0,
+    integrations: [Sentry.browserTracingIntegration()],
+    // Sample a slice of transactions for p95-style performance visibility
+    // without paying full tracing cost/volume in production.
+    tracesSampleRate: import.meta.env.PROD ? 0.2 : 1,
   });
 }

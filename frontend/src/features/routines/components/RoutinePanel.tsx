@@ -49,6 +49,7 @@ export function RoutinePanel() {
     loading: actionLoading,
     error,
     offline,
+    offlineSyncIssues,
     selectedRoutineId,
     tasksByRoutineId,
     selectRoutine,
@@ -58,6 +59,7 @@ export function RoutinePanel() {
     addTask,
     setTaskDone,
     removeTask,
+    discardOfflineTask,
   } = useRoutines();
 
   const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -172,10 +174,14 @@ export function RoutinePanel() {
   }, [selectedRoutineId, loadTasks]);
 
   useEffect(() => {
+    // Only clear a selection once we have a settled (non-stale) routine list: right after a
+    // routine is created elsewhere (e.g. the dashboard wizard), this query may still be
+    // fetching/invalidating and a stale list must not be mistaken for "this routine is gone".
+    if (routinesQuery.isLoading || routinesQuery.isFetching) return;
     if (selectedRoutineId && !routines.some((r) => r.id === selectedRoutineId)) {
       selectRoutine(null);
     }
-  }, [selectedRoutineId, routines, selectRoutine]);
+  }, [selectedRoutineId, routines, selectRoutine, routinesQuery.isLoading, routinesQuery.isFetching]);
 
   const selectedRoutine = useMemo(
     () => routines.find((r) => r.id === selectedRoutineId) ?? null,
@@ -259,7 +265,7 @@ export function RoutinePanel() {
           <div className="mb-3 flex items-center justify-between">
             <div>
               <div className="text-sm font-semibold">Rutinas</div>
-              <div className={'text-xs ' + subtleText}>Solo las tuyas (RLS)</div>
+              <div className={'text-xs ' + subtleText}>Privadas: solo tú puedes verlas</div>
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -282,6 +288,7 @@ export function RoutinePanel() {
           <div className="mb-3">
             <Input
               placeholder="Buscar rutina…"
+              aria-label="Buscar rutina"
               value={routineQuery}
               onChange={(e) => setRoutineQuery(e.target.value)}
             />
@@ -343,7 +350,7 @@ export function RoutinePanel() {
             <div>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <div className="text-lg font-semibold">{selectedRoutine.title}</div>
+                  <h2 className="text-lg font-semibold">{selectedRoutine.title}</h2>
                   {selectedRoutine.notes ? (
                     <div className={'text-sm ' + secondaryText}>{selectedRoutine.notes}</div>
                   ) : null}
@@ -368,7 +375,10 @@ export function RoutinePanel() {
                         }
                         onClick={() => setScheduleOpen((v) => !v)}
                       >
-                        {scheduleOpen ? 'Ocultar' : 'Editar'}
+                        {/* Distinct from the "Editar" routine button below: two controls with
+                            the same accessible name on one screen is a real a11y ambiguity,
+                            not just a testing inconvenience. */}
+                        {scheduleOpen ? 'Ocultar programación' : 'Editar programación'}
                       </button>
                     </div>
 
@@ -573,54 +583,94 @@ export function RoutinePanel() {
                   {tasks.length === 0 ? (
                     <div className={emptyStateClass}>Aún no hay tareas.</div>
                   ) : (
-                    tasks.map((t) => (
-                      <div
-                        key={t.id}
-                        className={
-                          'flex items-center justify-between gap-3 rounded-lg p-3 ring-1 ' +
-                          (isDay ? 'bg-white ring-slate-200' : 'bg-white/5 ring-white/10')
-                        }
-                      >
-                        <label className="flex items-center gap-2 text-sm">
-                          <input
-                            type="checkbox"
-                            checked={t.is_done}
-                            disabled={offline}
-                            onChange={(e) => {
-                              if (!selectedRoutineId) return;
-                              if (offline) return;
-                              void setTaskDone({
-                                id: t.id,
-                                routine_id: selectedRoutineId,
-                                is_done: e.target.checked,
-                              });
-                            }}
-                          />
-                          <span className={t.is_done ? 'line-through text-slate-400' : ''}>
-                            {t.title}
-                            {t.due_date || t.due_time || t.description ? (
-                              <span className={'ml-2 text-xs ' + subtleText}>
-                                {t.description ? `· ${t.description}` : ''}
-                                {t.due_date ? ` · ${t.due_date}` : ''}
-                                {t.due_time ? ` · ${String(t.due_time).slice(0, 5)}` : ''}
-                              </span>
-                            ) : null}
-                          </span>
-                        </label>
-                        <Button
-                          variant="danger"
-                          disabled={offline}
-                          onClick={() => {
-                            if (!selectedRoutineId) return;
-                            if (confirm('¿Eliminar esta tarea?')) {
-                              void removeTask({ id: t.id, routine_id: selectedRoutineId });
+                    tasks.map((t) => {
+                      const syncIssue = offlineSyncIssues.find((i) => i.localId === t.id);
+
+                      if (syncIssue) {
+                        return (
+                          <div
+                            key={t.id}
+                            className={
+                              'flex items-center justify-between gap-3 rounded-lg p-3 ring-1 ' +
+                              (isDay
+                                ? 'bg-amber-50 ring-amber-200'
+                                : 'bg-amber-500/10 ring-amber-500/20')
                             }
-                          }}
+                          >
+                            <div className="text-sm">
+                              <div className="font-medium">{t.title}</div>
+                              <div
+                                className={
+                                  'mt-0.5 text-xs ' +
+                                  (isDay ? 'text-amber-800' : 'text-amber-200')
+                                }
+                              >
+                                No se pudo sincronizar: {syncIssue.message}
+                              </div>
+                            </div>
+                            <Button
+                              variant="secondary"
+                              onClick={() => {
+                                if (confirm('¿Descartar esta tarea sin guardarla?')) {
+                                  void discardOfflineTask(t.id);
+                                }
+                              }}
+                            >
+                              Descartar
+                            </Button>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div
+                          key={t.id}
+                          className={
+                            'flex items-center justify-between gap-3 rounded-lg p-3 ring-1 ' +
+                            (isDay ? 'bg-white ring-slate-200' : 'bg-white/5 ring-white/10')
+                          }
                         >
-                          Quitar
-                        </Button>
-                      </div>
-                    ))
+                          <label className="flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={t.is_done}
+                              disabled={offline}
+                              onChange={(e) => {
+                                if (!selectedRoutineId) return;
+                                if (offline) return;
+                                void setTaskDone({
+                                  id: t.id,
+                                  routine_id: selectedRoutineId,
+                                  is_done: e.target.checked,
+                                });
+                              }}
+                            />
+                            <span className={t.is_done ? 'line-through text-slate-400' : ''}>
+                              {t.title}
+                              {t.due_date || t.due_time || t.description ? (
+                                <span className={'ml-2 text-xs ' + subtleText}>
+                                  {t.description ? `· ${t.description}` : ''}
+                                  {t.due_date ? ` · ${t.due_date}` : ''}
+                                  {t.due_time ? ` · ${String(t.due_time).slice(0, 5)}` : ''}
+                                </span>
+                              ) : null}
+                            </span>
+                          </label>
+                          <Button
+                            variant="danger"
+                            disabled={offline}
+                            onClick={() => {
+                              if (!selectedRoutineId) return;
+                              if (confirm('¿Eliminar esta tarea?')) {
+                                void removeTask({ id: t.id, routine_id: selectedRoutineId });
+                              }
+                            }}
+                          >
+                            Quitar
+                          </Button>
+                        </div>
+                      );
+                    })
                   )}
                 </div>
               </div>

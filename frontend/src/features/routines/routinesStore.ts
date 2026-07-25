@@ -21,12 +21,39 @@ import {
 
 const CACHE_KEY = 'nr-cache-routines-v1';
 
+// A queued offline task that failed to sync for a reason that won't fix itself by retrying
+// (e.g. its routine was deleted from another device while this one was offline) — as opposed
+// to a transient network error, which just stays queued silently and retries next time.
+export type OfflineSyncIssue = {
+  localId: string;
+  title: string;
+  message: string;
+};
+
+function describeSyncFailure(err: unknown): string {
+  if (err instanceof Error) {
+    // Postgres foreign-key-violation via PostgREST reports code 23503; Supabase's client
+    // surfaces it as a `code` property on the thrown/returned error object.
+    const code = (err as { code?: string }).code;
+    if (code === '23503') return 'La rutina de esta tarea ya no existe.';
+    return err.message;
+  }
+  return 'No se pudo sincronizar esta tarea.';
+}
+
+function looksLikeNetworkFailure(err: unknown): boolean {
+  // Browsers throw a bare TypeError for a failed fetch (DNS/offline/CORS), which is the one
+  // case where "stay marked offline and retry later, unchanged" is actually the right call.
+  return err instanceof TypeError;
+}
+
 type RoutinesState = {
   loading: boolean;
   error: string | null;
 
   offline: boolean;
   lastSyncedAt: string | null;
+  offlineSyncIssues: OfflineSyncIssue[];
 
   routines: Routine[];
   selectedRoutineId: string | null;
@@ -37,6 +64,7 @@ type RoutinesState = {
   hydrateFromCache: (userId?: string | null) => void;
   refreshAll: (params?: { since?: string; userId?: string | null }) => Promise<void>;
   syncOfflineTasks: () => Promise<number>;
+  discardOfflineTask: (localId: string) => Promise<void>;
 
   loadRoutines: () => Promise<void>;
   loadAllTasks: () => Promise<void>;
@@ -80,6 +108,7 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
 
   offline: false,
   lastSyncedAt: null,
+  offlineSyncIssues: [],
 
   routines: [],
   selectedRoutineId: null,
@@ -97,11 +126,16 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
 
     const pending = await listQueuedTaskInserts();
     if (pending.length === 0) {
-      set({ offline: false });
+      set({ offline: false, offlineSyncIssues: [] });
       return 0;
     }
 
     let synced = 0;
+    let sawNetworkFailure = false;
+    // Rebuilt fresh each run: an item that keeps failing stays listed (still queued), one
+    // that finally syncs or gets discarded just won't be in `pending` next time around.
+    const issues: OfflineSyncIssue[] = [];
+
     for (const item of pending) {
       try {
         const created = await createTask({
@@ -125,14 +159,28 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
 
         await removeQueuedTaskInsert(item.local_id);
         synced += 1;
-      } catch {
-        set({ offline: true, error: 'Some offline tasks could not be synced yet' });
+      } catch (err) {
+        if (looksLikeNetworkFailure(err)) {
+          sawNetworkFailure = true;
+        } else {
+          // Not a connectivity problem — retrying on its own won't help. Keep it queued (the
+          // user can discard it) and say specifically which task and why, instead of a blanket
+          // "something failed" that reappears on every sync attempt with no way to resolve it.
+          issues.push({ localId: item.local_id, title: item.title, message: describeSyncFailure(err) });
+        }
       }
     }
 
+    // A network failure elsewhere in the same batch still means we're offline, even if other
+    // items in this batch synced fine — don't let the "some succeeded" branch below overwrite
+    // that with a false "we're all caught up".
+    set({ offlineSyncIssues: issues, offline: sawNetworkFailure });
+
     if (synced > 0) {
       const ts = new Date().toISOString();
-      set({ offline: false, lastSyncedAt: ts });
+      // `offline` was already set above based on whether any item in this batch hit a real
+      // network failure — only bump the sync timestamp here, don't re-decide connectivity.
+      set({ lastSyncedAt: ts });
 
       const firstUserId = pending[0]?.user_id;
       if (firstUserId) {
@@ -148,6 +196,22 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
     }
 
     return synced;
+  },
+
+  // Lets the user give up on a queued task that will never sync on its own (its routine was
+  // deleted, etc.) instead of it sitting there forever, silently retried on every sync pass.
+  discardOfflineTask: async (localId) => {
+    await removeQueuedTaskInsert(localId);
+    set((s) => ({
+      offlineSyncIssues: s.offlineSyncIssues.filter((i) => i.localId !== localId),
+      allTasks: s.allTasks.filter((t) => t.id !== localId),
+      tasksByRoutineId: Object.fromEntries(
+        Object.entries(s.tasksByRoutineId).map(([routineId, tasks]) => [
+          routineId,
+          tasks.filter((t) => t.id !== localId),
+        ]),
+      ),
+    }));
   },
 
   hydrateFromCache: (userId) => {

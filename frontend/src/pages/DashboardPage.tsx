@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/features/auth/authStore';
 import {
@@ -50,6 +51,7 @@ type BucketGranularity = 'day' | 'week';
 export function DashboardPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user, signOut } = useAuth();
   const theme = useUiStore((s) => s.theme);
   const isDay = theme === 'day';
@@ -70,7 +72,6 @@ export function DashboardPage() {
     taskEvents,
     hydrateFromCache,
     refreshAll,
-    loadTasks,
     selectRoutine,
     setTaskDone,
   } = useRoutines();
@@ -151,9 +152,9 @@ export function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefs.scope]);
 
-  useEffect(() => {
-    if (selectedRoutineId) void loadTasks(selectedRoutineId);
-  }, [selectedRoutineId, loadTasks]);
+  // RoutinePanel (always mounted below) already loads tasks for the selected routine into the
+  // same shared store; a second effect here would double the network request on every
+  // selection change and widen the race window against in-flight optimistic task updates.
 
   const onStartSession = (routineId?: string | null) => {
     const id = routineId ?? selectedRoutineId ?? routines[0]?.id ?? null;
@@ -163,6 +164,11 @@ export function DashboardPage() {
 
   const onCreatedRoutine = (routineId: string) => {
     selectRoutine(routineId);
+    // The wizard creates the routine through the Zustand store, but RoutinePanel keeps its own
+    // React Query cache of the routine list (used for search/favorites). Without this, the new
+    // routine wouldn't show up there until a manual "Refrescar" or a full reload.
+    void queryClient.invalidateQueries({ queryKey: ['routines', user?.id] });
+    void queryClient.invalidateQueries({ queryKey: ['routines', 'search', user?.id] });
     routinePanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
@@ -1071,11 +1077,10 @@ export function DashboardPage() {
           />
         </div>
       ) : routines.length === 0 ? (
-        <div className="flex items-center justify-between gap-3">
-          <div className={'text-sm ' + panelText}>Crea tu primera rutina para empezar.</div>
-          <Button variant="secondary" onClick={() => setCreateOpen(true)}>
-            Crear
-          </Button>
+        // No second "create" button here on purpose: "Nueva rutina" at the top of the page is
+        // already the one call to action for an empty account, this just points back to it.
+        <div className={'text-sm ' + subtleText}>
+          Tus rutinas aparecerán aquí. Usa “Nueva rutina” arriba para crear la primera.
         </div>
       ) : (
         <div className="grid gap-3">
@@ -1266,6 +1271,7 @@ export function DashboardPage() {
               <div className="sm:col-span-2">
                 <div className={'text-xs ' + subtleText}>Rutina</div>
                 <select
+                  aria-label="Rutina a programar"
                   className={
                     'mt-1 w-full rounded-lg px-3 py-2 text-sm ring-1 ' +
                     (isDay ? 'bg-white ring-slate-200' : 'bg-slate-950/40 ring-white/10')
@@ -1428,6 +1434,7 @@ export function DashboardPage() {
                 </button>
 
                 <select
+                  aria-label="Filtrar por rutina"
                   className={
                     'rounded-full px-3 py-1 text-xs ring-1 ' +
                     (isDay
@@ -1457,18 +1464,20 @@ export function DashboardPage() {
                       ? `Sincronizado ${formatTimeAgo(lastSyncedAt)}`
                       : '—'}
                 </div>
-                <Button
-                  variant="secondary"
-                  onClick={() =>
-                    void refreshAll({
-                      since: new Date(Date.now() - 1000 * 60 * 60 * 24 * 120).toISOString(),
-                      userId: user?.id ?? null,
-                    })
-                  }
-                  disabled={loading}
-                >
-                  Reintentar
-                </Button>
+                {error || offline ? (
+                  <Button
+                    variant="secondary"
+                    onClick={() =>
+                      void refreshAll({
+                        since: new Date(Date.now() - 1000 * 60 * 60 * 24 * 120).toISOString(),
+                        userId: user?.id ?? null,
+                      })
+                    }
+                    disabled={loading}
+                  >
+                    Reintentar
+                  </Button>
+                ) : null}
                 <Button
                   className={cn(
                     'bg-gradient-to-r from-cyan-400 to-violet-500 text-slate-950 hover:from-cyan-300 hover:to-violet-400 focus:ring-cyan-300',
@@ -1590,6 +1599,7 @@ export function DashboardPage() {
           <div className="flex items-center gap-2">
             <div className={'text-xs ' + subtleText}>Rutina</div>
             <select
+              aria-label="Rutina para analíticas"
               value={selectedRoutineId ?? ''}
               onChange={(e) => {
                 didManualPickRoutineRef.current = true;
@@ -1745,8 +1755,8 @@ export function DashboardPage() {
                     : 'bg-white/5 text-slate-200 ring-white/10')
                 }
               >
-                Aún no hay historial real para graficar (ejecuta el SQL en Supabase y marca tareas
-                como completadas).
+                Aún no hay tareas completadas para graficar. Marca una tarea como hecha y esta
+                gráfica se llena sola.
               </div>
             ) : (
               <div className="mt-4">
@@ -2010,7 +2020,8 @@ export function DashboardPage() {
                   : 'bg-white/5 text-slate-200 ring-white/10')
               }
             >
-              Sin historial real aún. Se habilita al ejecutar el SQL y marcar tareas.
+              Sin historial aún. Completa algunas tareas de esta rutina para ver a qué hora rindes
+              mejor.
             </div>
           ) : (
             <div className="mt-4">

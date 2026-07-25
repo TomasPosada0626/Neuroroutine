@@ -25,7 +25,10 @@ export function SchemaBanner() {
     return next;
   }, [status]);
 
-  if (!warnings.length) return null;
+  // This is a migration diagnostic for whoever operates the database, not product copy —
+  // a real end user should never see instructions to run SQL. Surface it only in local dev;
+  // in production it's still tracked (schemaStore logs/reports status), just not shown here.
+  if (!warnings.length || !import.meta.env.DEV) return null;
 
   const boxClass = isDay
     ? 'rounded-lg bg-amber-50 px-4 py-3 text-amber-900 ring-1 ring-amber-200'

@@ -111,7 +111,8 @@ Scope intent: this repository prioritizes engineering fundamentals done well ove
 
 ### Reliability and Product Foundations
 
-- Routine search via Postgres RPC with full-text fallback (backend ready; UI SearchBar component pending).
+- Routine search via Postgres RPC with full-text fallback, wired to a debounced search input
+  in `RoutinePanel` (RPC result → Postgres full-text search → `ilike` fallback, in that order).
 - Offline-first task queue with IndexedDB persistence (service worker planned for Phase 2).
 - Reminder foundation (database schema + preferences ready; Edge Function deployment pending).
 
@@ -334,7 +335,6 @@ npx supabase functions deploy send-due-reminders --project-ref <project-ref>
 
 ### Phase 1
 
-- SearchBar UI integrated with existing Postgres RPC search backend.
 - Reminder Edge Function deployment and first scheduled execution.
 - Expanded automated test depth for auth/routine critical paths.
 
@@ -359,7 +359,6 @@ This MVP intentionally focuses on core engineering fundamentals. Current scope b
 | Feature | Status | Reason | Phase |
 |---------|--------|--------|-------|
 | **Service Worker** | Planned | IndexedDB queue already provides core offline resilience for MVP scope | Phase 2 |
-| **Search UI** | Backend ready | Postgres RPC is available; SearchBar component is next UI increment | Phase 1 |
 | **Notifications** | Foundation ready | Schema + RLS are ready; Edge Function rollout is next step | Phase 1 |
 | **Task Reordering** | Foundation ready | `@dnd-kit` installed; interaction wiring pending | Phase 2 |
 | **User Profile Edit** | Basic profile only | Authentication and profile base exist; edit UX planned | Phase 2 |

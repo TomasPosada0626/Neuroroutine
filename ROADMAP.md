@@ -2,12 +2,12 @@
 
 ## Near-term (Now -> 6 weeks)
 
-1. Add the 6 GitHub secrets needed to turn on the RLS cross-user E2E job (see
-   `docs/github/manual-actions-checklist.md`) — the test itself already exists.
-2. Add server-side rate limiting for `get_email_by_username` (client-side timing mitigation
+1. Add server-side rate limiting for `get_email_by_username` (client-side timing mitigation
    is in place; request-volume limiting still isn't).
-3. Integrate SearchBar UI with existing RPC search backend.
-4. Improve offline-to-online conflict messaging and retry UX.
+2. Improve offline-to-online conflict messaging and retry UX.
+3. Keep chipping away at branch coverage in `routinesStore.ts`/`routinesService.ts` and add
+   direct tests for `RoutinePanel.tsx` (search, favorites, scheduling editor) — currently
+   covered only indirectly through other tests.
 
 ## Mid-term (6 -> 12 weeks)
 

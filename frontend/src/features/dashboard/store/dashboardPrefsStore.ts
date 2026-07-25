@@ -125,13 +125,18 @@ export const useDashboardPrefsStore = create<DashboardPrefsState>((set, get) => 
       routines: false,
       ...initialHidden,
     },
+    // Collapsed-by-default widgets are the ones that are pure noise on a brand-new account
+    // (nothing to show until there's real history). "today" and "routines" stay open because
+    // they're the ones a first-time user can actually act on. Only applies to accounts that
+    // have never saved a preference yet — `...initialCollapsed` below overrides every one of
+    // these for anyone who already has a stored choice, new or not.
     widgetCollapsed: {
       today: false,
       upcoming: true,
-      streaks: false,
-      goal: false,
+      streaks: true,
+      goal: true,
       achievements: true,
-      insights: false,
+      insights: true,
       analytics: true,
       routines: false,
       ...initialCollapsed,

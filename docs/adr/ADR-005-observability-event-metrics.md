@@ -35,10 +35,13 @@ Trade-offs:
 ## Alternatives considered
 
 - No timing metrics: rejected, insufficient operational visibility.
-- Full tracing stack now: postponed for MVP complexity/cost.
+- Full tracing stack from day one: postponed for MVP complexity/cost; Sentry performance
+  tracing was later enabled at a sampled rate (20% in production, 100% in development) once
+  the app-event metrics above proved the pattern was worth the added volume.
 
 ## References
 
 - [frontend/src/shared/observability/eventLog.ts](../../frontend/src/shared/observability/eventLog.ts)
+- [frontend/src/shared/observability/initSentry.ts](../../frontend/src/shared/observability/initSentry.ts)
 - [frontend/src/features/auth/authStore.ts](../../frontend/src/features/auth/authStore.ts)
 - [frontend/src/features/routines/routinesStore.ts](../../frontend/src/features/routines/routinesStore.ts)
