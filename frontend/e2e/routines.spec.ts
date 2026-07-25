@@ -176,10 +176,13 @@ test('authenticated happy path: create routine + tasks and complete one task', a
   await expect(page.getByText(task1, { exact: true }).first()).toBeVisible();
   await expect(page.getByText(task2, { exact: true }).first()).toBeVisible();
 
-  // Complete one task.
+  // Complete one task. The checkbox is React-controlled and only flips once the real PATCH
+  // round trip to Supabase resolves, so click() + a polling assertion is used instead of
+  // check(), which verifies the state change immediately after the click and doesn't wait
+  // for that async update.
   const checkbox = page.locator('label', { hasText: task1 }).locator('input[type="checkbox"]');
-  await checkbox.check();
-  await expect(checkbox).toBeChecked();
+  await checkbox.click();
+  await expect(checkbox).toBeChecked({ timeout: 10000 });
 });
 
 // Both tests below log in against the SAME two real E2E_USER_A/B accounts and mutate their
@@ -299,7 +302,9 @@ test('offline cycle (optional): create local task, reconnect and sync', async ({
   await page.context().setOffline(true);
 
   await page.getByPlaceholder('Nueva tarea (paso pequeño)…').fill(offlineTaskTitle);
-  await page.getByRole('button', { name: 'Añadir' }).click();
+  // exact: true to disambiguate from the "Añadir varias" bulk-mode toggle button, which also
+  // matches a substring name search for "Añadir".
+  await page.getByRole('button', { name: 'Añadir', exact: true }).click();
   await expect(page.getByText(offlineTaskTitle, { exact: true }).first()).toBeVisible();
   await expect(page.getByText(/modo offline/i)).toBeVisible();
 
