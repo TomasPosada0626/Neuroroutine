@@ -11,6 +11,7 @@ This folder stores architecture decisions that have long-term impact on the proj
 - ADR-005: [App-event observability with duration metrics](./ADR-005-observability-event-metrics.md)
 - ADR-006: [Offline queue with eventual consistency for task creation](./ADR-006-offline-queue-eventual-consistency.md)
 - ADR-007: [Quality gates and commit hygiene baseline](./ADR-007-quality-gates-and-commit-hygiene.md)
+- ADR-008: [Daily-recurring tasks via client-triggered reset (not a cron job)](./ADR-008-recurring-tasks-daily-reset.md)
 
 ## ADR status model
 

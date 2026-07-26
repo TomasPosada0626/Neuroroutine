@@ -10,6 +10,7 @@ type TaskDraft = {
   description: string;
   due_date: string;
   due_time: string;
+  is_recurring: boolean;
 };
 
 type Props = {
@@ -40,7 +41,7 @@ export function RoutineWizardModal({ open, onClose, onCreated }: Props) {
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
   const [tasks, setTasks] = useState<TaskDraft[]>([
-    { title: '', description: '', due_date: '', due_time: '' },
+    { title: '', description: '', due_date: '', due_time: '', is_recurring: false },
   ]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -55,7 +56,7 @@ export function RoutineWizardModal({ open, onClose, onCreated }: Props) {
   const reset = () => {
     setTitle('');
     setNotes('');
-    setTasks([{ title: '', description: '', due_date: '', due_time: '' }]);
+    setTasks([{ title: '', description: '', due_date: '', due_time: '', is_recurring: false }]);
     setError(null);
   };
 
@@ -94,6 +95,7 @@ export function RoutineWizardModal({ open, onClose, onCreated }: Props) {
                 description: t.description.trim(),
                 due_date: t.due_date.trim(),
                 due_time: normalizeTimeInput(t.due_time),
+                is_recurring: t.is_recurring,
               }))
               .filter((t) => t.title.length > 0);
 
@@ -106,6 +108,7 @@ export function RoutineWizardModal({ open, onClose, onCreated }: Props) {
                   description: t.description ? t.description : null,
                   due_date: t.due_date ? t.due_date : null,
                   due_time: t.due_time ? t.due_time : null,
+                  is_recurring: t.is_recurring,
                 })),
               });
             }
@@ -196,7 +199,7 @@ export function RoutineWizardModal({ open, onClose, onCreated }: Props) {
               onClick={() =>
                 setTasks((prev) => [
                   ...prev,
-                  { title: '', description: '', due_date: '', due_time: '' },
+                  { title: '', description: '', due_date: '', due_time: '', is_recurring: false },
                 ])
               }
             >
@@ -274,9 +277,21 @@ export function RoutineWizardModal({ open, onClose, onCreated }: Props) {
 
                   <div className="md:col-span-12">
                     <div className="flex items-center justify-between">
-                      <div className={cn('text-xs', subtleText)}>
-                        {idx === 0 ? 'Tip: deja la fecha vacía si es recurrente.' : ''}
-                      </div>
+                      <label className={cn('flex items-center gap-2 text-xs', subtleText)}>
+                        <input
+                          type="checkbox"
+                          checked={t.is_recurring}
+                          onChange={(e) =>
+                            setTasks((prev) =>
+                              prev.map((x, i) =>
+                                i === idx ? { ...x, is_recurring: e.target.checked } : x,
+                              ),
+                            )
+                          }
+                          aria-label={`Repetir cada día la tarea ${idx + 1}`}
+                        />
+                        Repetir cada día (hábito)
+                      </label>
                       <button
                         type="button"
                         className={cn(

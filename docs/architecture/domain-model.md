@@ -13,6 +13,9 @@
 3. Routine Task
    - Atomic action belonging to a routine.
    - Supports status, optional description, due date/time.
+   - Can be marked `is_recurring`: its `is_done` checkbox means "done today", and gets reset
+     back to false once a new local calendar day starts (see `reset_recurring_tasks` and
+     ADR-008), instead of staying permanently checked off after the first completion.
 
 4. Routine Task Event
    - Immutable completion/uncompletion event.
@@ -55,6 +58,7 @@
 - TaskCompleted
 - TaskUncompleted
 - TaskDeleted
+- RecurringTaskReset
 - ReminderDuePrepared
 
 ## Bounded Contexts (pragmatic)

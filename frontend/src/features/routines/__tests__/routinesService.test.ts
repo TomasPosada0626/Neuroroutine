@@ -73,6 +73,7 @@ import {
   listRoutines,
   listTaskEvents,
   listTasks,
+  resetRecurringTasks,
   searchRoutines,
   toggleTaskDone,
   updateRoutine,
@@ -372,6 +373,33 @@ describe('routinesService', () => {
     expect(fromQueue).toHaveLength(0);
   });
 
+  it('createTask patches is_recurring even when no other metadata is provided', async () => {
+    const insert = makeChain({
+      data: { id: 't7', user_id: 'u1', routine_id: 'r1', title: 'Daily habit' },
+      error: null,
+    });
+    const update = makeChain({
+      data: { id: 't7', user_id: 'u1', routine_id: 'r1', title: 'Daily habit', is_recurring: true },
+      error: null,
+    });
+    fromQueue.push(insert, update);
+
+    const created = await createTask({
+      user_id: 'u1',
+      routine_id: 'r1',
+      title: 'Daily habit',
+      is_recurring: true,
+    });
+
+    expect(update.update).toHaveBeenCalledWith({
+      description: null,
+      due_date: null,
+      due_time: null,
+      is_recurring: true,
+    });
+    expect((created as { is_recurring?: boolean }).is_recurring).toBe(true);
+  });
+
   it('createRoutine inserts a routine and returns it', async () => {
     const insert = makeChain({
       data: {
@@ -526,6 +554,7 @@ describe('routinesService', () => {
       description: 'desc only',
       due_date: null,
       due_time: null,
+      is_recurring: false,
     });
   });
 
@@ -570,6 +599,30 @@ describe('routinesService', () => {
     expect(updated.id).toBe('t99');
     expect(toggle.eq).toHaveBeenCalledWith('id', 't99');
     expect(del.eq).toHaveBeenCalledWith('id', 't99');
+  });
+
+  it('resetRecurringTasks resolves normally when the RPC succeeds', async () => {
+    rpcQueue.push({ data: null, error: null });
+
+    await expect(resetRecurringTasks('2026-07-26')).resolves.toBeUndefined();
+  });
+
+  it('resetRecurringTasks is best-effort: swallows an RPC error instead of throwing', async () => {
+    rpcQueue.push({ data: null, error: new Error('function not found') });
+
+    await expect(resetRecurringTasks('2026-07-26')).resolves.toBeUndefined();
+  });
+
+  it('resetRecurringTasks swallows an unexpected throw from the client', async () => {
+    fromQueue.length = 0;
+    rpcQueue.length = 0;
+    // Force supabase.rpc itself to reject instead of resolving with {error}, e.g. a network drop.
+    const { supabase } = (await import('@/shared/api')) as unknown as {
+      supabase: { rpc: ReturnType<typeof vi.fn> };
+    };
+    supabase.rpc.mockImplementationOnce(() => Promise.reject(new Error('network down')));
+
+    await expect(resetRecurringTasks('2026-07-26')).resolves.toBeUndefined();
   });
 
   it('propagates errors for listTaskEvents, toggleTaskDone and deleteTask', async () => {

@@ -63,6 +63,7 @@ export function RoutinePanel() {
   } = useRoutines();
 
   const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskRecurring, setNewTaskRecurring] = useState(false);
   const [bulkMode, setBulkMode] = useState(false);
   const [bulkText, setBulkText] = useState('');
   const [routineQuery, setRoutineQuery] = useState('');
@@ -561,27 +562,39 @@ export function RoutinePanel() {
                     <div className={'text-xs ' + subtleText}>Tip: máximo 20 tareas por batch.</div>
                   </div>
                 ) : (
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Nueva tarea (paso pequeño)…"
-                      value={newTaskTitle}
-                      onChange={(e) => setNewTaskTitle(e.target.value)}
-                    />
-                    <Button
-                      disabled={offline || !user || !newTaskTitle.trim() || actionLoading}
-                      onClick={() => {
-                        if (!user) return;
-                        if (!selectedRoutineId) return;
-                        void addTask({
-                          user_id: user.id,
-                          routine_id: selectedRoutineId,
-                          title: newTaskTitle.trim(),
-                        });
-                        setNewTaskTitle('');
-                      }}
-                    >
-                      Añadir
-                    </Button>
+                  <div className="space-y-1">
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Nueva tarea (paso pequeño)…"
+                        value={newTaskTitle}
+                        onChange={(e) => setNewTaskTitle(e.target.value)}
+                      />
+                      <Button
+                        disabled={offline || !user || !newTaskTitle.trim() || actionLoading}
+                        onClick={() => {
+                          if (!user) return;
+                          if (!selectedRoutineId) return;
+                          void addTask({
+                            user_id: user.id,
+                            routine_id: selectedRoutineId,
+                            title: newTaskTitle.trim(),
+                            is_recurring: newTaskRecurring,
+                          });
+                          setNewTaskTitle('');
+                          setNewTaskRecurring(false);
+                        }}
+                      >
+                        Añadir
+                      </Button>
+                    </div>
+                    <label className={'flex items-center gap-2 text-xs ' + subtleText}>
+                      <input
+                        type="checkbox"
+                        checked={newTaskRecurring}
+                        onChange={(e) => setNewTaskRecurring(e.target.checked)}
+                      />
+                      Repetir cada día (hábito)
+                    </label>
                   </div>
                 )}
 
@@ -652,6 +665,18 @@ export function RoutinePanel() {
                             />
                             <span className={t.is_done ? 'line-through text-slate-400' : ''}>
                               {t.title}
+                              {t.is_recurring ? (
+                                <span
+                                  className={
+                                    'ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-medium ring-1 ' +
+                                    (isDay
+                                      ? 'bg-slate-100 text-slate-600 ring-slate-200'
+                                      : 'bg-white/10 text-slate-200 ring-white/10')
+                                  }
+                                >
+                                  Diario
+                                </span>
+                              ) : null}
                               {t.due_date || t.due_time || t.description ? (
                                 <span className={'ml-2 text-xs ' + subtleText}>
                                   {t.description ? `· ${t.description}` : ''}

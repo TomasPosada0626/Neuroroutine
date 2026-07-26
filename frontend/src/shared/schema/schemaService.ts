@@ -6,6 +6,7 @@ export type NrSchemaStatus = {
     description: boolean;
     due_date: boolean;
     due_time: boolean;
+    is_recurring: boolean;
   };
   has_app_events: boolean;
 };
@@ -29,6 +30,7 @@ export async function fetchNrSchemaStatus(): Promise<NrSchemaStatus | null> {
         description: taskMeta.description === true,
         due_date: taskMeta.due_date === true,
         due_time: taskMeta.due_time === true,
+        is_recurring: taskMeta.is_recurring === true,
       },
       has_app_events: data.has_app_events === true,
     };

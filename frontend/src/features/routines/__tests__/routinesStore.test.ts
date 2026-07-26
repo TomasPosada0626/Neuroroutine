@@ -16,6 +16,7 @@ vi.mock('../routinesService', () => {
     listRoutines: vi.fn(),
     listTaskEvents: vi.fn(),
     listTasks: vi.fn(),
+    resetRecurringTasks: vi.fn(),
     toggleTaskDone: vi.fn(),
     updateRoutine: vi.fn(),
   };
@@ -297,6 +298,11 @@ describe('useRoutinesStore', () => {
     expect(s.routines).toHaveLength(1);
     expect(s.tasksByRoutineId.r1?.[0]?.id).toBe('t1');
     expect(localStorage.getItem('nr-cache-routines-v1')).not.toBeNull();
+    // Recurring habits must be reset for "today" (browser-local date) before task lists are
+    // fetched, so the very first render already shows a fresh checkbox instead of yesterday's.
+    expect(serviceMod.resetRecurringTasks).toHaveBeenCalledWith(
+      expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+    );
   });
 
   it('refreshAll stores error and marks offline when service fails', async () => {

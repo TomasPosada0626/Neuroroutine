@@ -16,6 +16,7 @@ export type RoutineTask = {
   due_date?: string | null;
   due_time?: string | null;
   is_done: boolean;
+  is_recurring?: boolean;
   completed_at?: string | null;
   created_at: string;
   updated_at: string;

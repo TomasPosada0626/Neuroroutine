@@ -6,6 +6,7 @@ type QueuedTaskInsert = {
   description?: string | null;
   due_date?: string | null;
   due_time?: string | null;
+  is_recurring?: boolean;
   queued_at: string;
 };
 

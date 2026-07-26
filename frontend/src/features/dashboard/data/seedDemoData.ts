@@ -91,6 +91,7 @@ type FullSeedTask = {
   description?: string | null;
   due_date?: string | null;
   due_time?: string | null;
+  is_recurring?: boolean;
 };
 
 export async function seedFullDemoData(userId: string, scope: SeedScope = 'full') {
@@ -102,6 +103,7 @@ export async function seedFullDemoData(userId: string, scope: SeedScope = 'full'
   const canDescription = status?.task_metadata.description === true;
   const canDueDate = status?.task_metadata.due_date === true;
   const canDueTime = status?.task_metadata.due_time === true;
+  const canRecurring = status?.task_metadata.is_recurring === true;
   const hasAppEvents = status?.has_app_events === true;
 
   const baseRoutines = [
@@ -172,8 +174,8 @@ export async function seedFullDemoData(userId: string, scope: SeedScope = 'full'
       is_done: true,
       completed_at: todayIso,
       description: 'Antes de café.',
-      due_date: tomorrow,
       due_time: hhMmSs(7, 30),
+      is_recurring: true,
     },
     {
       routineTitle: 'Demo: Mañana enfocada',
@@ -213,6 +215,7 @@ export async function seedFullDemoData(userId: string, scope: SeedScope = 'full'
       title: 'Movilidad 10 min',
       is_done: false,
       description: 'Cadera + tobillo.',
+      is_recurring: true,
     },
 
     // Estudio
@@ -267,6 +270,7 @@ export async function seedFullDemoData(userId: string, scope: SeedScope = 'full'
         title: 'Respiración 4-7-8 (3 rondas)',
         is_done: true,
         completed_at: isoDaysAgo(0, 7 * 60 + 41),
+        is_recurring: true,
       },
       {
         routineTitle: 'Demo: Salud mental',
@@ -331,7 +335,13 @@ export async function seedFullDemoData(userId: string, scope: SeedScope = 'full'
   if (taskRows.length === 0) return;
 
   // Best-effort patch: optional metadata columns (and completed_at) may not exist if migrations are pending.
-  if (canDescription || canDueDate || canDueTime || tasks.some((t) => t.completed_at)) {
+  if (
+    canDescription ||
+    canDueDate ||
+    canDueTime ||
+    canRecurring ||
+    tasks.some((t) => t.completed_at)
+  ) {
     const metaByKey = new Map(
       tasks
         .filter((t) => routineIdByTitle.has(t.routineTitle))
@@ -347,6 +357,7 @@ export async function seedFullDemoData(userId: string, scope: SeedScope = 'full'
         if (canDescription && desired.description != null) patch.description = desired.description;
         if (canDueDate && desired.due_date != null) patch.due_date = desired.due_date;
         if (canDueTime && desired.due_time != null) patch.due_time = desired.due_time;
+        if (canRecurring && desired.is_recurring === true) patch.is_recurring = true;
         if (desired.completed_at != null) patch.completed_at = desired.completed_at;
 
         if (Object.keys(patch).length === 0) return;

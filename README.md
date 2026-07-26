@@ -100,6 +100,8 @@ Scope intent: this repository prioritizes engineering fundamentals done well ove
 
 - CRUD operations for routines.
 - Task creation, completion toggle, and deletion.
+- Daily-recurring tasks: mark a task as a habit and its checkbox resets every local day instead
+  of staying checked off forever (see [ADR-008](docs/adr/ADR-008-recurring-tasks-daily-reset.md)).
 - Bulk task creation through the routine wizard.
 - Event logging for completion/uncompletion actions.
 
@@ -243,6 +245,8 @@ Schema and migrations:
 - `backend/supabase/migrations/`
 
 The model supports both task lifecycle operations and analytics/event-based calculations.
+`routine_tasks.is_recurring` marks daily habits, whose `is_done` flag is reset each local day
+by the `reset_recurring_tasks` RPC instead of staying permanently checked (ADR-008).
 
 ---
 

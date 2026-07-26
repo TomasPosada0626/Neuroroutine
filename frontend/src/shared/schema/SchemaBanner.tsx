@@ -18,6 +18,9 @@ export function SchemaBanner() {
     ) {
       next.push('Faltan columnas opcionales en `routine_tasks` (descripción/fecha/hora).');
     }
+    if (!status.task_metadata.is_recurring) {
+      next.push('Falta la columna `is_recurring` y el RPC `reset_recurring_tasks` (0006).');
+    }
     if (!status.has_app_events) {
       next.push('Falta la tabla `app_events` (event log).');
     }

@@ -216,7 +216,48 @@ describe('RoutinePanel with a selected routine', () => {
       user_id: 'u1',
       routine_id: 'r1',
       title: 'Leer 10 min',
+      is_recurring: false,
     });
+  });
+
+  it('marks a quick-add task as recurring when "Repetir cada día" is checked', async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    await screen.findByRole('heading', { name: 'Mañana enfocada' });
+
+    await user.type(screen.getByPlaceholderText('Nueva tarea (paso pequeño)…'), 'Tomar agua');
+    await user.click(screen.getByRole('checkbox', { name: 'Repetir cada día (hábito)' }));
+    await user.click(screen.getByRole('button', { name: 'Añadir' }));
+
+    expect(routinesStoreState.addTask).toHaveBeenCalledWith({
+      user_id: 'u1',
+      routine_id: 'r1',
+      title: 'Tomar agua',
+      is_recurring: true,
+    });
+    // The toggle resets after a successful add, same as the title field.
+    expect(screen.getByRole('checkbox', { name: 'Repetir cada día (hábito)' })).not.toBeChecked();
+  });
+
+  it('shows a "Diario" badge on recurring tasks', async () => {
+    routinesStoreState.tasksByRoutineId = {
+      r1: [
+        {
+          id: 't1',
+          title: 'Tomar agua',
+          is_done: false,
+          is_recurring: true,
+          description: null,
+          due_date: null,
+          due_time: null,
+        },
+      ],
+    };
+    renderPanel();
+
+    await screen.findByRole('heading', { name: 'Mañana enfocada' });
+    expect(screen.getByText('Diario')).toBeInTheDocument();
   });
 
   it('switches to bulk mode and creates one task per non-empty line', async () => {

@@ -9,6 +9,7 @@ import {
   listRoutines,
   listTaskEvents,
   listTasks,
+  resetRecurringTasks,
   toggleTaskDone,
   updateRoutine,
 } from './routinesService';
@@ -45,6 +46,16 @@ function looksLikeNetworkFailure(err: unknown): boolean {
   // Browsers throw a bare TypeError for a failed fetch (DNS/offline/CORS), which is the one
   // case where "stay marked offline and retry later, unchanged" is actually the right call.
   return err instanceof TypeError;
+}
+
+// Deliberately duplicated from dashboard/utils/dashboardUtils.ts's dateKeyLocal instead of
+// importing across the feature boundary (routines shouldn't depend on the dashboard feature).
+function todayLocalDateKey(): string {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 type RoutinesState = {
@@ -87,6 +98,7 @@ type RoutinesState = {
     description?: string | null;
     due_date?: string | null;
     due_time?: string | null;
+    is_recurring?: boolean;
   }) => Promise<void>;
   addTasksBulk: (input: {
     user_id: string;
@@ -96,6 +108,7 @@ type RoutinesState = {
       description?: string | null;
       due_date?: string | null;
       due_time?: string | null;
+      is_recurring?: boolean;
     }>;
   }) => Promise<void>;
   setTaskDone: (input: { id: string; routine_id: string; is_done: boolean }) => Promise<void>;
@@ -145,6 +158,7 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
           description: item.description ?? null,
           due_date: item.due_date ?? null,
           due_time: item.due_time ?? null,
+          is_recurring: item.is_recurring === true,
         });
 
         set((s) => ({
@@ -287,6 +301,11 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
   refreshAll: async (params) => {
     set({ loading: true, error: null });
     try {
+      // Best-effort: flips any recurring task completed on a previous day back to "not done
+      // today" before tasks are fetched, so the very first render already shows a fresh habit
+      // instead of yesterday's leftover checkmark.
+      await resetRecurringTasks(todayLocalDateKey());
+
       const [routines, allTasks, taskEvents] = await Promise.all([
         listRoutines(),
         listAllTasks(),
@@ -474,6 +493,7 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
             description: t.description ?? null,
             due_date: t.due_date ?? null,
             due_time: t.due_time ?? null,
+            is_recurring: t.is_recurring === true,
             is_done: false,
             completed_at: null,
             created_at: now,
@@ -488,6 +508,7 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
             description: t.description ?? null,
             due_date: t.due_date ?? null,
             due_time: t.due_time ?? null,
+            is_recurring: t.is_recurring === true,
             queued_at: now,
           });
           continue;
@@ -500,6 +521,7 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
           description: t.description ?? null,
           due_date: t.due_date ?? null,
           due_time: t.due_time ?? null,
+          is_recurring: t.is_recurring === true,
         });
         createdTasks.push(created);
       }
@@ -553,6 +575,7 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
           description: input.description ?? null,
           due_date: input.due_date ?? null,
           due_time: input.due_time ?? null,
+          is_recurring: input.is_recurring === true,
           is_done: false,
           completed_at: null,
           created_at: now,
@@ -567,6 +590,7 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
           description: input.description ?? null,
           due_date: input.due_date ?? null,
           due_time: input.due_time ?? null,
+          is_recurring: input.is_recurring === true,
           queued_at: now,
         });
 

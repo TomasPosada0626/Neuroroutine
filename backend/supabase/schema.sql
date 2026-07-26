@@ -89,6 +89,11 @@ alter table public.routine_tasks
 alter table public.routine_tasks
   add column if not exists due_time time;
 
+-- Daily-recurring tasks: is_done means "done today"; reset_recurring_tasks() (below) clears it
+-- once a new day starts instead of leaving a habit permanently checked off.
+alter table public.routine_tasks
+  add column if not exists is_recurring boolean not null default false;
+
 -- Analytics-grade history: task completion events
 create table if not exists public.routine_task_events (
   id uuid primary key default gen_random_uuid(),
@@ -116,6 +121,9 @@ end;
 $$ language plpgsql;
 
 -- Keep completed_at consistent and write analytics events when is_done changes.
+-- The bypass flag lets reset_recurring_tasks() (below) flip a habit back to "not done today"
+-- without logging a fake "uncompleted" event / reopen: only user-driven toggles set no flag,
+-- so their events are recorded as before.
 create or replace function public.handle_task_completion()
 returns trigger
 language plpgsql
@@ -124,18 +132,46 @@ begin
   if new.is_done is distinct from old.is_done then
     if new.is_done then
       new.completed_at = coalesce(new.completed_at, now());
-      insert into public.routine_task_events (user_id, routine_id, routine_task_id, event_type)
-      values (new.user_id, new.routine_id, new.id, 'completed');
+      if coalesce(current_setting('app.bypass_task_event', true), '') <> 'true' then
+        insert into public.routine_task_events (user_id, routine_id, routine_task_id, event_type)
+        values (new.user_id, new.routine_id, new.id, 'completed');
+      end if;
     else
       new.completed_at = null;
-      insert into public.routine_task_events (user_id, routine_id, routine_task_id, event_type)
-      values (new.user_id, new.routine_id, new.id, 'uncompleted');
+      if coalesce(current_setting('app.bypass_task_event', true), '') <> 'true' then
+        insert into public.routine_task_events (user_id, routine_id, routine_task_id, event_type)
+        values (new.user_id, new.routine_id, new.id, 'uncompleted');
+      end if;
     end if;
   end if;
 
   return new;
 end;
 $$;
+
+-- Resets recurring tasks completed on a previous day so the checkbox is fresh again "today".
+-- p_today is the CALLER's local calendar date (the frontend computes it from the browser
+-- clock): completion timestamps are wall-clock, so a server-side UTC "today" would resolve
+-- the day boundary incorrectly for users outside UTC.
+create or replace function public.reset_recurring_tasks(p_today date)
+returns void
+language plpgsql
+security invoker
+set search_path = public
+as $$
+begin
+  perform set_config('app.bypass_task_event', 'true', true);
+
+  update public.routine_tasks
+  set is_done = false
+  where user_id = auth.uid()
+    and is_recurring = true
+    and is_done = true
+    and (completed_at is null or completed_at::date <> p_today);
+end;
+$$;
+
+grant execute on function public.reset_recurring_tasks(date) to authenticated;
 
 drop trigger if exists routines_set_updated_at on public.routines;
 create trigger routines_set_updated_at
@@ -236,6 +272,64 @@ $$;
 
 grant execute on function public.get_email_by_username(text) to anon, authenticated;
 
+-- Full-text search support for routine titles.
+create index if not exists routines_title_fts_idx
+  on public.routines
+  using gin (to_tsvector('spanish', coalesce(title, '')));
+
+create or replace function public.search_routines(
+  p_query text,
+  p_limit integer default 50
+)
+returns setof public.routines
+language sql
+stable
+security invoker
+set search_path = public
+as $$
+  select r.*
+  from public.routines r
+  where r.user_id = auth.uid()
+    and (
+      p_query is null
+      or btrim(p_query) = ''
+      or to_tsvector('spanish', coalesce(r.title, '')) @@ websearch_to_tsquery('spanish', p_query)
+    )
+  order by r.created_at desc
+  limit greatest(1, least(coalesce(p_limit, 50), 200));
+$$;
+
+grant execute on function public.search_routines(text, integer) to authenticated;
+
+-- Reminder preferences for daily due-task notifications.
+create table if not exists public.reminder_preferences (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  email_enabled boolean not null default true,
+  push_enabled boolean not null default false,
+  reminder_hour smallint not null default 8,
+  timezone text not null default 'UTC',
+  updated_at timestamptz not null default now(),
+  constraint reminder_hour_range check (reminder_hour between 0 and 23)
+);
+
+alter table public.reminder_preferences enable row level security;
+
+drop policy if exists "reminder_preferences_select_own" on public.reminder_preferences;
+create policy "reminder_preferences_select_own" on public.reminder_preferences
+for select using (auth.uid() = user_id);
+
+drop policy if exists "reminder_preferences_upsert_own" on public.reminder_preferences;
+create policy "reminder_preferences_upsert_own" on public.reminder_preferences
+for insert with check (auth.uid() = user_id);
+
+drop policy if exists "reminder_preferences_update_own" on public.reminder_preferences;
+create policy "reminder_preferences_update_own" on public.reminder_preferences
+for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "reminder_preferences_delete_own" on public.reminder_preferences;
+create policy "reminder_preferences_delete_own" on public.reminder_preferences
+for delete using (auth.uid() = user_id);
+
 -- Minimal (no-PII) product event log
 create table if not exists public.app_events (
   id uuid primary key default gen_random_uuid(),
@@ -268,7 +362,7 @@ create table if not exists public.nr_schema_meta (
 );
 
 insert into public.nr_schema_meta (id, version)
-values (1, 3)
+values (1, 6)
 on conflict (id) do update set
   version = excluded.version,
   updated_at = now();
@@ -286,6 +380,7 @@ declare
   has_due_date boolean;
   has_due_time boolean;
   has_app_events boolean;
+  has_is_recurring boolean;
 begin
   select version into v_version from public.nr_schema_meta where id = 1;
   if v_version is null then
@@ -316,6 +411,14 @@ begin
       and column_name = 'due_time'
   ) into has_due_time;
 
+  select exists(
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'routine_tasks'
+      and column_name = 'is_recurring'
+  ) into has_is_recurring;
+
   has_app_events := to_regclass('public.app_events') is not null;
 
   return jsonb_build_object(
@@ -323,7 +426,8 @@ begin
     'task_metadata', jsonb_build_object(
       'description', has_description,
       'due_date', has_due_date,
-      'due_time', has_due_time
+      'due_time', has_due_time,
+      'is_recurring', has_is_recurring
     ),
     'has_app_events', has_app_events
   );

@@ -8,11 +8,24 @@ The format follows Keep a Changelog and Semantic Versioning principles.
 
 ### Added
 
+- Daily-recurring tasks (`is_recurring`): a habit's checkbox now means "done today" and resets
+  automatically once a new local day starts, instead of staying checked forever after the
+  first completion. See [ADR-008](docs/adr/ADR-008-recurring-tasks-daily-reset.md).
+- Offline-sync conflict UX: a queued task that fails to sync for a real (non-network) reason
+  now shows why and offers a "Descartar" action, instead of retrying silently forever.
+- Sentry performance tracing, sampled instead of fully disabled.
+- Accessibility test coverage (axe + keyboard) for the shared UI kit.
 - ADR catalog and decision records in [docs/adr](docs/adr).
 - Operational metrics baseline and service-level targets in [docs/operations/metrics.md](docs/operations/metrics.md).
 - Security hardening guide with threat-oriented mitigations in [docs/security/hardening.md](docs/security/hardening.md).
 - Release process documentation and automation workflow in [docs/releases/README.md](docs/releases/README.md) and [\.github/workflows/release.yml](.github/workflows/release.yml).
 - Additional tests for routines services and offline queue.
+
+### Fixed
+
+- Creating a routine from the dashboard's wizard could leave the analytics selector and the
+  routine panel out of sync with each other until a manual refresh (two independent caches of
+  the same routine list).
 
 ### Changed
 

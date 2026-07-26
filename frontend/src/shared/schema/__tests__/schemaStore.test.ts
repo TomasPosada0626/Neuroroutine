@@ -29,7 +29,7 @@ describe('useSchemaStore', () => {
       ts: '2026-07-16T10:00:00.000Z',
       status: {
         version: 3,
-        task_metadata: { description: true, due_date: true, due_time: false },
+        task_metadata: { description: true, due_date: true, due_time: false, is_recurring: false },
         has_app_events: true,
       },
     };
@@ -62,8 +62,8 @@ describe('useSchemaStore', () => {
 
     const fetchMock = vi.mocked(serviceMod.fetchNrSchemaStatus);
     fetchMock.mockResolvedValue({
-      version: 5,
-      task_metadata: { description: true, due_date: true, due_time: true },
+      version: 6,
+      task_metadata: { description: true, due_date: true, due_time: true, is_recurring: true },
       has_app_events: true,
     });
 
@@ -72,7 +72,7 @@ describe('useSchemaStore', () => {
     const state = useSchemaStore.getState();
     expect(state.loading).toBe(false);
     expect(state.error).toBeNull();
-    expect(state.status?.version).toBe(5);
+    expect(state.status?.version).toBe(6);
     expect(state.lastCheckedAt).not.toBeNull();
     expect(localStorage.getItem('nr-schema-status-v1')).not.toBeNull();
   });

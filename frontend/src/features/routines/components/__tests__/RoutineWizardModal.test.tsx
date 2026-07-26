@@ -99,13 +99,55 @@ describe('RoutineWizardModal', () => {
       user_id: 'u1',
       routine_id: 'r1',
       tasks: [
-        { title: 'Tarea 1', description: null, due_date: null, due_time: null },
-        { title: 'Tarea 2', description: 'desc', due_date: '2025-01-05', due_time: '08:00' },
+        {
+          title: 'Tarea 1',
+          description: null,
+          due_date: null,
+          due_time: null,
+          is_recurring: false,
+        },
+        {
+          title: 'Tarea 2',
+          description: 'desc',
+          due_date: '2025-01-05',
+          due_time: '08:00',
+          is_recurring: false,
+        },
       ],
     });
 
     expect(onCreated).toHaveBeenCalledWith('r1');
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('marks a task row as recurring when its "Repetir cada día" checkbox is checked', async () => {
+    const user = userEvent.setup();
+
+    addRoutine.mockReset();
+    addTasksBulk.mockReset();
+    addRoutine.mockResolvedValueOnce({ id: 'r3' });
+    addTasksBulk.mockResolvedValueOnce(undefined);
+
+    render(<RoutineWizardModal open onClose={() => {}} />);
+
+    await user.type(screen.getByPlaceholderText('Ej: Mañana enfocada'), 'Mi rutina');
+    await user.type(screen.getByPlaceholderText('Ej: Tomar agua'), 'Tomar agua');
+    await user.click(screen.getByRole('checkbox', { name: 'Repetir cada día la tarea 1' }));
+    await user.click(screen.getByRole('button', { name: 'Crear rutina' }));
+
+    expect(addTasksBulk).toHaveBeenCalledWith({
+      user_id: 'u1',
+      routine_id: 'r3',
+      tasks: [
+        {
+          title: 'Tomar agua',
+          description: null,
+          due_date: null,
+          due_time: null,
+          is_recurring: true,
+        },
+      ],
+    });
   });
 
   it('disables submit when offline', async () => {
