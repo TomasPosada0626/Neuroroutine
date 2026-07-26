@@ -77,6 +77,7 @@ import {
   searchRoutines,
   toggleTaskDone,
   updateRoutine,
+  updateTask,
 } from '../routinesService';
 
 describe('routinesService', () => {
@@ -599,6 +600,72 @@ describe('routinesService', () => {
     expect(updated.id).toBe('t99');
     expect(toggle.eq).toHaveBeenCalledWith('id', 't99');
     expect(del.eq).toHaveBeenCalledWith('id', 't99');
+  });
+
+  it('updateTask trims/nulls optional fields and keeps a provided due_date', async () => {
+    const update = makeChain({
+      data: {
+        id: 't10',
+        user_id: 'u1',
+        routine_id: 'r1',
+        title: 'Renamed task',
+        description: 'new desc',
+        due_date: '2026-08-01',
+        due_time: '09:00',
+        is_recurring: false,
+      },
+      error: null,
+    });
+    fromQueue.push(update);
+
+    const updated = await updateTask({
+      id: 't10',
+      title: '  Renamed task  ',
+      description: '  new desc  ',
+      due_date: '2026-08-01',
+      due_time: '09:00',
+      is_recurring: false,
+    });
+
+    expect(update.update).toHaveBeenCalledWith({
+      title: '  Renamed task  ',
+      description: 'new desc',
+      due_date: '2026-08-01',
+      due_time: '09:00',
+      is_recurring: false,
+    });
+    expect(update.eq).toHaveBeenCalledWith('id', 't10');
+    expect(updated.id).toBe('t10');
+  });
+
+  it('updateTask clears due_date when the task is marked recurring, even if one was passed', async () => {
+    const update = makeChain({
+      data: { id: 't11', user_id: 'u1', routine_id: 'r1', title: 'Habit', is_recurring: true },
+      error: null,
+    });
+    fromQueue.push(update);
+
+    await updateTask({
+      id: 't11',
+      title: 'Habit',
+      due_date: '2026-08-01',
+      is_recurring: true,
+    });
+
+    expect(update.update).toHaveBeenCalledWith({
+      title: 'Habit',
+      description: null,
+      due_date: null,
+      due_time: null,
+      is_recurring: true,
+    });
+  });
+
+  it('updateTask throws on error', async () => {
+    const update = makeChain({ data: null, error: new Error('update failed') });
+    fromQueue.push(update);
+
+    await expect(updateTask({ id: 't12', title: 'x' })).rejects.toThrow('update failed');
   });
 
   it('resetRecurringTasks resolves normally when the RPC succeeds', async () => {

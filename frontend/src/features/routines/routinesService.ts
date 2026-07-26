@@ -203,6 +203,33 @@ export async function createTask(input: {
   }
 }
 
+export async function updateTask(input: {
+  id: string;
+  title: string;
+  description?: string | null;
+  due_date?: string | null;
+  due_time?: string | null;
+  is_recurring?: boolean;
+}): Promise<RoutineTask> {
+  const { data, error } = await supabase
+    .from('routine_tasks')
+    .update({
+      title: input.title,
+      description: input.description?.trim() ? input.description.trim() : null,
+      // A recurring task's "date" is every day, so a leftover one-off due_date would be
+      // contradictory — clear it whenever the task is (or becomes) recurring.
+      due_date: input.is_recurring ? null : input.due_date?.trim() ? input.due_date.trim() : null,
+      due_time: input.due_time?.trim() ? input.due_time.trim() : null,
+      is_recurring: input.is_recurring === true,
+    })
+    .eq('id', input.id)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data as RoutineTask;
+}
+
 export async function resetRecurringTasks(todayLocal: string): Promise<void> {
   // Best-effort: if the migration/RPC isn't deployed yet, recurring tasks simply behave like
   // one-off tasks (never auto-reset) instead of breaking the rest of the load flow.

@@ -19,6 +19,7 @@ vi.mock('../routinesService', () => {
     resetRecurringTasks: vi.fn(),
     toggleTaskDone: vi.fn(),
     updateRoutine: vi.fn(),
+    updateTask: vi.fn(),
   };
 });
 
@@ -395,6 +396,124 @@ describe('useRoutinesStore', () => {
     expect(s.allTasks[0]?.is_done).toBe(true);
     expect(s.tasksByRoutineId.r1?.[0]?.is_done).toBe(true);
     expect(s.taskEvents[0]?.event_type).toBe('completed');
+  });
+
+  it('editTask updates the task in both global and per-routine lists', async () => {
+    const { storeMod, serviceMod } = await freshStore();
+    const { useRoutinesStore } = storeMod;
+
+    const base = {
+      id: 't1',
+      user_id: 'u1',
+      routine_id: 'r1',
+      title: 'Old title',
+      description: null,
+      due_date: null,
+      due_time: null,
+      is_recurring: false,
+      is_done: false,
+      completed_at: null,
+      created_at: new Date(2025, 0, 1, 12).toISOString(),
+      updated_at: new Date(2025, 0, 1, 12).toISOString(),
+    };
+
+    useRoutinesStore.setState({
+      allTasks: [base],
+      tasksByRoutineId: { r1: [base] },
+    });
+
+    vi.mocked(serviceMod.updateTask).mockResolvedValue({
+      ...base,
+      title: 'New title',
+      due_date: '2026-08-01',
+    });
+
+    await useRoutinesStore.getState().editTask({
+      id: 't1',
+      routine_id: 'r1',
+      title: 'New title',
+      due_date: '2026-08-01',
+    });
+
+    const s = useRoutinesStore.getState();
+    expect(s.allTasks[0]?.title).toBe('New title');
+    expect(s.tasksByRoutineId.r1?.[0]?.due_date).toBe('2026-08-01');
+    expect(s.error).toBeNull();
+  });
+
+  it('editTask stores the error message and rethrows so the form can show it', async () => {
+    const { storeMod, serviceMod } = await freshStore();
+    const { useRoutinesStore } = storeMod;
+
+    vi.mocked(serviceMod.updateTask).mockRejectedValue(new Error('title too long'));
+
+    await expect(
+      useRoutinesStore.getState().editTask({ id: 't1', routine_id: 'r1', title: 'x' }),
+    ).rejects.toThrow('title too long');
+    expect(useRoutinesStore.getState().error).toBe('title too long');
+  });
+
+  it('postponeTask moves a one-off task to tomorrow (local date)', async () => {
+    const { storeMod, serviceMod } = await freshStore();
+    const { useRoutinesStore } = storeMod;
+
+    const base = {
+      id: 't1',
+      user_id: 'u1',
+      routine_id: 'r1',
+      title: 'Pay bills',
+      description: null,
+      due_date: '2026-07-26',
+      due_time: '10:00',
+      is_recurring: false,
+      is_done: false,
+      completed_at: null,
+      created_at: new Date(2025, 0, 1, 12).toISOString(),
+      updated_at: new Date(2025, 0, 1, 12).toISOString(),
+    };
+    useRoutinesStore.setState({ allTasks: [base], tasksByRoutineId: { r1: [base] } });
+
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowKey = [
+      tomorrow.getFullYear(),
+      String(tomorrow.getMonth() + 1).padStart(2, '0'),
+      String(tomorrow.getDate()).padStart(2, '0'),
+    ].join('-');
+
+    vi.mocked(serviceMod.updateTask).mockResolvedValue({ ...base, due_date: tomorrowKey });
+
+    await useRoutinesStore.getState().postponeTask({ id: 't1', routine_id: 'r1' });
+
+    expect(serviceMod.updateTask).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 't1', title: 'Pay bills', due_date: tomorrowKey }),
+    );
+    expect(useRoutinesStore.getState().allTasks[0]?.due_date).toBe(tomorrowKey);
+  });
+
+  it('postponeTask is a no-op for a recurring task (no fixed due date to move)', async () => {
+    const { storeMod, serviceMod } = await freshStore();
+    const { useRoutinesStore } = storeMod;
+
+    const base = {
+      id: 't1',
+      user_id: 'u1',
+      routine_id: 'r1',
+      title: 'Daily habit',
+      description: null,
+      due_date: null,
+      due_time: null,
+      is_recurring: true,
+      is_done: false,
+      completed_at: null,
+      created_at: new Date(2025, 0, 1, 12).toISOString(),
+      updated_at: new Date(2025, 0, 1, 12).toISOString(),
+    };
+    useRoutinesStore.setState({ allTasks: [base], tasksByRoutineId: { r1: [base] } });
+
+    await useRoutinesStore.getState().postponeTask({ id: 't1', routine_id: 'r1' });
+
+    expect(serviceMod.updateTask).not.toHaveBeenCalled();
   });
 
   it('removeTask removes task from global and routine lists', async () => {

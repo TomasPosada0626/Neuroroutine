@@ -2,14 +2,25 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/features/auth/authStore';
 import { useRoutines } from '@/features/routines/routinesStore';
-import { RoutineFormModal } from '@/features/routines/components';
+import { RoutineFormModal, TaskFormModal } from '@/features/routines/components';
 import {
   useDashboardPrefs,
   type RoutineSchedule,
 } from '@/features/dashboard/store/dashboardPrefsStore';
 import { listRoutines, searchRoutines } from '@/features/routines/routinesService';
+import { cn } from '@/shared/lib/cn';
 import { Button, Card, Input, Textarea } from '@/shared/ui';
 import { useUiStore } from '@/shared/state/uiStore';
+
+function localDateKey(offsetDays: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return [
+    d.getFullYear(),
+    String(d.getMonth() + 1).padStart(2, '0'),
+    String(d.getDate()).padStart(2, '0'),
+  ].join('-');
+}
 
 export function RoutinePanel() {
   const { user } = useAuth();
@@ -58,12 +69,15 @@ export function RoutinePanel() {
     loadTasks,
     addTask,
     setTaskDone,
+    editTask,
+    postponeTask,
     removeTask,
     discardOfflineTask,
   } = useRoutines();
 
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskRecurring, setNewTaskRecurring] = useState(false);
+  const [newTaskDueDate, setNewTaskDueDate] = useState('');
   const [bulkMode, setBulkMode] = useState(false);
   const [bulkText, setBulkText] = useState('');
   const [routineQuery, setRoutineQuery] = useState('');
@@ -88,6 +102,7 @@ export function RoutinePanel() {
   });
 
   const [editOpen, setEditOpen] = useState(false);
+  const [editTaskId, setEditTaskId] = useState<string | null>(null);
 
   const routinesQuery = useQuery({
     queryKey: ['routines', userId],
@@ -195,7 +210,15 @@ export function RoutinePanel() {
     [routines, selectedRoutineId],
   );
 
-  const tasks = selectedRoutineId ? (tasksByRoutineId[selectedRoutineId] ?? []) : [];
+  const tasks = useMemo(
+    () => (selectedRoutineId ? (tasksByRoutineId[selectedRoutineId] ?? []) : []),
+    [selectedRoutineId, tasksByRoutineId],
+  );
+
+  const taskBeingEdited = useMemo(
+    () => tasks.find((t) => t.id === editTaskId) ?? null,
+    [tasks, editTaskId],
+  );
 
   const filteredRoutines = useMemo(() => {
     return [...routines].sort((a, b) => {
@@ -266,6 +289,30 @@ export function RoutinePanel() {
             });
             await queryClient.invalidateQueries({ queryKey: ['routines', user?.id] });
             await queryClient.invalidateQueries({ queryKey: ['routines', 'search', user?.id] });
+          }}
+        />
+        <TaskFormModal
+          open={editTaskId !== null}
+          loading={actionLoading}
+          initialValues={{
+            title: taskBeingEdited?.title ?? '',
+            description: taskBeingEdited?.description ?? '',
+            due_date: taskBeingEdited?.due_date ?? '',
+            due_time: taskBeingEdited?.due_time ? String(taskBeingEdited.due_time).slice(0, 5) : '',
+            is_recurring: taskBeingEdited?.is_recurring ?? false,
+          }}
+          onClose={() => setEditTaskId(null)}
+          onConfirm={async (values) => {
+            if (!taskBeingEdited || !selectedRoutineId) return;
+            await editTask({
+              id: taskBeingEdited.id,
+              routine_id: selectedRoutineId,
+              title: values.title.trim(),
+              description: values.description?.trim() ? values.description.trim() : null,
+              due_date: values.due_date?.trim() ? values.due_date.trim() : null,
+              due_time: values.due_time?.trim() ? values.due_time.trim() : null,
+              is_recurring: values.is_recurring,
+            });
           }}
         />
         <Card className="lg:col-span-1">
@@ -578,23 +625,67 @@ export function RoutinePanel() {
                             user_id: user.id,
                             routine_id: selectedRoutineId,
                             title: newTaskTitle.trim(),
+                            due_date: newTaskRecurring ? null : newTaskDueDate || null,
                             is_recurring: newTaskRecurring,
                           });
                           setNewTaskTitle('');
                           setNewTaskRecurring(false);
+                          setNewTaskDueDate('');
                         }}
                       >
                         Añadir
                       </Button>
                     </div>
-                    <label className={'flex items-center gap-2 text-xs ' + subtleText}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        className={dayPillClass(
+                          !newTaskRecurring && newTaskDueDate === localDateKey(0),
+                        )}
+                        onClick={() => {
+                          setNewTaskRecurring(false);
+                          setNewTaskDueDate((d) => (d === localDateKey(0) ? '' : localDateKey(0)));
+                        }}
+                      >
+                        Hoy
+                      </button>
+                      <button
+                        type="button"
+                        className={dayPillClass(
+                          !newTaskRecurring && newTaskDueDate === localDateKey(1),
+                        )}
+                        onClick={() => {
+                          setNewTaskRecurring(false);
+                          setNewTaskDueDate((d) => (d === localDateKey(1) ? '' : localDateKey(1)));
+                        }}
+                      >
+                        Mañana
+                      </button>
                       <input
-                        type="checkbox"
-                        checked={newTaskRecurring}
-                        onChange={(e) => setNewTaskRecurring(e.target.checked)}
+                        type="date"
+                        aria-label="Elegir fecha para la tarea"
+                        value={newTaskDueDate}
+                        disabled={newTaskRecurring}
+                        onChange={(e) => setNewTaskDueDate(e.target.value)}
+                        className={cn(
+                          'h-8 rounded-lg px-2 text-xs ring-1 disabled:opacity-50',
+                          isDay
+                            ? 'bg-white text-slate-700 ring-slate-200'
+                            : 'bg-slate-950/40 text-slate-200 ring-white/10',
+                        )}
                       />
-                      Repetir cada día (hábito)
-                    </label>
+                      <label className={'flex items-center gap-2 text-xs ' + subtleText}>
+                        <input
+                          type="checkbox"
+                          checked={newTaskRecurring}
+                          onChange={(e) => {
+                            setNewTaskRecurring(e.target.checked);
+                            if (e.target.checked) setNewTaskDueDate('');
+                          }}
+                        />
+                        Repetir cada día (hábito)
+                      </label>
+                    </div>
                   </div>
                 )}
 
@@ -686,18 +777,42 @@ export function RoutinePanel() {
                               ) : null}
                             </span>
                           </label>
-                          <Button
-                            variant="danger"
-                            disabled={offline}
-                            onClick={() => {
-                              if (!selectedRoutineId) return;
-                              if (confirm('¿Eliminar esta tarea?')) {
-                                void removeTask({ id: t.id, routine_id: selectedRoutineId });
-                              }
-                            }}
-                          >
-                            Quitar
-                          </Button>
+                          <div className="flex flex-shrink-0 items-center gap-2">
+                            {!t.is_recurring && !t.is_done ? (
+                              <Button
+                                variant="secondary"
+                                disabled={offline}
+                                title="Mover esta tarea a mañana"
+                                onClick={() => {
+                                  if (!selectedRoutineId) return;
+                                  void postponeTask({ id: t.id, routine_id: selectedRoutineId });
+                                }}
+                              >
+                                Posponer
+                              </Button>
+                            ) : null}
+                            <Button
+                              variant="secondary"
+                              disabled={offline}
+                              aria-label={`Editar tarea: ${t.title}`}
+                              onClick={() => setEditTaskId(t.id)}
+                            >
+                              Editar
+                            </Button>
+                            <Button
+                              variant="danger"
+                              disabled={offline}
+                              aria-label={`Quitar tarea: ${t.title}`}
+                              onClick={() => {
+                                if (!selectedRoutineId) return;
+                                if (confirm('¿Eliminar esta tarea?')) {
+                                  void removeTask({ id: t.id, routine_id: selectedRoutineId });
+                                }
+                              }}
+                            >
+                              Quitar
+                            </Button>
+                          </div>
                         </div>
                       );
                     })

@@ -12,6 +12,7 @@ import {
   resetRecurringTasks,
   toggleTaskDone,
   updateRoutine,
+  updateTask,
 } from './routinesService';
 import { logAppEvent } from '@/shared/observability/eventLog';
 import {
@@ -112,6 +113,16 @@ type RoutinesState = {
     }>;
   }) => Promise<void>;
   setTaskDone: (input: { id: string; routine_id: string; is_done: boolean }) => Promise<void>;
+  editTask: (input: {
+    id: string;
+    routine_id: string;
+    title: string;
+    description?: string | null;
+    due_date?: string | null;
+    due_time?: string | null;
+    is_recurring?: boolean;
+  }) => Promise<void>;
+  postponeTask: (input: { id: string; routine_id: string }) => Promise<void>;
   removeTask: (input: { id: string; routine_id: string }) => Promise<void>;
 };
 
@@ -674,6 +685,61 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
     } finally {
       set({ loading: false });
     }
+  },
+
+  editTask: async (input) => {
+    set({ loading: true, error: null });
+    try {
+      const updated = await updateTask({
+        id: input.id,
+        title: input.title,
+        description: input.description,
+        due_date: input.due_date,
+        due_time: input.due_time,
+        is_recurring: input.is_recurring,
+      });
+
+      set((s) => ({
+        allTasks: s.allTasks.map((t) => (t.id === updated.id ? updated : t)),
+        tasksByRoutineId: {
+          ...s.tasksByRoutineId,
+          [input.routine_id]: (s.tasksByRoutineId[input.routine_id] ?? []).map((t) =>
+            t.id === updated.id ? updated : t,
+          ),
+        },
+      }));
+    } catch (e) {
+      set({ error: e instanceof Error ? e.message : 'Failed to update task' });
+      throw e;
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  // One-tap "do it tomorrow instead" for a one-off dated task — the low-friction move for
+  // procrastination that beats a full edit form. Recurring tasks have no fixed due date to
+  // postpone (their whole point is "every day"), so this is a no-op for them.
+  postponeTask: async (input) => {
+    const current = get().allTasks.find((t) => t.id === input.id);
+    if (!current || current.is_recurring) return;
+
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowKey = [
+      tomorrow.getFullYear(),
+      String(tomorrow.getMonth() + 1).padStart(2, '0'),
+      String(tomorrow.getDate()).padStart(2, '0'),
+    ].join('-');
+
+    await get().editTask({
+      id: input.id,
+      routine_id: input.routine_id,
+      title: current.title,
+      description: current.description ?? null,
+      due_date: tomorrowKey,
+      due_time: current.due_time ?? null,
+      is_recurring: false,
+    });
   },
 
   removeTask: async (input) => {

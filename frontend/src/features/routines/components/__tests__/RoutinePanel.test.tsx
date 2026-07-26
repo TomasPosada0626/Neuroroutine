@@ -31,6 +31,8 @@ const routinesStoreState = {
   loadTasks: vi.fn(),
   addTask: vi.fn(),
   setTaskDone: vi.fn(),
+  editTask: vi.fn(),
+  postponeTask: vi.fn(),
   removeTask: vi.fn(),
   discardOfflineTask: vi.fn(),
 };
@@ -216,8 +218,50 @@ describe('RoutinePanel with a selected routine', () => {
       user_id: 'u1',
       routine_id: 'r1',
       title: 'Leer 10 min',
+      due_date: null,
       is_recurring: false,
     });
+  });
+
+  it('sets due_date to today or tomorrow via the quick-capture chips', async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    await screen.findByRole('heading', { name: 'Mañana enfocada' });
+
+    await user.type(screen.getByPlaceholderText('Nueva tarea (paso pequeño)…'), 'Llamar al médico');
+    await user.click(screen.getByRole('button', { name: 'Mañana' }));
+    await user.click(screen.getByRole('button', { name: 'Añadir' }));
+
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowKey = [
+      tomorrow.getFullYear(),
+      String(tomorrow.getMonth() + 1).padStart(2, '0'),
+      String(tomorrow.getDate()).padStart(2, '0'),
+    ].join('-');
+
+    expect(routinesStoreState.addTask).toHaveBeenCalledWith({
+      user_id: 'u1',
+      routine_id: 'r1',
+      title: 'Llamar al médico',
+      due_date: tomorrowKey,
+      is_recurring: false,
+    });
+  });
+
+  it('checking "Repetir cada día" clears a previously picked quick-capture date', async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    await screen.findByRole('heading', { name: 'Mañana enfocada' });
+
+    await user.click(screen.getByRole('button', { name: 'Hoy' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Repetir cada día (hábito)' }));
+
+    const dateInput = screen.getByLabelText('Elegir fecha para la tarea') as HTMLInputElement;
+    expect(dateInput.value).toBe('');
+    expect(dateInput).toBeDisabled();
   });
 
   it('marks a quick-add task as recurring when "Repetir cada día" is checked', async () => {
@@ -234,6 +278,7 @@ describe('RoutinePanel with a selected routine', () => {
       user_id: 'u1',
       routine_id: 'r1',
       title: 'Tomar agua',
+      due_date: null,
       is_recurring: true,
     });
     // The toggle resets after a successful add, same as the title field.
@@ -292,8 +337,7 @@ describe('RoutinePanel with a selected routine', () => {
     renderPanel();
 
     await screen.findByRole('heading', { name: 'Mañana enfocada' });
-    const deleteButtons = screen.getAllByRole('button', { name: 'Quitar' });
-    await user.click(deleteButtons[0]!);
+    await user.click(screen.getByRole('button', { name: 'Quitar tarea: Tomar agua' }));
 
     expect(routinesStoreState.removeTask).toHaveBeenCalledWith({ id: 't1', routine_id: 'r1' });
   });
@@ -304,9 +348,50 @@ describe('RoutinePanel with a selected routine', () => {
     renderPanel();
 
     await screen.findByRole('heading', { name: 'Mañana enfocada' });
-    await user.click(screen.getAllByRole('button', { name: 'Quitar' })[0]!);
+    await user.click(screen.getByRole('button', { name: 'Quitar tarea: Tomar agua' }));
 
     expect(routinesStoreState.removeTask).not.toHaveBeenCalled();
+  });
+
+  it('opens the edit modal pre-filled and saves changes through editTask', async () => {
+    const user = userEvent.setup();
+    routinesStoreState.editTask.mockResolvedValue(undefined);
+    renderPanel();
+
+    await screen.findByRole('heading', { name: 'Mañana enfocada' });
+    await user.click(screen.getByRole('button', { name: 'Editar tarea: Tomar agua' }));
+
+    const titleInput = screen.getByLabelText('Título') as HTMLInputElement;
+    expect(titleInput.value).toBe('Tomar agua');
+
+    await user.clear(titleInput);
+    await user.type(titleInput, 'Tomar 2L de agua');
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    expect(routinesStoreState.editTask).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 't1', routine_id: 'r1', title: 'Tomar 2L de agua' }),
+    );
+  });
+
+  it('postpones a pending one-off task to tomorrow', async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    await screen.findByRole('heading', { name: 'Mañana enfocada' });
+    await user.click(screen.getByRole('button', { name: 'Posponer' }));
+
+    expect(routinesStoreState.postponeTask).toHaveBeenCalledWith({
+      id: 't1',
+      routine_id: 'r1',
+    });
+  });
+
+  it('does not offer "Posponer" for a completed or a recurring task', async () => {
+    renderPanel();
+
+    await screen.findByRole('heading', { name: 'Mañana enfocada' });
+    // t2 ("Estirar") is already done in the shared fixture, so only t1 can show "Posponer".
+    expect(screen.getAllByRole('button', { name: 'Posponer' })).toHaveLength(1);
   });
 
   it('deletes the routine after confirmation and clears the selection', async () => {
