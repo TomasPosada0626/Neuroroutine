@@ -166,7 +166,11 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
           // Not a connectivity problem — retrying on its own won't help. Keep it queued (the
           // user can discard it) and say specifically which task and why, instead of a blanket
           // "something failed" that reappears on every sync attempt with no way to resolve it.
-          issues.push({ localId: item.local_id, title: item.title, message: describeSyncFailure(err) });
+          issues.push({
+            localId: item.local_id,
+            title: item.title,
+            message: describeSyncFailure(err),
+          });
         }
       }
     }

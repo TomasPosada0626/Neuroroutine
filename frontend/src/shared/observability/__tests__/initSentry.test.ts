@@ -45,8 +45,6 @@ describe('initSentry', () => {
 
     initSentry();
 
-    expect(Sentry.init).toHaveBeenCalledWith(
-      expect.objectContaining({ tracesSampleRate: 1 }),
-    );
+    expect(Sentry.init).toHaveBeenCalledWith(expect.objectContaining({ tracesSampleRate: 1 }));
   });
 });

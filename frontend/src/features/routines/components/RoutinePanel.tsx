@@ -181,7 +181,13 @@ export function RoutinePanel() {
     if (selectedRoutineId && !routines.some((r) => r.id === selectedRoutineId)) {
       selectRoutine(null);
     }
-  }, [selectedRoutineId, routines, selectRoutine, routinesQuery.isLoading, routinesQuery.isFetching]);
+  }, [
+    selectedRoutineId,
+    routines,
+    selectRoutine,
+    routinesQuery.isLoading,
+    routinesQuery.isFetching,
+  ]);
 
   const selectedRoutine = useMemo(
     () => routines.find((r) => r.id === selectedRoutineId) ?? null,
@@ -601,8 +607,7 @@ export function RoutinePanel() {
                               <div className="font-medium">{t.title}</div>
                               <div
                                 className={
-                                  'mt-0.5 text-xs ' +
-                                  (isDay ? 'text-amber-800' : 'text-amber-200')
+                                  'mt-0.5 text-xs ' + (isDay ? 'text-amber-800' : 'text-amber-200')
                                 }
                               >
                                 No se pudo sincronizar: {syncIssue.message}
