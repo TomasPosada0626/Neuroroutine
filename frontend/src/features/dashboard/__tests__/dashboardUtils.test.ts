@@ -48,22 +48,51 @@ describe('dashboardUtils', () => {
     vi.useRealTimers();
   });
 
-  it('computeStreaks returns current/best streaks', () => {
+  it('computeStreaks tolerates a single missed day (streak freeze) without breaking current', () => {
     const today = new Date(2025, 0, 10, 12, 0, 0);
 
     const dayKeys = new Set<string>([
       dateKeyLocal(addDaysLocal(today, 0)),
       dateKeyLocal(addDaysLocal(today, -1)),
       dateKeyLocal(addDaysLocal(today, -2)),
-      // break (missing -3)
+      // one missed day (-3) is tolerated: the streak continues through it
       dateKeyLocal(addDaysLocal(today, -4)),
       dateKeyLocal(addDaysLocal(today, -5)),
     ]);
 
     const res = computeStreaks(dayKeys, today);
     expect(res.hasToday).toBe(true);
-    expect(res.current).toBe(3);
+    expect(res.current).toBe(5);
+    // "best" is the strict historical record and does not get the grace-day tolerance.
     expect(res.best).toBe(3);
+  });
+
+  it('computeStreaks breaks the current streak after two consecutive missed days', () => {
+    const today = new Date(2025, 0, 10, 12, 0, 0);
+
+    const dayKeys = new Set<string>([
+      dateKeyLocal(addDaysLocal(today, 0)),
+      // two consecutive misses (-1, -2) end the streak even with the grace day
+      dateKeyLocal(addDaysLocal(today, -3)),
+      dateKeyLocal(addDaysLocal(today, -4)),
+    ]);
+
+    const res = computeStreaks(dayKeys, today);
+    expect(res.current).toBe(1);
+  });
+
+  it("computeStreaks keeps yesterday's streak visible when today has no activity yet", () => {
+    const today = new Date(2025, 0, 10, 8, 0, 0);
+
+    const dayKeys = new Set<string>([
+      dateKeyLocal(addDaysLocal(today, -1)),
+      dateKeyLocal(addDaysLocal(today, -2)),
+      dateKeyLocal(addDaysLocal(today, -3)),
+    ]);
+
+    const res = computeStreaks(dayKeys, today);
+    expect(res.hasToday).toBe(false);
+    expect(res.current).toBe(3);
   });
 
   it('computeWeekCounts counts this week vs previous week deterministically', () => {

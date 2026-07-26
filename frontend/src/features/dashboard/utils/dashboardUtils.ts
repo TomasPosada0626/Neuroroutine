@@ -85,11 +85,23 @@ export function computeDayActivitySet(
 
 export function computeStreaks(dayKeys: Set<string>, today = new Date()) {
   const todayKey = dateKeyLocal(today);
-  let current = 0;
-  for (let i = 0; i < 3650; i++) {
+
+  // "Streak freeze": one missed day (today doesn't count as missed — it isn't over yet) is
+  // tolerated without zeroing the streak, so a single bad day doesn't erase real progress and
+  // demotivate exactly the users this app is meant to help. Two misses in a row still end it.
+  let current = dayKeys.has(todayKey) ? 1 : 0;
+  let usedGraceDay = false;
+  for (let i = 1; i < 3650; i++) {
     const key = dateKeyLocal(addDaysLocal(today, -i));
-    if (dayKeys.has(key)) current++;
-    else break;
+    if (dayKeys.has(key)) {
+      current++;
+      continue;
+    }
+    if (!usedGraceDay) {
+      usedGraceDay = true;
+      continue;
+    }
+    break;
   }
 
   // best streak: iterate sorted keys and count runs

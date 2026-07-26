@@ -66,7 +66,7 @@ export function AuthShell({ title, subtitle, badge, footer, className, children 
         />
       </div>
 
-      <div className="relative mx-auto grid min-h-dvh max-w-6xl items-center gap-8 px-4 py-10 lg:grid-cols-12">
+      <main className="relative mx-auto grid min-h-dvh max-w-6xl items-center gap-8 px-4 py-10 lg:grid-cols-12">
         {/* Left */}
         <div className="lg:col-span-6">
           <div className="flex items-start justify-between gap-3">
@@ -151,7 +151,7 @@ export function AuthShell({ title, subtitle, badge, footer, className, children 
         <div className="lg:col-span-6">{children}</div>
 
         {footer ? <div className="lg:col-span-12">{footer}</div> : null}
-      </div>
+      </main>
     </div>
   );
 }

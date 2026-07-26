@@ -11,6 +11,7 @@ import {
   computeDayActivitySet,
   computeStreaks,
   computeWeekCounts,
+  dateKeyLocal,
   formatTimeAgo,
   formatHour,
   formatPct,
@@ -43,6 +44,11 @@ import { RoutinePanel } from '@/features/routines/components/RoutinePanel';
 import { useRoutines } from '@/features/routines/routinesStore';
 import { AppShell } from '@/shared/layout';
 import { cn } from '@/shared/lib/cn';
+import {
+  getNotificationPermission,
+  notifyDueTasksOnce,
+  requestNotificationPermission,
+} from '@/shared/notifications/dueTaskNotifications';
 import { useUiStore } from '@/shared/state/uiStore';
 import { Button, Card, Input, Modal, Tooltip } from '@/shared/ui';
 
@@ -82,6 +88,7 @@ export function DashboardPage() {
   const [reminderSaved, setReminderSaved] = useState(false);
   const [scheduleRoutineId, setScheduleRoutineId] = useState<string | null>(null);
   const [upcomingDayKey, setUpcomingDayKey] = useState<string | null>(null);
+  const [notificationPermission, setNotificationPermission] = useState(getNotificationPermission);
 
   const didAutoPickRoutineRef = useRef(false);
   const didManualPickRoutineRef = useRef(false);
@@ -143,6 +150,13 @@ export function DashboardPage() {
       userId: user.id,
     });
   }, [user?.id, hydrateFromCache, refreshAll]);
+
+  // Local-only fallback reminder: no server/push infra required. Best-effort, so it silently
+  // no-ops until the user grants permission (see the "Preferencias" panel in "Personalizar").
+  useEffect(() => {
+    if (allTasks.length === 0) return;
+    notifyDueTasksOnce(allTasks, dateKeyLocal(new Date()));
+  }, [allTasks]);
 
   // Map the top-level scope to the analytics range for a coherent experience.
   useEffect(() => {
@@ -406,12 +420,35 @@ export function DashboardPage() {
                   disabled={offline}
                 >
                   <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={t.is_done}
-                      readOnly
-                      className={isDay ? '' : 'accent-cyan-300'}
-                    />
+                    {/* Decorative status indicator, not a real form control: the whole row is
+                        already a <button> that toggles completion, so a nested <input> here
+                        would be a real (and, per axe, unfixable-via-aria-hidden) nested
+                        interactive control. */}
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        'grid h-4 w-4 flex-shrink-0 place-items-center rounded border',
+                        t.is_done
+                          ? isDay
+                            ? 'border-slate-900 bg-slate-900'
+                            : 'border-cyan-300 bg-cyan-300'
+                          : isDay
+                            ? 'border-slate-300 bg-white'
+                            : 'border-white/30 bg-transparent',
+                      )}
+                    >
+                      {t.is_done ? (
+                        <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none">
+                          <path
+                            d="M20 7L10 17l-5-5"
+                            stroke={isDay ? 'white' : '#0f172a'}
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      ) : null}
+                    </span>
                     <div>
                       <div className={'text-sm font-medium ' + panelText}>{t.title}</div>
                       <div className={'text-xs ' + subtleText}>
@@ -786,6 +823,10 @@ export function DashboardPage() {
               {streaks.best}
             </div>
             <div className={'mt-1 text-xs ' + subtleText}>Tu récord histórico</div>
+          </div>
+          <div className={'sm:col-span-2 text-xs ' + subtleText}>
+            Un día perdido no borra tu racha actual — solo dos días seguidos sin actividad la
+            reinician.
           </div>
         </div>,
       );
@@ -1203,6 +1244,7 @@ export function DashboardPage() {
                 <Input
                   type="number"
                   min={1}
+                  aria-label="Meta semanal (tareas)"
                   value={prefs.weeklyGoal}
                   onChange={(e) => prefs.setWeeklyGoal(Number(e.target.value || 1))}
                 />
@@ -1236,6 +1278,7 @@ export function DashboardPage() {
                     min={0}
                     max={23}
                     placeholder="0-23"
+                    aria-label="Hora típica de recordatorio"
                     value={prefs.reminderHour ?? ''}
                     onChange={(e) => {
                       const v = e.target.value.trim();
@@ -1251,6 +1294,38 @@ export function DashboardPage() {
                   >
                     Limpiar
                   </Button>
+                </div>
+              </div>
+
+              <div className="sm:col-span-2">
+                <div className={'text-xs ' + subtleText}>
+                  Recordatorios en este navegador (sin correo, mientras el envío por email no esté
+                  activo)
+                </div>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  {notificationPermission === 'granted' ? (
+                    <div className={'text-sm ' + panelText}>
+                      Activados: avisamos aquí si tienes tareas vencidas hoy.
+                    </div>
+                  ) : notificationPermission === 'denied' ? (
+                    <div className={'text-sm ' + panelText}>
+                      Bloqueados por el navegador. Actívalos desde los ajustes del sitio.
+                    </div>
+                  ) : notificationPermission === 'unsupported' ? (
+                    <div className={'text-sm ' + panelText}>
+                      Este navegador no soporta notificaciones.
+                    </div>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      onClick={async () => {
+                        const result = await requestNotificationPermission();
+                        setNotificationPermission(result);
+                      }}
+                    >
+                      Activar recordatorios
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
@@ -1326,6 +1401,7 @@ export function DashboardPage() {
                       min={0}
                       max={23}
                       placeholder="0-23"
+                      aria-label="Hora programada para esta rutina"
                       value={prefs.routineScheduleById[scheduleRoutineId]?.hour ?? ''}
                       onChange={(e) => {
                         const raw = e.target.value.trim();
@@ -1389,7 +1465,7 @@ export function DashboardPage() {
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <div className="text-2xl font-semibold">Mi progreso</div>
+              <h1 className="text-2xl font-semibold">Mi progreso</h1>
               <div className={'text-sm ' + subtleText}>
                 {name ? `Hola, ${name}. ` : 'Hola. '}
                 Hoy cuenta: una tarea pequeña ya es progreso.
