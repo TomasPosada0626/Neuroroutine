@@ -10,8 +10,8 @@ Important:
 ## Verified project metrics (from current repository)
 
 - CI quality gates on every push/PR: lint, format check, tests + coverage gate, build, Playwright smoke E2E.
-- Test coverage snapshot (2026-07-25, `npm run test:coverage` on Node 24): 95.05% statements, 81.51% branches, 97.05% functions, 97.19% lines.
-- Mutation testing snapshot (2026-07-25, `npm run test:mutation`, Stryker, scoped to `features/routines` + `shared/lib`): **45.48% mutation score** (733 killed / 836 survived / 21 timeout out of 1658 covered mutants). Reported honestly alongside coverage rather than omitted — it's the more meaningful number and the gap versus 95% line coverage is a real, tracked backlog item, not hidden.
+- Test coverage snapshot (2026-07-26, `npm run test:coverage` on Node 24, 251 tests): 94.15% statements, 79.98% branches, 94.97% functions, 96.14% lines.
+- Mutation testing: last measured 2026-07-25 at **45.48% mutation score** (733 killed / 836 survived / 21 timeout out of 1658 covered mutants), before a round of feature growth in `features/routines` (task editing, postpone, quick-capture, daily-recurring tasks). Not yet re-run against that larger surface — treat this number as stale, not current, until it is. Reported honestly rather than omitted: it's the more meaningful signal, and pretending coverage alone proves test quality would be worse than admitting the number needs a refresh.
 - Dual deployment paths: Vercel and Render.
 - Security model: Supabase RLS policies scoped by authenticated user identity, verified with an automated cross-user mutation attack test (Playwright).
 
@@ -19,8 +19,9 @@ Important:
 
 - Built and shipped NeuroRoutine, a React + TypeScript SPA with Supabase Auth/Postgres and row-level security.
 - Implemented CI quality gates (lint, format check, unit tests with a coverage gate, build, and Playwright smoke E2E) to reduce regression risk before deployment.
-- Maintained measurable test quality with 95.1% statement coverage / 81.5% branch coverage (snapshot), including feature/store tests for core flows.
+- Maintained measurable test quality with 94.2% statement coverage / 80.0% branch coverage (snapshot, 251 tests), including feature/store tests for core flows.
 - Ran mutation testing (Stryker) to validate assertion quality beyond coverage percentage, surfacing a 45.5% mutation score as a concrete improvement target rather than assuming high coverage meant high test quality.
+- Ran an automated accessibility audit (axe-core via Playwright) against the live app across the landing page, login, and the dashboard in four real states, finding and fixing six real WCAG violations (missing landmark/heading structure, unlabeled form controls, a nested interactive control invalid even with `aria-hidden`) — not just testing the shared component library in isolation.
 - Wrote an automated Playwright test that steals a real session token and attempts a cross-user mutation over the Supabase REST API, proving RLS policies reject it end-to-end.
 - Refactored a 3,200-line dashboard page by extracting its analytics/business logic into pure, independently unit-tested functions in the feature layer, cutting the page to under 2,500 lines without changing its rendered output.
 - Designed resilient delivery with dual production deployment options (Vercel primary, Render fallback).

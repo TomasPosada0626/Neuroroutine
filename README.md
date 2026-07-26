@@ -284,21 +284,22 @@ Quality pipeline includes:
 - `npm run build`
 - Playwright smoke checks
 
-Coverage snapshot (`npm run test:coverage`, Node 24):
+Coverage snapshot (`npm run test:coverage`, Node 24, 251 tests):
 
-- **Statements:** 95.05%
-- **Branches:** 81.51%
-- **Functions:** 97.05%
-- **Lines:** 97.19%
+- **Statements:** 94.15%
+- **Branches:** 79.98%
+- **Functions:** 94.97%
+- **Lines:** 96.14%
 
 Mutation testing (`npm run test:mutation`, Stryker, scoped to `features/routines` + `shared/lib`):
-**45.48%** mutation score. This is intentionally reported alongside line coverage rather than
-instead of it: high statement coverage means the code *ran* during tests, mutation score measures
-whether the assertions would actually *catch* a bug. The gap between 95% coverage and 45%
-mutation score is the honest signal that some passing tests don't assert precisely enough yet —
-tracked as a real backlog item, not smoothed over.
+last measured at **45.48%** before this round of feature work (task editing, postpone,
+quick-capture, recurring tasks) landed — not yet re-run against the larger surface, so treat that
+number as stale rather than current. This is intentionally reported alongside line coverage
+rather than instead of it: high statement coverage means the code *ran* during tests, mutation
+score measures whether the assertions would actually *catch* a bug. Re-running it against the
+current `features/routines` (now substantially larger) is a tracked follow-up, not smoothed over.
 
-**Last updated:** 2026-07-25  
+**Last updated:** 2026-07-26  
 CI reference: https://github.com/TomasPosada0626/Neuroroutine/actions/workflows/ci.yml
 
 ---
@@ -383,8 +384,12 @@ This MVP intentionally focuses on core engineering fundamentals. Current scope b
 
 ### Coverage Gaps
 
-- Current test coverage: 95.83% statements / 85.09% branches (target: keep statements/lines above 90% and branches above 85% as new features land).
-- Priority expansion areas: remaining branch gaps in `routinesService.ts` and `routinesStore.ts` (see coverage report), and the RLS cross-user E2E job once re-enabled in CI.
+- Current test coverage: 94.15% statements / 79.98% branches (enforced CI gate:
+  `vite.config.ts` fails the build below 90% statements/lines/functions or 78% branches).
+- Priority expansion areas: `RoutinePanel.tsx` branch coverage (67%) — the largest single
+  component, still has un-exercised paths in its schedule editor and bulk-add flows — and the
+  Stryker mutation score, last measured before this session's `features/routines` growth and
+  due for a re-run.
 
 ---
 
