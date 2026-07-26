@@ -6,7 +6,9 @@ This checklist tracks practical controls aligned with common OWASP risks.
 
 - [x] RLS per-user ownership in Postgres.
 - [x] Protected routes in frontend.
-- [ ] Add automated multi-user mutation regression tests in CI.
+- [x] Automated multi-user mutation regression tests in CI (`e2e/routines.spec.ts`, "RLS
+      regression" suite: cross-user read isolation + cross-user PATCH/DELETE denial), gated on
+      `E2E_USER_A/B_*` secrets and skipped with a CI warning (not a silent pass) when absent.
 
 ## A02 Cryptographic Failures
 
@@ -26,7 +28,8 @@ This checklist tracks practical controls aligned with common OWASP risks.
 ## A05 Security Misconfiguration
 
 - [x] CSP and security headers configured for Vercel/Nginx.
-- [ ] Enable strict branch protections in GitHub settings.
+- [x] Branch protection on `main` requires changes through a pull request (owner retains bypass,
+      expected for a solo-maintained repository).
 
 ## A06 Vulnerable and Outdated Components
 

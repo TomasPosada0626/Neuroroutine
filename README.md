@@ -98,25 +98,37 @@ Scope intent: this repository prioritizes engineering fundamentals done well ove
 
 ### Routines and Tasks
 
-- CRUD operations for routines.
-- Task creation, completion toggle, and deletion.
+- CRUD operations for routines, **and full edit support for tasks** (title, description,
+  date/time, recurring flag) — not just create-or-delete.
+- Task creation, completion toggle, editing, "postpone to tomorrow", and deletion.
 - Daily-recurring tasks: mark a task as a habit and its checkbox resets every local day instead
   of staying checked off forever (see [ADR-008](docs/adr/ADR-008-recurring-tasks-daily-reset.md)).
+- Quick-capture chips (Hoy / Mañana / pick a date) next to the always-visible quick-add input, so
+  scheduling something for later doesn't require the full routine wizard.
 - Bulk task creation through the routine wizard.
 - Event logging for completion/uncompletion actions.
 
 ### Dashboard and User Experience
 
 - Activity and consistency-focused dashboard widgets.
+- Streak freeze: one missed day doesn't zero out the current streak, only two in a row do
+  (see [ADR-009](docs/adr/ADR-009-streak-freeze-grace-day.md)).
 - Theme and dashboard preference persistence.
 - Responsive layout for desktop and mobile usage.
+- Installable as a PWA (`manifest.webmanifest`) with a local, no-server-required browser
+  notification for tasks due today or earlier
+  (see [ADR-010](docs/adr/ADR-010-client-only-fallback-notifications.md)).
 
 ### Reliability and Product Foundations
 
 - Routine search via Postgres RPC with full-text fallback, wired to a debounced search input
   in `RoutinePanel` (RPC result → Postgres full-text search → `ilike` fallback, in that order).
 - Offline-first task queue with IndexedDB persistence (service worker planned for Phase 2).
-- Reminder foundation (database schema + preferences ready; Edge Function deployment pending).
+- Reminder foundation (database schema + preferences ready; Edge Function deployment pending);
+  local browser notifications cover the gap in the meantime.
+- Full-page accessibility verified with automated axe scans (landing, login, dashboard in
+  multiple states, color contrast) as real E2E tests against the live app, not just the shared UI
+  kit — see `frontend/e2e/dashboard-accessibility.spec.ts`.
 
 ---
 
@@ -362,8 +374,8 @@ This MVP intentionally focuses on core engineering fundamentals. Current scope b
 
 | Feature | Status | Reason | Phase |
 |---------|--------|--------|-------|
-| **Service Worker** | Planned | IndexedDB queue already provides core offline resilience for MVP scope | Phase 2 |
-| **Notifications** | Foundation ready | Schema + RLS are ready; Edge Function rollout is next step | Phase 1 |
+| **Service Worker** | Implemented | App-shell caching (`public/sw.js`) + installable PWA manifest; IndexedDB queue covers offline writes | — |
+| **Notifications** | Local fallback implemented | Browser Notification API covers same-day reminders (ADR-010); real email/push still pending a provider | Phase 1 |
 | **Task Reordering** | Foundation ready | `@dnd-kit` installed; interaction wiring pending | Phase 2 |
 | **User Profile Edit** | Basic profile only | Authentication and profile base exist; edit UX planned | Phase 2 |
 | **Analytics Export** | Planned | CSV/PDF export not in MVP scope | Phase 3 |

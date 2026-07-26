@@ -12,6 +12,8 @@ This folder stores architecture decisions that have long-term impact on the proj
 - ADR-006: [Offline queue with eventual consistency for task creation](./ADR-006-offline-queue-eventual-consistency.md)
 - ADR-007: [Quality gates and commit hygiene baseline](./ADR-007-quality-gates-and-commit-hygiene.md)
 - ADR-008: [Daily-recurring tasks via client-triggered reset (not a cron job)](./ADR-008-recurring-tasks-daily-reset.md)
+- ADR-009: [One-day "streak freeze" grace tolerance for the current streak](./ADR-009-streak-freeze-grace-day.md)
+- ADR-010: [Client-only browser notifications as a fallback before real email/push reminders](./ADR-010-client-only-fallback-notifications.md)
 
 ## ADR status model
 

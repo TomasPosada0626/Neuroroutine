@@ -8,6 +8,18 @@ The format follows Keep a Changelog and Semantic Versioning principles.
 
 ### Added
 
+- Task editing: title, description, date/time, and the recurring flag can now be changed after
+  creation (`TaskFormModal`) instead of only create-or-delete.
+- "Posponer" action to move a one-off task's due date to tomorrow in a single click.
+- Quick-capture chips (Hoy / Mañana / pick a date) next to the quick-add input.
+- Streak freeze: the current streak now tolerates one missed day instead of resetting to zero;
+  two consecutive misses still end it. See [ADR-009](docs/adr/ADR-009-streak-freeze-grace-day.md).
+- Installable PWA manifest (`manifest.webmanifest`, real app icon replacing a broken favicon
+  reference) and a local, no-server browser notification for tasks due today or earlier. See
+  [ADR-010](docs/adr/ADR-010-client-only-fallback-notifications.md).
+- Full-page accessibility test suite (`@axe-core/playwright`) covering the landing page, login,
+  and the dashboard in four real states (populated, task-edit modal open, customize panel open,
+  color contrast) against the live app — not just the shared UI kit in isolation.
 - Daily-recurring tasks (`is_recurring`): a habit's checkbox now means "done today" and resets
   automatically once a new local day starts, instead of staying checked forever after the
   first completion. See [ADR-008](docs/adr/ADR-008-recurring-tasks-daily-reset.md).
@@ -26,10 +38,17 @@ The format follows Keep a Changelog and Semantic Versioning principles.
 - Creating a routine from the dashboard's wizard could leave the analytics selector and the
   routine panel out of sync with each other until a manual refresh (two independent caches of
   the same routine list).
+- Six real accessibility defects found by the new axe E2E suite: missing `<main>` landmark on
+  the auth pages, missing `<h1>` on the dashboard, three unlabeled number inputs in the
+  customize panel, and a decorative checkbox nested inside a button (invalid for assistive tech
+  even with `aria-hidden`) in the "Hoy" widget.
+- Broken favicon reference (`/vite.svg` pointed at a file that didn't exist in `public/`).
 
 ### Changed
 
 - Increased automated frontend coverage with additional branch-oriented tests.
+- `owasp-checklist.md` updated to reflect that multi-user mutation regression tests and branch
+  protection were already in place but marked as pending.
 
 ## [1.0.0] - 2026-07-18
 
