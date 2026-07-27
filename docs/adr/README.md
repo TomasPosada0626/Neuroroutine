@@ -15,6 +15,7 @@ This folder stores architecture decisions that have long-term impact on the proj
 - ADR-009: [One-day "streak freeze" grace tolerance for the current streak](./ADR-009-streak-freeze-grace-day.md)
 - ADR-010: [Client-only browser notifications as a fallback before real email/push reminders](./ADR-010-client-only-fallback-notifications.md)
 - ADR-011: [Optional per-task weekly cadence for recurring tasks](./ADR-011-weekly-recurring-tasks.md)
+- ADR-012: [Real email reminders via Resend from the existing Edge Function](./ADR-012-resend-email-reminders.md)
 
 ## ADR status model
 
