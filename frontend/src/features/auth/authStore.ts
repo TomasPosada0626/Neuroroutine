@@ -94,9 +94,11 @@ export const useAuthStore = create<AuthState>((set) => ({
         throw error;
       }
       if (!data) {
-        // Perform an equivalent-cost dummy auth attempt so a nonexistent username
-        // doesn't resolve measurably faster than a real one (timing side-channel that
-        // would otherwise let an attacker enumerate valid usernames without rate limiting).
+        // Perform an equivalent-cost dummy auth attempt so a nonexistent username doesn't
+        // resolve measurably faster than a real one (timing side-channel). This is on top of,
+        // not instead of, the server-side per-caller rate limit inside get_email_by_username
+        // itself (see backend/supabase/migrations/0007_rate_limit_get_email_by_username.sql) —
+        // timing equalization alone doesn't stop a script from just calling the RPC in a loop.
         await supabase.auth.signInWithPassword({
           email: `${trimmed || 'nr-unknown-user'}@nr-nonexistent.invalid`,
           password,

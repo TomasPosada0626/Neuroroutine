@@ -42,8 +42,9 @@ This checklist tracks practical controls aligned with common OWASP risks.
 - [x] New-account password minimum raised to 10 characters; username-login lookup performs a
       timing-equalized dummy auth call to reduce user-enumeration via response time.
 - [ ] Review redirect URLs/session settings and bot resistance.
-- [ ] Add server-side rate limiting on `get_email_by_username` (currently only client-side timing
-      mitigation; request-volume limiting still needs an Edge Function proxy or Supabase-level control).
+- [x] Server-side rate limiting on `get_email_by_username` (8 calls/min per client IP, enforced
+      inside the RPC itself — migration `0007_rate_limit_get_email_by_username`). Limit is IP-keyed,
+      so it doesn't stop enumeration spread across many IPs; revisit if that's observed.
 
 ## A08 Software and Data Integrity Failures
 

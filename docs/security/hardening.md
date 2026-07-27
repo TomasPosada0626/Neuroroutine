@@ -32,12 +32,15 @@ This guide complements the existing RLS-first model with practical hardening act
    - Mitigation: secret-only deploy credentials, workflow gate checks, protected branches
 
 6. Username enumeration via `get_email_by_username`
-   - Risk: medium
+   - Risk: low (was medium)
    - Mitigation: login always performs an equivalent-cost dummy Supabase Auth call when
      a username doesn't resolve, so a nonexistent username can't be distinguished from a
-     wrong password by response time alone. The RPC itself still has no server-side rate
-     limit; a bulk-guessing attacker unbounded by request volume is a residual risk (see
-     `docs/security/controls-gap-analysis.md`).
+     wrong password by response time alone. The RPC also enforces a server-side per-caller
+     rate limit (8 calls/minute, keyed by the `x-forwarded-for` client IP from PostgREST's
+     request headers, falling back to one shared bucket if that header is ever unavailable)
+     — see `backend/supabase/migrations/0007_rate_limit_get_email_by_username.sql`. Residual
+     risk: an attacker spreading requests across many IPs isn't slowed by an IP-keyed limit;
+     a per-username or global cap would close that gap if it's ever observed in practice.
 
 ## Hardening Checklist
 
