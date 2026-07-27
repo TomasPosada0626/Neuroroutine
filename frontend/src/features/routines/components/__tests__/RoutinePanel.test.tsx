@@ -1,17 +1,30 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RoutinePanel } from '../RoutinePanel';
+import type { RoutineSchedule } from '@/features/dashboard/store/dashboardPrefsStore';
 
+const uiState = vi.hoisted(() => ({ theme: 'day' as 'day' | 'night' }));
 vi.mock('@/shared/state/uiStore', () => ({
-  useUiStore: (selector: (s: { theme: 'day' | 'night' }) => unknown) => selector({ theme: 'day' }),
+  useUiStore: (selector: (s: { theme: 'day' | 'night' }) => unknown) =>
+    selector({ theme: uiState.theme }),
 }));
 
-vi.mock('@/features/dashboard/store/dashboardPrefsStore', () => ({
-  useDashboardPrefs: () => ({
-    routineScheduleById: {},
-    setRoutineSchedule: vi.fn(),
+const dashboardPrefsState: {
+  routineScheduleById: Record<string, RoutineSchedule>;
+  setRoutineSchedule: ReturnType<typeof vi.fn>;
+} = {
+  routineScheduleById: {},
+  setRoutineSchedule: vi.fn((id: string, sched: RoutineSchedule) => {
+    dashboardPrefsState.routineScheduleById = {
+      ...dashboardPrefsState.routineScheduleById,
+      [id]: sched,
+    };
   }),
+};
+
+vi.mock('@/features/dashboard/store/dashboardPrefsStore', () => ({
+  useDashboardPrefs: () => dashboardPrefsState,
 }));
 
 vi.mock('@/features/auth/authStore', () => ({
@@ -63,6 +76,8 @@ function renderPanel() {
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+  uiState.theme = 'day';
+  dashboardPrefsState.routineScheduleById = {};
   routinesStoreState.selectedRoutineId = null;
   routinesStoreState.error = null;
   routinesStoreState.offline = false;
@@ -156,6 +171,60 @@ describe('RoutinePanel', () => {
 
     expect(screen.getByRole('button', { name: 'Quitar de favoritas' })).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem('nr-fav-routines') ?? '[]')).toEqual(['r1']);
+  });
+
+  it('unmarks a routine as favorite on a second click', async () => {
+    localStorage.setItem('nr-fav-routines', JSON.stringify(['r1']));
+    listRoutinesMock.mockResolvedValue([
+      { id: 'r1', user_id: 'u1', title: 'Mañana enfocada', notes: null },
+    ]);
+
+    const user = userEvent.setup();
+    renderPanel();
+
+    await screen.findByRole('button', { name: 'Quitar de favoritas' });
+    await user.click(screen.getByRole('button', { name: 'Quitar de favoritas' }));
+
+    expect(screen.getByRole('button', { name: 'Marcar como favorita' })).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem('nr-fav-routines') ?? '[]')).toEqual([]);
+  });
+
+  it('falls back to defaults when reading persisted panel/favorite state throws', async () => {
+    const getItemSpy = vi
+      .spyOn(window.localStorage.__proto__, 'getItem')
+      .mockImplementation(() => {
+        throw new Error('storage disabled');
+      });
+    listRoutinesMock.mockResolvedValue([]);
+
+    renderPanel();
+
+    // Panel renders expanded (collapsed-state read failed -> defaulted to false).
+    expect(await screen.findByText('Aún no tienes rutinas.')).toBeInTheDocument();
+
+    getItemSpy.mockRestore();
+  });
+
+  it('clears a stale selection once the settled routine list no longer contains it', async () => {
+    routinesStoreState.selectedRoutineId = 'gone';
+    listRoutinesMock.mockResolvedValue([
+      { id: 'r1', user_id: 'u1', title: 'Mañana enfocada', notes: null },
+    ]);
+
+    renderPanel();
+
+    await waitFor(() => expect(routinesStoreState.selectRoutine).toHaveBeenCalledWith(null));
+  });
+
+  it('renders with night-theme styling without crashing', async () => {
+    uiState.theme = 'night';
+    listRoutinesMock.mockResolvedValue([
+      { id: 'r1', user_id: 'u1', title: 'Mañana enfocada', notes: null },
+    ]);
+
+    renderPanel();
+
+    expect(await screen.findByRole('button', { name: /Mañana enfocada/ })).toBeInTheDocument();
   });
 });
 
@@ -446,6 +515,233 @@ describe('RoutinePanel with a selected routine', () => {
     await user.click(screen.getByRole('button', { name: 'Descartar' }));
 
     expect(routinesStoreState.discardOfflineTask).toHaveBeenCalledWith('t1');
+  });
+
+  it('shows the default "no schedule" summary when nothing is configured', async () => {
+    renderPanel();
+
+    await screen.findByRole('heading', { name: 'Mañana enfocada' });
+    expect(screen.getByText('Sin programación')).toBeInTheDocument();
+  });
+
+  it('formats a schedule summary with days and an hour', async () => {
+    dashboardPrefsState.routineScheduleById = { r1: { daysOfWeek: [3, 1, 5], hour: 7 } };
+    renderPanel();
+
+    await screen.findByRole('heading', { name: 'Mañana enfocada' });
+    // Sorted ascending: 1=L(Mon), 3=X(Wed), 5=V(Fri).
+    expect(screen.getByText('L X V · 07:00')).toBeInTheDocument();
+  });
+
+  it('formats a schedule summary with an hour but no days as "Sin días"', async () => {
+    dashboardPrefsState.routineScheduleById = { r1: { daysOfWeek: [], hour: 20 } };
+    renderPanel();
+
+    await screen.findByRole('heading', { name: 'Mañana enfocada' });
+    expect(screen.getByText('Sin días · 20:00')).toBeInTheDocument();
+  });
+
+  it('adds a day to an empty schedule when toggled on', async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    await screen.findByRole('heading', { name: 'Mañana enfocada' });
+    await user.click(screen.getByRole('button', { name: 'Editar programación' }));
+
+    await user.click(screen.getByRole('button', { name: 'L' }));
+    expect(dashboardPrefsState.setRoutineSchedule).toHaveBeenLastCalledWith('r1', {
+      daysOfWeek: [1],
+      hour: null,
+    });
+  });
+
+  it('removes an already-active day when toggled off', async () => {
+    dashboardPrefsState.routineScheduleById = { r1: { daysOfWeek: [1], hour: null } };
+    const user = userEvent.setup();
+    renderPanel();
+
+    await screen.findByRole('heading', { name: 'Mañana enfocada' });
+    await user.click(screen.getByRole('button', { name: 'Editar programación' }));
+
+    await user.click(screen.getByRole('button', { name: 'L' }));
+    expect(dashboardPrefsState.setRoutineSchedule).toHaveBeenLastCalledWith('r1', {
+      daysOfWeek: [],
+      hour: null,
+    });
+  });
+
+  it('clamps an out-of-range schedule hour to the valid 0-23 range', async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    await screen.findByRole('heading', { name: 'Mañana enfocada' });
+    await user.click(screen.getByRole('button', { name: 'Editar programación' }));
+
+    const hourInput = screen.getByPlaceholderText('0-23');
+    fireEvent.change(hourInput, { target: { value: '99' } });
+
+    expect(dashboardPrefsState.setRoutineSchedule).toHaveBeenLastCalledWith('r1', {
+      daysOfWeek: [],
+      hour: 23,
+    });
+  });
+
+  it('clears the schedule hour when the input is emptied', async () => {
+    dashboardPrefsState.routineScheduleById = { r1: { daysOfWeek: [], hour: 9 } };
+    const user = userEvent.setup();
+    renderPanel();
+
+    await screen.findByRole('heading', { name: 'Mañana enfocada' });
+    await user.click(screen.getByRole('button', { name: 'Editar programación' }));
+
+    const hourInput = screen.getByPlaceholderText('0-23');
+    fireEvent.change(hourInput, { target: { value: '' } });
+
+    expect(dashboardPrefsState.setRoutineSchedule).toHaveBeenLastCalledWith('r1', {
+      daysOfWeek: [],
+      hour: null,
+    });
+  });
+
+  it('clears the hour via "Limpiar" while preserving the configured days', async () => {
+    dashboardPrefsState.routineScheduleById = { r1: { daysOfWeek: [2, 4], hour: 15 } };
+    const user = userEvent.setup();
+    renderPanel();
+
+    await screen.findByRole('heading', { name: 'Mañana enfocada' });
+    await user.click(screen.getByRole('button', { name: 'Editar programación' }));
+    await user.click(screen.getByRole('button', { name: 'Limpiar' }));
+
+    expect(dashboardPrefsState.setRoutineSchedule).toHaveBeenLastCalledWith('r1', {
+      daysOfWeek: [2, 4],
+      hour: null,
+    });
+  });
+
+  it('refreshes routines (and the active search) via the Refrescar button', async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    await screen.findByRole('heading', { name: 'Mañana enfocada' });
+    await user.click(screen.getByRole('button', { name: 'Refrescar' }));
+
+    expect(listRoutinesMock).toHaveBeenCalled();
+  });
+
+  it('opens the edit routine modal pre-filled and saves changes', async () => {
+    const user = userEvent.setup();
+    routinesStoreState.editRoutine.mockResolvedValue(undefined);
+    renderPanel();
+
+    await screen.findByRole('heading', { name: 'Mañana enfocada' });
+    await user.click(screen.getByRole('button', { name: 'Editar' }));
+
+    const titleInput = screen.getByPlaceholderText('Ej: Mañana enfocada') as HTMLInputElement;
+    expect(titleInput.value).toBe('Mañana enfocada');
+
+    await user.clear(titleInput);
+    await user.type(titleInput, 'Mañana enfocada v2');
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    await waitFor(() =>
+      expect(routinesStoreState.editRoutine).toHaveBeenCalledWith({
+        id: 'r1',
+        title: 'Mañana enfocada v2',
+        notes: 'Rutina de prueba',
+      }),
+    );
+  });
+
+  it('saves null notes when the edited routine notes are cleared', async () => {
+    const user = userEvent.setup();
+    routinesStoreState.editRoutine.mockResolvedValue(undefined);
+    renderPanel();
+
+    await screen.findByRole('heading', { name: 'Mañana enfocada' });
+    await user.click(screen.getByRole('button', { name: 'Editar' }));
+
+    const notesInput = screen.getByPlaceholderText('Pequeñas reglas, intención, recordatorios…');
+    await user.clear(notesInput);
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    await waitFor(() =>
+      expect(routinesStoreState.editRoutine).toHaveBeenCalledWith(
+        expect.objectContaining({ notes: null }),
+      ),
+    );
+  });
+
+  it('clears bulk text with the "Limpiar" button', async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    await screen.findByRole('heading', { name: 'Mañana enfocada' });
+    await user.click(screen.getByRole('button', { name: 'Añadir varias' }));
+
+    const textarea = screen.getByPlaceholderText(/Escribe una tarea por línea/);
+    await user.type(textarea, 'Algo');
+    await user.click(screen.getByRole('button', { name: 'Limpiar' }));
+
+    expect(textarea).toHaveValue('');
+  });
+
+  it('toggles the "Hoy" quick-capture chip off on a second click', async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    await screen.findByRole('heading', { name: 'Mañana enfocada' });
+    await user.click(screen.getByRole('button', { name: 'Hoy' }));
+
+    const dateInput = screen.getByLabelText('Elegir fecha para la tarea') as HTMLInputElement;
+    expect(dateInput.value).not.toBe('');
+
+    await user.click(screen.getByRole('button', { name: 'Hoy' }));
+    expect(dateInput.value).toBe('');
+  });
+
+  it('accepts a manually picked date from the date input', async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    await screen.findByRole('heading', { name: 'Mañana enfocada' });
+    await user.type(
+      screen.getByPlaceholderText('Nueva tarea (paso pequeño)…'),
+      'Cita con el dentista',
+    );
+
+    const dateInput = screen.getByLabelText('Elegir fecha para la tarea');
+    fireEvent.change(dateInput, { target: { value: '2026-08-01' } });
+    await user.click(screen.getByRole('button', { name: 'Añadir' }));
+
+    expect(routinesStoreState.addTask).toHaveBeenCalledWith(
+      expect.objectContaining({ due_date: '2026-08-01' }),
+    );
+  });
+
+  it('saves description, due date, and due time when editing a task with all fields filled', async () => {
+    const user = userEvent.setup();
+    routinesStoreState.editTask.mockResolvedValue(undefined);
+    renderPanel();
+
+    await screen.findByRole('heading', { name: 'Mañana enfocada' });
+    await user.click(screen.getByRole('button', { name: 'Editar tarea: Tomar agua' }));
+
+    await user.type(screen.getByLabelText('Descripción (opcional)'), 'Vaso grande');
+    fireEvent.change(screen.getByLabelText('Fecha (opcional)'), {
+      target: { value: '2026-08-01' },
+    });
+    fireEvent.change(screen.getByLabelText('Hora (opcional)'), { target: { value: '07:30' } });
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    await waitFor(() =>
+      expect(routinesStoreState.editTask).toHaveBeenCalledWith(
+        expect.objectContaining({
+          description: 'Vaso grande',
+          due_date: '2026-08-01',
+          due_time: '07:30',
+        }),
+      ),
+    );
   });
 });
 
