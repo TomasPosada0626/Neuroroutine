@@ -20,10 +20,18 @@ Deploy:
 npx supabase functions deploy send-due-reminders --project-ref <project-ref>
 ```
 
-Invoke manually:
+Invoke manually: newer Supabase CLI versions dropped `supabase functions invoke`. Call the
+deployed function directly over HTTP instead (needs the project's `service_role` key, from
+Project Settings -> API — never the anon key, since this endpoint has no other auth check):
 
 ```bash
-npx supabase functions invoke send-due-reminders --project-ref <project-ref>
+curl -X POST "https://<project-ref>.supabase.co/functions/v1/send-due-reminders" \
+  -H "Authorization: Bearer <service_role_key>"
+```
+
+```powershell
+Invoke-RestMethod -Uri "https://<project-ref>.supabase.co/functions/v1/send-due-reminders" `
+  -Method Post -Headers @{ Authorization = "Bearer <service_role_key>" }
 ```
 
 Schedule (recommended):

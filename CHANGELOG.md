@@ -33,8 +33,8 @@ The format follows Keep a Changelog and Semantic Versioning principles.
 - Real email reminders: `send-due-reminders` now sends one summary email per user (via Resend)
   for their tasks due today, gated behind an optional `RESEND_API_KEY` secret — without it, the
   function keeps its prior events-only behavior instead of failing. See
-  [ADR-012](docs/adr/ADR-012-resend-email-reminders.md). Not yet deployed/scheduled in the live
-  project — see the Roadmap section.
+  [ADR-012](docs/adr/ADR-012-resend-email-reminders.md). Deployed with `RESEND_API_KEY`
+  configured; no recurring schedule set yet — see the Roadmap section.
 - Offline-sync conflict UX: a queued task that fails to sync for a real (non-network) reason
   now shows why and offers a "Descartar" action, instead of retrying silently forever.
 - Sentry performance tracing, sampled instead of fully disabled.

@@ -364,9 +364,9 @@ npx supabase functions deploy send-due-reminders --project-ref <project-ref>
 
 ### Phase 1
 
-- Deploy `send-due-reminders` (now Resend-capable, see ADR-012) and set its daily schedule —
-  the code path is implemented and unit-testable via Resend's HTTP API, but not yet deployed or
-  scheduled in the live project.
+- Set a daily schedule for `send-due-reminders` (Dashboard -> Edge Functions -> Schedules,
+  suggested cron `0 12 * * *`). The function is deployed and `RESEND_API_KEY` is configured
+  (ADR-012); it currently only runs on manual invocation until a schedule is set.
 - Expanded automated test depth for auth/routine critical paths.
 
 ### Phase 2
@@ -390,7 +390,7 @@ This MVP intentionally focuses on core engineering fundamentals. Current scope b
 | Feature | Status | Reason | Phase |
 |---------|--------|--------|-------|
 | **Service Worker** | Implemented | App-shell caching (`public/sw.js`) + installable PWA manifest; IndexedDB queue covers offline writes | — |
-| **Notifications** | Local fallback + email code implemented, deploy pending | Browser Notification API covers same-day reminders (ADR-010); `send-due-reminders` now sends real email via Resend (ADR-012) when `RESEND_API_KEY` is configured, but the function isn't deployed/scheduled in the live project yet | Phase 1 |
+| **Notifications** | Deployed, schedule pending | Browser Notification API covers same-day reminders (ADR-010); `send-due-reminders` sends real email via Resend (ADR-012) and is deployed with `RESEND_API_KEY` configured, but has no recurring schedule set yet — runs only on manual invocation until one is added in the Dashboard | Phase 1 |
 | **Task Reordering** | Foundation ready | `@dnd-kit` installed; interaction wiring pending | Phase 2 |
 | **User Profile Edit** | Basic profile only | Authentication and profile base exist; edit UX planned | Phase 2 |
 | **Analytics Export** | Planned | CSV/PDF export not in MVP scope | Phase 3 |
