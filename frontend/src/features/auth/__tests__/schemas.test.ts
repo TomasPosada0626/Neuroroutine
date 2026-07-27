@@ -15,7 +15,9 @@ describe('loginSchema', () => {
     const result = loginSchema.safeParse({ identifier: 'not-an-email@', password: 'secret' });
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.issues[0]?.message).toBe('Ingresa un correo válido o tu nombre de usuario');
+      expect(result.error.issues[0]?.message).toBe(
+        'Ingresa un correo válido o tu nombre de usuario',
+      );
     }
   });
 

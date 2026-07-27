@@ -59,9 +59,8 @@ vi.mock('@/shared/config/appVariant', () => ({
   assertDemoFeature: vi.fn(),
 }));
 
-const { clearDashboardDemoData, seedFullDemoData, seedDashboardDemoData } = await import(
-  '../seedDemoData'
-);
+const { clearDashboardDemoData, seedFullDemoData, seedDashboardDemoData } =
+  await import('../seedDemoData');
 
 const fullStatus: NrSchemaStatus = {
   version: 6,
@@ -192,7 +191,9 @@ describe('seedFullDemoData', () => {
   it('throws when recording completion events fails', async () => {
     resetSupabase({
       'routines:insert': { data: [{ id: 'r1', title: 'Demo: Mañana enfocada' }] },
-      'routine_tasks:insert': { data: [{ id: 't1', routine_id: 'r1', title: 'Tomar agua (500ml)' }] },
+      'routine_tasks:insert': {
+        data: [{ id: 't1', routine_id: 'r1', title: 'Tomar agua (500ml)' }],
+      },
       'routine_task_events:insert': { error: new Error('events failed') },
     });
 

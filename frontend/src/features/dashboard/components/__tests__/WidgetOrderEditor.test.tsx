@@ -63,9 +63,7 @@ const titles: Record<DashboardWidgetId, string> = {
   routines: 'Rutinas',
 };
 
-function renderEditor(
-  overrides: Partial<React.ComponentProps<typeof WidgetOrderEditor>> = {},
-) {
+function renderEditor(overrides: Partial<React.ComponentProps<typeof WidgetOrderEditor>> = {}) {
   const onOrderChange = vi.fn();
   const onToggleHidden = vi.fn();
 

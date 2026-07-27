@@ -266,7 +266,14 @@ describe('useDashboardDemoSeeding: actions', () => {
 
   it('applyDemoScheduleDefaults prefers demo-prefixed routines when present', () => {
     routinesState.routines = [
-      { id: 'r1', user_id: 'u1', title: 'Real routine', notes: null, created_at: '', updated_at: '' },
+      {
+        id: 'r1',
+        user_id: 'u1',
+        title: 'Real routine',
+        notes: null,
+        created_at: '',
+        updated_at: '',
+      },
       { id: 'r2', user_id: 'u1', title: 'Demo: Foo', notes: null, created_at: '', updated_at: '' },
     ];
     const { result, setRoutineSchedule } = setup();

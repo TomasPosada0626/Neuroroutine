@@ -89,9 +89,7 @@ describe('logAppEvent', () => {
   });
 
   it('caps sanitized meta at 20 entries', async () => {
-    const meta = Object.fromEntries(
-      Array.from({ length: 25 }, (_, i) => [`field_${i}`, i]),
-    );
+    const meta = Object.fromEntries(Array.from({ length: 25 }, (_, i) => [`field_${i}`, i]));
 
     await logAppEvent({ user_id: 'u1', event_name: 'task_created', meta });
 

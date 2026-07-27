@@ -11,8 +11,9 @@ vi.mock('@/shared/state/uiStore', () => ({
 const hydrateFromCache = vi.fn();
 const refresh = vi.fn();
 vi.mock('@/shared/schema/schemaStore', () => ({
-  useSchemaStore: (selector: (s: { hydrateFromCache: () => void; refresh: () => void }) => unknown) =>
-    selector({ hydrateFromCache, refresh }),
+  useSchemaStore: (
+    selector: (s: { hydrateFromCache: () => void; refresh: () => void }) => unknown,
+  ) => selector({ hydrateFromCache, refresh }),
 }));
 
 vi.mock('@/shared/schema/SchemaBanner', () => ({
