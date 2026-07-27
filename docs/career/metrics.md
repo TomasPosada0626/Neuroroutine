@@ -10,8 +10,8 @@ Important:
 ## Verified project metrics (from current repository)
 
 - CI quality gates on every push/PR: lint, format check, tests + coverage gate, build, Playwright smoke E2E.
-- Test coverage snapshot (2026-07-26, `npm run test:coverage` on Node 24, 251 tests): 94.15% statements, 79.98% branches, 94.97% functions, 96.14% lines.
-- Mutation testing: last measured 2026-07-25 at **45.48% mutation score** (733 killed / 836 survived / 21 timeout out of 1658 covered mutants), before a round of feature growth in `features/routines` (task editing, postpone, quick-capture, daily-recurring tasks). Not yet re-run against that larger surface — treat this number as stale, not current, until it is. Reported honestly rather than omitted: it's the more meaningful signal, and pretending coverage alone proves test quality would be worse than admitting the number needs a refresh.
+- Test coverage snapshot (2026-07-27, `npm run test:coverage` on Node 24, 363 tests): 96.21% statements, 83.58% branches, 98.15% functions, 98.43% lines. This is measured against every `src/**/*.{ts,tsx}` file (`coverage.include`), not just files a test happens to import — a prior snapshot (94.15%/79.98%/94.97%/96.14%) silently dropped untested files from the denominator instead of counting them as 0%, which overstated the real number. Closing that gap meant adding real unit tests for previously untested logic (auth route guard, form validation, the event logger, drag-and-drop widget ordering, demo-data seeding, and more) rather than just relaxing the measurement.
+- Mutation testing: last measured 2026-07-27 at **47.09% mutation score** (993 killed / 1085 survived / 2 timeout out of 2080 covered mutants), re-run after the `features/routines` growth (task editing, postpone, quick-capture, daily-recurring tasks) that made the prior 45.48% snapshot stale. Reported alongside line coverage rather than instead of it: high statement coverage means the code *ran* during tests, mutation score measures whether the assertions would actually *catch* a bug — the two numbers moving in opposite directions (coverage up, mutation score only modestly up) is itself the honest signal that assertion depth, not just line reach, is the next thing to invest in.
 - Dual deployment paths: Vercel and Render.
 - Security model: Supabase RLS policies scoped by authenticated user identity, verified with an automated cross-user mutation attack test (Playwright).
 
@@ -19,8 +19,8 @@ Important:
 
 - Built and shipped NeuroRoutine, a React + TypeScript SPA with Supabase Auth/Postgres and row-level security.
 - Implemented CI quality gates (lint, format check, unit tests with a coverage gate, build, and Playwright smoke E2E) to reduce regression risk before deployment.
-- Maintained measurable test quality with 94.2% statement coverage / 80.0% branch coverage (snapshot, 251 tests), including feature/store tests for core flows.
-- Ran mutation testing (Stryker) to validate assertion quality beyond coverage percentage, surfacing a 45.5% mutation score as a concrete improvement target rather than assuming high coverage meant high test quality.
+- Maintained measurable test quality with 96.2% statement coverage / 83.6% branch coverage (snapshot, 363 tests, measured against every source file rather than only files a test imports), including feature/store tests for core flows.
+- Ran mutation testing (Stryker) to validate assertion quality beyond coverage percentage, surfacing a 47.1% mutation score as a concrete improvement target rather than assuming high coverage meant high test quality.
 - Ran an automated accessibility audit (axe-core via Playwright) against the live app across the landing page, login, and the dashboard in four real states, finding and fixing six real WCAG violations (missing landmark/heading structure, unlabeled form controls, a nested interactive control invalid even with `aria-hidden`) — not just testing the shared component library in isolation.
 - Wrote an automated Playwright test that steals a real session token and attempts a cross-user mutation over the Supabase REST API, proving RLS policies reject it end-to-end.
 - Refactored a 3,200-line dashboard page by extracting its analytics/business logic into pure, independently unit-tested functions in the feature layer, cutting the page to under 2,500 lines without changing its rendered output.

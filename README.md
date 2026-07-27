@@ -101,8 +101,10 @@ Scope intent: this repository prioritizes engineering fundamentals done well ove
 - CRUD operations for routines, **and full edit support for tasks** (title, description,
   date/time, recurring flag) — not just create-or-delete.
 - Task creation, completion toggle, editing, "postpone to tomorrow", and deletion.
-- Daily-recurring tasks: mark a task as a habit and its checkbox resets every local day instead
-  of staying checked off forever (see [ADR-008](docs/adr/ADR-008-recurring-tasks-daily-reset.md)).
+- Recurring tasks: mark a task as a habit and its checkbox resets every local day instead of
+  staying checked off forever (see [ADR-008](docs/adr/ADR-008-recurring-tasks-daily-reset.md)),
+  with an optional weekly cadence (pick specific weekdays instead of every day — see
+  [ADR-011](docs/adr/ADR-011-weekly-recurring-tasks.md)) editable from the task form.
 - Quick-capture chips (Hoy / Mañana / pick a date) next to the always-visible quick-add input, so
   scheduling something for later doesn't require the full routine wizard.
 - Bulk task creation through the routine wizard.
@@ -257,8 +259,10 @@ Schema and migrations:
 - `backend/supabase/migrations/`
 
 The model supports both task lifecycle operations and analytics/event-based calculations.
-`routine_tasks.is_recurring` marks daily habits, whose `is_done` flag is reset each local day
-by the `reset_recurring_tasks` RPC instead of staying permanently checked (ADR-008).
+`routine_tasks.is_recurring` marks habits, whose `is_done` flag is reset each local day by the
+`reset_recurring_tasks` RPC instead of staying permanently checked (ADR-008).
+`routine_tasks.recurrence_days_of_week` optionally restricts that reset to specific weekdays
+instead of every day; null/empty means daily, unchanged from the original behavior (ADR-011).
 
 ---
 
@@ -284,22 +288,30 @@ Quality pipeline includes:
 - `npm run build`
 - Playwright smoke checks
 
-Coverage snapshot (`npm run test:coverage`, Node 24, 251 tests):
+Coverage snapshot (`npm run test:coverage`, Node 24, 363 tests), measured against every
+`src/**/*.{ts,tsx}` file via `coverage.include` rather than only files a test happens to import
+(a prior 94%+ snapshot silently dropped untested files from the denominator instead of counting
+them as 0%, which overstated the real number — see `frontend/vite.config.ts`):
 
-- **Statements:** 94.15%
-- **Branches:** 79.98%
-- **Functions:** 94.97%
-- **Lines:** 96.14%
+- **Statements:** 96.21%
+- **Branches:** 83.58%
+- **Functions:** 98.15%
+- **Lines:** 98.43%
+
+`main.tsx`, trivial API-client wiring, and the route-level pages (already covered end-to-end by
+`frontend/e2e/*.spec.ts`, including a full accessibility/axe sweep) are excluded from this metric
+with a documented reason each, not hidden without explanation.
 
 Mutation testing (`npm run test:mutation`, Stryker, scoped to `features/routines` + `shared/lib`):
-last measured at **45.48%** before this round of feature work (task editing, postpone,
-quick-capture, recurring tasks) landed — not yet re-run against the larger surface, so treat that
-number as stale rather than current. This is intentionally reported alongside line coverage
+last measured at **47.09%** (993 killed / 1085 survived / 2 timeout out of 2080 covered mutants),
+re-run after the round of feature work (task editing, postpone, quick-capture, recurring tasks)
+that made the prior 45.48% snapshot stale. This is intentionally reported alongside line coverage
 rather than instead of it: high statement coverage means the code *ran* during tests, mutation
-score measures whether the assertions would actually *catch* a bug. Re-running it against the
-current `features/routines` (now substantially larger) is a tracked follow-up, not smoothed over.
+score measures whether the assertions would actually *catch* a bug — the modest mutation-score
+gain despite a large coverage gain is itself evidence that assertion depth, not just line reach,
+is the next thing worth investing in.
 
-**Last updated:** 2026-07-26  
+**Last updated:** 2026-07-27  
 CI reference: https://github.com/TomasPosada0626/Neuroroutine/actions/workflows/ci.yml
 
 ---
@@ -384,12 +396,15 @@ This MVP intentionally focuses on core engineering fundamentals. Current scope b
 
 ### Coverage Gaps
 
-- Current test coverage: 94.15% statements / 79.98% branches (enforced CI gate:
-  `vite.config.ts` fails the build below 90% statements/lines/functions or 78% branches).
-- Priority expansion areas: `RoutinePanel.tsx` branch coverage (67%) — the largest single
-  component, still has un-exercised paths in its schedule editor and bulk-add flows — and the
-  Stryker mutation score, last measured before this session's `features/routines` growth and
-  due for a re-run.
+- Current test coverage: 96.21% statements / 83.58% branches, measured against every source file
+  (enforced CI gate: `vite.config.ts` fails the build below 94% statements, 80% branches, 95%
+  functions, or 96% lines).
+- `RoutinePanel.tsx` branch coverage went from 67% to 80.6% (schedule editor day/hour toggles and
+  bulk-add are now exercised); its remaining gap is mostly defensive guards that the current
+  component structure makes unreachable through the UI.
+- Stryker mutation score sits at 47.09%, only a modest gain despite the coverage increase — the
+  next real investment is assertion depth (stronger expectations on existing covered code), not
+  more lines touched.
 
 ---
 

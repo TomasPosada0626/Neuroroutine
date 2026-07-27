@@ -23,6 +23,13 @@ The format follows Keep a Changelog and Semantic Versioning principles.
 - Daily-recurring tasks (`is_recurring`): a habit's checkbox now means "done today" and resets
   automatically once a new local day starts, instead of staying checked forever after the
   first completion. See [ADR-008](docs/adr/ADR-008-recurring-tasks-daily-reset.md).
+- Optional weekly cadence for recurring tasks (`recurrence_days_of_week`): pick specific weekdays
+  from the task edit form instead of resetting every day. See
+  [ADR-011](docs/adr/ADR-011-weekly-recurring-tasks.md).
+- PNG app icons (192x192, 512x512, regular + maskable) generated from the existing SVG design, so
+  the install manifest doesn't depend on SVG icon support alone.
+- Server-side rate limiting on `get_email_by_username` (8 calls/min per client IP), on top of the
+  existing client-side timing mitigation for username enumeration.
 - Offline-sync conflict UX: a queued task that fails to sync for a real (non-network) reason
   now shows why and offers a "Descartar" action, instead of retrying silently forever.
 - Sentry performance tracing, sampled instead of fully disabled.
