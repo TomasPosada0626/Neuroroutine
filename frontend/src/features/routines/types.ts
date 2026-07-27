@@ -17,6 +17,9 @@ export type RoutineTask = {
   due_time?: string | null;
   is_done: boolean;
   is_recurring?: boolean;
+  // Optional weekly cadence for a recurring task (0=Sun..6=Sat, matching JS Date#getDay()).
+  // Null/empty/undefined means "every day" — the original daily-only behavior.
+  recurrence_days_of_week?: number[] | null;
   completed_at?: string | null;
   created_at: string;
   updated_at: string;

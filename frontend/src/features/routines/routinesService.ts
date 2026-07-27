@@ -162,6 +162,7 @@ export async function createTask(input: {
   due_date?: string | null;
   due_time?: string | null;
   is_recurring?: boolean;
+  recurrence_days_of_week?: number[] | null;
 }): Promise<RoutineTask> {
   // Insert minimal columns first so the app keeps working even if the DB hasn't been migrated.
   const { data: created, error: insertError } = await supabase
@@ -187,6 +188,11 @@ export async function createTask(input: {
       due_date: input.due_date?.trim() ? input.due_date.trim() : null,
       due_time: input.due_time?.trim() ? input.due_time.trim() : null,
       is_recurring: input.is_recurring === true,
+      // Only meaningful alongside is_recurring; an empty/absent array means "every day".
+      recurrence_days_of_week:
+        input.is_recurring === true && input.recurrence_days_of_week?.length
+          ? input.recurrence_days_of_week
+          : null,
     };
 
     const { data: updated, error: updateError } = await supabase
@@ -210,6 +216,7 @@ export async function updateTask(input: {
   due_date?: string | null;
   due_time?: string | null;
   is_recurring?: boolean;
+  recurrence_days_of_week?: number[] | null;
 }): Promise<RoutineTask> {
   const { data, error } = await supabase
     .from('routine_tasks')
@@ -221,6 +228,11 @@ export async function updateTask(input: {
       due_date: input.is_recurring ? null : input.due_date?.trim() ? input.due_date.trim() : null,
       due_time: input.due_time?.trim() ? input.due_time.trim() : null,
       is_recurring: input.is_recurring === true,
+      // Only meaningful alongside is_recurring; an empty/absent array means "every day".
+      recurrence_days_of_week:
+        input.is_recurring === true && input.recurrence_days_of_week?.length
+          ? input.recurrence_days_of_week
+          : null,
     })
     .eq('id', input.id)
     .select('*')

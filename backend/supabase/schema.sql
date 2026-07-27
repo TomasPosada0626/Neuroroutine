@@ -94,6 +94,22 @@ alter table public.routine_tasks
 alter table public.routine_tasks
   add column if not exists is_recurring boolean not null default false;
 
+-- Optional weekly cadence for a recurring task (0=Sun..6=Sat, matching JS Date#getDay()). Null
+-- or empty means "every day", identical to the original daily-only behavior, so this is
+-- backward compatible with every task created before this column existed.
+alter table public.routine_tasks
+  add column if not exists recurrence_days_of_week smallint[];
+
+alter table public.routine_tasks
+  drop constraint if exists routine_tasks_recurrence_days_valid;
+
+alter table public.routine_tasks
+  add constraint routine_tasks_recurrence_days_valid
+  check (
+    recurrence_days_of_week is null
+    or recurrence_days_of_week <@ array[0, 1, 2, 3, 4, 5, 6]::smallint[]
+  );
+
 -- Analytics-grade history: task completion events
 create table if not exists public.routine_task_events (
   id uuid primary key default gen_random_uuid(),
@@ -159,6 +175,8 @@ language plpgsql
 security invoker
 set search_path = public
 as $$
+declare
+  v_dow smallint := extract(dow from p_today)::smallint; -- 0=Sun..6=Sat, matches JS Date#getDay()
 begin
   perform set_config('app.bypass_task_event', 'true', true);
 
@@ -167,7 +185,12 @@ begin
   where user_id = auth.uid()
     and is_recurring = true
     and is_done = true
-    and (completed_at is null or completed_at::date <> p_today);
+    and (completed_at is null or completed_at::date <> p_today)
+    and (
+      recurrence_days_of_week is null
+      or cardinality(recurrence_days_of_week) = 0
+      or v_dow = any(recurrence_days_of_week)
+    );
 end;
 $$;
 
@@ -424,7 +447,7 @@ create table if not exists public.nr_schema_meta (
 );
 
 insert into public.nr_schema_meta (id, version)
-values (1, 7)
+values (1, 8)
 on conflict (id) do update set
   version = excluded.version,
   updated_at = now();

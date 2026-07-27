@@ -22,6 +22,18 @@ function localDateKey(offsetDays: number): string {
   ].join('-');
 }
 
+// A recurring task with no specific days repeats daily (the original ADR-008 behavior); one with
+// specific days shows an abbreviated weekday list instead, e.g. "L X V".
+function recurrenceBadgeText(days: number[] | null | undefined): string {
+  if (!days || days.length === 0) return 'Diario';
+  const labels = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+  return days
+    .slice()
+    .sort((a, b) => a - b)
+    .map((d) => labels[d] ?? String(d))
+    .join(' ');
+}
+
 export function RoutinePanel() {
   const { user } = useAuth();
   const userId = user?.id ?? null;
@@ -300,6 +312,7 @@ export function RoutinePanel() {
             due_date: taskBeingEdited?.due_date ?? '',
             due_time: taskBeingEdited?.due_time ? String(taskBeingEdited.due_time).slice(0, 5) : '',
             is_recurring: taskBeingEdited?.is_recurring ?? false,
+            recurrence_days_of_week: taskBeingEdited?.recurrence_days_of_week ?? [],
           }}
           onClose={() => setEditTaskId(null)}
           onConfirm={async (values) => {
@@ -312,6 +325,7 @@ export function RoutinePanel() {
               due_date: values.due_date?.trim() ? values.due_date.trim() : null,
               due_time: values.due_time?.trim() ? values.due_time.trim() : null,
               is_recurring: values.is_recurring,
+              recurrence_days_of_week: values.recurrence_days_of_week,
             });
           }}
         />
@@ -765,7 +779,7 @@ export function RoutinePanel() {
                                       : 'bg-white/10 text-slate-200 ring-white/10')
                                   }
                                 >
-                                  Diario
+                                  {recurrenceBadgeText(t.recurrence_days_of_week)}
                                 </span>
                               ) : null}
                               {t.due_date || t.due_time || t.description ? (

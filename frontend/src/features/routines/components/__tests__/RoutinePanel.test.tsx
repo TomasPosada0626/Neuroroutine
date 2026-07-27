@@ -190,11 +190,9 @@ describe('RoutinePanel', () => {
   });
 
   it('falls back to defaults when reading persisted panel/favorite state throws', async () => {
-    const getItemSpy = vi
-      .spyOn(window.localStorage.__proto__, 'getItem')
-      .mockImplementation(() => {
-        throw new Error('storage disabled');
-      });
+    const getItemSpy = vi.spyOn(window.localStorage.__proto__, 'getItem').mockImplementation(() => {
+      throw new Error('storage disabled');
+    });
     listRoutinesMock.mockResolvedValue([]);
 
     renderPanel();
@@ -372,6 +370,28 @@ describe('RoutinePanel with a selected routine', () => {
 
     await screen.findByRole('heading', { name: 'Mañana enfocada' });
     expect(screen.getByText('Diario')).toBeInTheDocument();
+  });
+
+  it('shows an abbreviated weekday badge for a task recurring on specific days', async () => {
+    routinesStoreState.tasksByRoutineId = {
+      r1: [
+        {
+          id: 't1',
+          title: 'Gym',
+          is_done: false,
+          is_recurring: true,
+          recurrence_days_of_week: [1, 3, 5],
+          description: null,
+          due_date: null,
+          due_time: null,
+        },
+      ],
+    };
+    renderPanel();
+
+    await screen.findByRole('heading', { name: 'Mañana enfocada' });
+    expect(screen.getByText('L X V')).toBeInTheDocument();
+    expect(screen.queryByText('Diario')).not.toBeInTheDocument();
   });
 
   it('switches to bulk mode and creates one task per non-empty line', async () => {

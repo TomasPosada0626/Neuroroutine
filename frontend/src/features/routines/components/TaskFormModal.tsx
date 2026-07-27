@@ -2,7 +2,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { taskSchema, type TaskValues } from '@/features/routines/schemas';
+import { cn } from '@/shared/lib/cn';
 import { Button, Input, Modal, Textarea } from '@/shared/ui';
+import { useUiStore } from '@/shared/state/uiStore';
 
 type Props = {
   open: boolean;
@@ -12,15 +14,21 @@ type Props = {
   onConfirm: (values: TaskValues) => Promise<void> | void;
 };
 
+const DAY_LABELS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+
 const emptyValues: TaskValues = {
   title: '',
   description: '',
   due_date: '',
   due_time: '',
   is_recurring: false,
+  recurrence_days_of_week: [],
 };
 
 export function TaskFormModal({ open, initialValues, loading, onClose, onConfirm }: Props) {
+  const theme = useUiStore((s) => s.theme);
+  const isDay = theme === 'day';
+
   const form = useForm<TaskValues>({
     resolver: zodResolver(taskSchema),
     defaultValues: { ...emptyValues, ...initialValues },
@@ -37,7 +45,11 @@ export function TaskFormModal({ open, initialValues, loading, onClose, onConfirm
     initialValues?.due_date,
     initialValues?.due_time,
     initialValues?.is_recurring,
+    initialValues?.recurrence_days_of_week,
   ]);
+
+  const isRecurring = form.watch('is_recurring');
+  const selectedDays = form.watch('recurrence_days_of_week') ?? [];
 
   const onSubmit = form.handleSubmit(async (values) => {
     try {
@@ -121,6 +133,46 @@ export function TaskFormModal({ open, initialValues, loading, onClose, onConfirm
           />
           Repetir cada día (hábito) — el checkbox se reinicia solo cada día
         </label>
+
+        {isRecurring ? (
+          <div className="space-y-1">
+            <div className="text-sm font-medium">Días de la semana (opcional)</div>
+            <div className={cn('text-xs', isDay ? 'text-slate-500' : 'text-slate-400')}>
+              Déjalo vacío para repetir todos los días.
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {DAY_LABELS.map((label, dow) => {
+                const active = selectedDays.includes(dow);
+                return (
+                  <button
+                    key={dow}
+                    type="button"
+                    aria-pressed={active}
+                    aria-label={`Repetir el día ${label}`}
+                    className={cn(
+                      'rounded-lg px-2 py-1 text-xs font-medium ring-1 transition',
+                      isDay
+                        ? active
+                          ? 'bg-slate-900 text-white ring-slate-900'
+                          : 'bg-white text-slate-700 ring-slate-200 hover:bg-slate-50'
+                        : active
+                          ? 'bg-white/15 text-white ring-white/25'
+                          : 'bg-white/5 text-slate-200 ring-white/10 hover:bg-white/10',
+                    )}
+                    onClick={() => {
+                      const next = active
+                        ? selectedDays.filter((d) => d !== dow)
+                        : [...selectedDays, dow].sort((a, b) => a - b);
+                      form.setValue('recurrence_days_of_week', next, { shouldDirty: true });
+                    }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
 
         {form.formState.errors.root ? (
           <div className="text-sm text-rose-600">{form.formState.errors.root.message}</div>

@@ -2,7 +2,17 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TaskFormModal } from '../TaskFormModal';
 
+const uiState = vi.hoisted(() => ({ theme: 'night' as 'day' | 'night' }));
+vi.mock('@/shared/state/uiStore', () => ({
+  useUiStore: (selector: (s: { theme: 'day' | 'night' }) => unknown) =>
+    selector({ theme: uiState.theme }),
+}));
+
 describe('TaskFormModal', () => {
+  beforeEach(() => {
+    uiState.theme = 'night';
+  });
+
   it('pre-fills fields from initialValues and saves the edited task', async () => {
     const user = userEvent.setup();
     const onConfirm = vi.fn().mockResolvedValue(undefined);
@@ -91,5 +101,102 @@ describe('TaskFormModal', () => {
   it('renders nothing when closed', () => {
     render(<TaskFormModal open={false} onClose={() => {}} onConfirm={vi.fn()} />);
     expect(screen.queryByText('Editar tarea')).not.toBeInTheDocument();
+  });
+
+  it('hides the weekly day picker unless the task is recurring', () => {
+    render(<TaskFormModal open onClose={() => {}} onConfirm={vi.fn()} />);
+    expect(screen.queryByText('Días de la semana (opcional)')).not.toBeInTheDocument();
+  });
+
+  it('shows the day picker once recurring is checked and submits the selected days', async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <TaskFormModal
+        open
+        initialValues={{ title: 'Meditar' }}
+        onClose={() => {}}
+        onConfirm={onConfirm}
+      />,
+    );
+
+    await user.click(screen.getByRole('checkbox', { name: /Repetir cada día/ }));
+    expect(screen.getByText('Días de la semana (opcional)')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Repetir el día L' }));
+    await user.click(screen.getByRole('button', { name: 'Repetir el día V' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    expect(onConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({ is_recurring: true, recurrence_days_of_week: [1, 5] }),
+    );
+  });
+
+  it('pre-fills active day pills from initialValues and lets the user remove one', async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <TaskFormModal
+        open
+        initialValues={{ title: 'Gym', is_recurring: true, recurrence_days_of_week: [1, 3, 5] }}
+        onClose={() => {}}
+        onConfirm={onConfirm}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Repetir el día L' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Repetir el día X' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    expect(onConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({ recurrence_days_of_week: [1, 5] }),
+    );
+  });
+
+  it('renders the day picker with day-theme styling', async () => {
+    uiState.theme = 'day';
+    const user = userEvent.setup();
+
+    render(
+      <TaskFormModal
+        open
+        initialValues={{ title: 'Meditar' }}
+        onClose={() => {}}
+        onConfirm={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole('checkbox', { name: /Repetir cada día/ }));
+    const dayButton = screen.getByRole('button', { name: 'Repetir el día L' });
+
+    await user.click(dayButton);
+    expect(dayButton).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('leaves recurrence days empty ("every day") when none are picked', async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <TaskFormModal
+        open
+        initialValues={{ title: 'Meditar' }}
+        onClose={() => {}}
+        onConfirm={onConfirm}
+      />,
+    );
+
+    await user.click(screen.getByRole('checkbox', { name: /Repetir cada día/ }));
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    expect(onConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({ is_recurring: true, recurrence_days_of_week: [] }),
+    );
   });
 });

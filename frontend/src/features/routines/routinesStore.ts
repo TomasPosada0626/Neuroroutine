@@ -121,6 +121,7 @@ type RoutinesState = {
     due_date?: string | null;
     due_time?: string | null;
     is_recurring?: boolean;
+    recurrence_days_of_week?: number[] | null;
   }) => Promise<void>;
   postponeTask: (input: { id: string; routine_id: string }) => Promise<void>;
   removeTask: (input: { id: string; routine_id: string }) => Promise<void>;
@@ -697,6 +698,7 @@ export const useRoutinesStore = create<RoutinesState>((set, get) => ({
         due_date: input.due_date,
         due_time: input.due_time,
         is_recurring: input.is_recurring,
+        recurrence_days_of_week: input.recurrence_days_of_week,
       });
 
       set((s) => ({

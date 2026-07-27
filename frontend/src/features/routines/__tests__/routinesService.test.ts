@@ -397,8 +397,64 @@ describe('routinesService', () => {
       due_date: null,
       due_time: null,
       is_recurring: true,
+      recurrence_days_of_week: null,
     });
     expect((created as { is_recurring?: boolean }).is_recurring).toBe(true);
+  });
+
+  it('createTask passes through specific recurrence days when recurring', async () => {
+    const insert = makeChain({
+      data: { id: 't7b', user_id: 'u1', routine_id: 'r1', title: 'Weekly habit' },
+      error: null,
+    });
+    const update = makeChain({
+      data: {
+        id: 't7b',
+        user_id: 'u1',
+        routine_id: 'r1',
+        title: 'Weekly habit',
+        is_recurring: true,
+        recurrence_days_of_week: [1, 3, 5],
+      },
+      error: null,
+    });
+    fromQueue.push(insert, update);
+
+    await createTask({
+      user_id: 'u1',
+      routine_id: 'r1',
+      title: 'Weekly habit',
+      is_recurring: true,
+      recurrence_days_of_week: [1, 3, 5],
+    });
+
+    expect(update.update).toHaveBeenCalledWith(
+      expect.objectContaining({ recurrence_days_of_week: [1, 3, 5] }),
+    );
+  });
+
+  it('createTask ignores recurrence days when the task is not recurring', async () => {
+    const insert = makeChain({
+      data: { id: 't7c', user_id: 'u1', routine_id: 'r1', title: 'One-off' },
+      error: null,
+    });
+    const update = makeChain({
+      data: { id: 't7c', user_id: 'u1', routine_id: 'r1', title: 'One-off', is_recurring: false },
+      error: null,
+    });
+    fromQueue.push(insert, update);
+
+    await createTask({
+      user_id: 'u1',
+      routine_id: 'r1',
+      title: 'One-off',
+      description: 'still patched for another field',
+      recurrence_days_of_week: [1, 3, 5],
+    });
+
+    expect(update.update).toHaveBeenCalledWith(
+      expect.objectContaining({ recurrence_days_of_week: null }),
+    );
   });
 
   it('createRoutine inserts a routine and returns it', async () => {
@@ -556,6 +612,7 @@ describe('routinesService', () => {
       due_date: null,
       due_time: null,
       is_recurring: false,
+      recurrence_days_of_week: null,
     });
   });
 
@@ -633,6 +690,7 @@ describe('routinesService', () => {
       due_date: '2026-08-01',
       due_time: '09:00',
       is_recurring: false,
+      recurrence_days_of_week: null,
     });
     expect(update.eq).toHaveBeenCalledWith('id', 't10');
     expect(updated.id).toBe('t10');
@@ -658,7 +716,53 @@ describe('routinesService', () => {
       due_date: null,
       due_time: null,
       is_recurring: true,
+      recurrence_days_of_week: null,
     });
+  });
+
+  it('updateTask passes through specific recurrence days when recurring', async () => {
+    const update = makeChain({
+      data: {
+        id: 't11b',
+        user_id: 'u1',
+        routine_id: 'r1',
+        title: 'Habit',
+        is_recurring: true,
+        recurrence_days_of_week: [2, 4],
+      },
+      error: null,
+    });
+    fromQueue.push(update);
+
+    await updateTask({
+      id: 't11b',
+      title: 'Habit',
+      is_recurring: true,
+      recurrence_days_of_week: [2, 4],
+    });
+
+    expect(update.update).toHaveBeenCalledWith(
+      expect.objectContaining({ recurrence_days_of_week: [2, 4] }),
+    );
+  });
+
+  it('updateTask clears recurrence days when the task is not recurring', async () => {
+    const update = makeChain({
+      data: { id: 't11c', user_id: 'u1', routine_id: 'r1', title: 'Habit', is_recurring: false },
+      error: null,
+    });
+    fromQueue.push(update);
+
+    await updateTask({
+      id: 't11c',
+      title: 'Habit',
+      is_recurring: false,
+      recurrence_days_of_week: [2, 4],
+    });
+
+    expect(update.update).toHaveBeenCalledWith(
+      expect.objectContaining({ recurrence_days_of_week: null }),
+    );
   });
 
   it('updateTask throws on error', async () => {
