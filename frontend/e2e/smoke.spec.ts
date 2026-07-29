@@ -19,6 +19,18 @@ test('landing loads and can navigate to login', async ({ page }) => {
   await expect(page.getByTestId('login-submit')).toBeVisible();
 });
 
+test('forgot password shows a generic confirmation regardless of outcome', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByRole('link', { name: '¿Olvidaste tu contraseña?' }).click();
+  await expect(page).toHaveURL(/\/forgot-password$/);
+  await expect(page.getByRole('heading', { name: 'Recupera tu contraseña' })).toBeVisible();
+
+  await page.locator('#forgot-password-email').fill('someone@example.com');
+  await page.getByRole('button', { name: 'Enviar enlace de recuperación' }).click();
+
+  await expect(page.getByText(/Si existe una cuenta con ese correo/)).toBeVisible();
+});
+
 test('authenticated happy path (optional, requires real Supabase creds)', async ({ page }) => {
   test.skip(
     !env.E2E_USER_IDENTIFIER || !env.E2E_USER_PASSWORD,

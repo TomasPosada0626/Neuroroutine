@@ -31,6 +31,8 @@ const authMock = {
   signInWithOAuth: vi.fn(),
   signUp: vi.fn(),
   signOut: vi.fn(),
+  resetPasswordForEmail: vi.fn(),
+  updateUser: vi.fn(),
 };
 
 const rpcMock = vi.fn();
@@ -302,6 +304,44 @@ describe('useAuthStore.signUpWithPassword', () => {
 
     await expect(useAuthStore.getState().signUpWithPassword(params)).rejects.toThrow('email taken');
     expect(useAuthStore.getState().loading).toBe(false);
+  });
+});
+
+describe('useAuthStore.requestPasswordReset', () => {
+  it('calls resetPasswordForEmail with a redirect back to /reset-password', async () => {
+    authMock.resetPasswordForEmail.mockResolvedValue({ error: null });
+
+    await useAuthStore.getState().requestPasswordReset('user@example.com');
+
+    expect(authMock.resetPasswordForEmail).toHaveBeenCalledWith('user@example.com', {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+  });
+
+  it('throws when the reset request errors', async () => {
+    authMock.resetPasswordForEmail.mockResolvedValue({ error: new Error('rate limited') });
+
+    await expect(useAuthStore.getState().requestPasswordReset('user@example.com')).rejects.toThrow(
+      'rate limited',
+    );
+  });
+});
+
+describe('useAuthStore.updatePassword', () => {
+  it('calls updateUser with the new password', async () => {
+    authMock.updateUser.mockResolvedValue({ data: { user: fakeUser() }, error: null });
+
+    await useAuthStore.getState().updatePassword('newSecurePassword1');
+
+    expect(authMock.updateUser).toHaveBeenCalledWith({ password: 'newSecurePassword1' });
+  });
+
+  it('throws when updateUser errors', async () => {
+    authMock.updateUser.mockResolvedValue({ error: new Error('session expired') });
+
+    await expect(useAuthStore.getState().updatePassword('newSecurePassword1')).rejects.toThrow(
+      'session expired',
+    );
   });
 });
 

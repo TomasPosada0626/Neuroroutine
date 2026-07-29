@@ -101,9 +101,14 @@ export function LoginPage() {
           </div>
 
           <div className="space-y-1">
-            <label className={labelClass} htmlFor="login-password">
-              Contraseña
-            </label>
+            <div className="flex items-center justify-between">
+              <label className={labelClass} htmlFor="login-password">
+                Contraseña
+              </label>
+              <Link className={'text-xs ' + linkClass} to="/forgot-password">
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </div>
             <PasswordInput
               id="login-password"
               autoComplete="current-password"

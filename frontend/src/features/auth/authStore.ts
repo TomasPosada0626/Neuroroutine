@@ -18,6 +18,8 @@ type AuthState = {
     firstName: string;
     lastName: string;
   }) => Promise<{ needsEmailConfirmation: boolean }>;
+  requestPasswordReset: (email: string) => Promise<void>;
+  updatePassword: (newPassword: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -162,6 +164,21 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
 
     return { needsEmailConfirmation: !data.session };
+  },
+
+  requestPasswordReset: async (email) => {
+    // Always the same outcome regardless of whether the email exists (Supabase itself doesn't
+    // reveal that either) - the caller shows one generic "check your email" message either way,
+    // so this doesn't leak account existence the way a differing error message would.
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (error) throw error;
+  },
+
+  updatePassword: async (newPassword) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
   },
 
   signOut: async () => {

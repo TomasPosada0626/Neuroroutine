@@ -46,6 +46,8 @@ export default defineConfig({
         'src/pages/LandingPage.tsx',
         'src/pages/LoginPage.tsx',
         'src/pages/RegisterPage.tsx',
+        'src/pages/ForgotPasswordPage.tsx',
+        'src/pages/ResetPasswordPage.tsx',
       ],
       reporter: ['text', 'html'],
       // Raised 2026-07 after closing the real gaps this measured `include` surfaced
