@@ -9,6 +9,10 @@
 2. CSS payload
    - Initial CSS (gzip): <= 25 kB
 
+JS/CSS budgets above are enforced automatically: `frontend/scripts/check-bundle-budget.mjs`
+runs after every CI build (`npm run build:check-budget`) and fails the build if exceeded — not a
+manual weekly check. Runtime UX targets (below) are not automated yet; see Enforcement cadence.
+
 3. Runtime UX targets
    - p75 FCP desktop: <= 1800 ms
    - p75 TTI desktop: <= 3000 ms
@@ -22,8 +26,10 @@
 
 ## Enforcement cadence
 
-- Weekly review from CI artifacts and app events.
-- Open issue when a budget is exceeded for 2 consecutive runs.
+- JS/CSS bundle budgets: automated, every CI run (see above) — a regression fails the build
+  immediately, not on a weekly cadence.
+- Runtime UX targets (FCP/TTI/action latency): still a weekly manual review from CI artifacts
+  and app events; no automated gate yet. Open issue when exceeded for 2 consecutive runs.
 
 ## Action playbook when exceeded
 
