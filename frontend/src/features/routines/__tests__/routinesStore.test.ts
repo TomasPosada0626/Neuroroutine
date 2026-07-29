@@ -441,6 +441,97 @@ describe('useRoutinesStore', () => {
     expect(s.error).toBeNull();
   });
 
+  it('editTask threads recurrence_days_of_week through to the service call', async () => {
+    const { storeMod, serviceMod } = await freshStore();
+    const { useRoutinesStore } = storeMod;
+
+    const base = {
+      id: 't1',
+      user_id: 'u1',
+      routine_id: 'r1',
+      title: 'Gym',
+      description: null,
+      due_date: null,
+      due_time: null,
+      is_recurring: true,
+      recurrence_days_of_week: null,
+      is_done: false,
+      completed_at: null,
+      created_at: new Date(2025, 0, 1, 12).toISOString(),
+      updated_at: new Date(2025, 0, 1, 12).toISOString(),
+    };
+
+    useRoutinesStore.setState({
+      allTasks: [base],
+      tasksByRoutineId: { r1: [base] },
+    });
+
+    vi.mocked(serviceMod.updateTask).mockResolvedValue({
+      ...base,
+      recurrence_days_of_week: [1, 3, 5],
+    });
+
+    await useRoutinesStore.getState().editTask({
+      id: 't1',
+      routine_id: 'r1',
+      title: 'Gym',
+      is_recurring: true,
+      recurrence_days_of_week: [1, 3, 5],
+    });
+
+    expect(serviceMod.updateTask).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 't1', recurrence_days_of_week: [1, 3, 5] }),
+    );
+
+    const s = useRoutinesStore.getState();
+    expect(s.allTasks[0]?.recurrence_days_of_week).toEqual([1, 3, 5]);
+    expect(s.tasksByRoutineId.r1?.[0]?.recurrence_days_of_week).toEqual([1, 3, 5]);
+  });
+
+  it('editTask threads recurrence_days_of_week: null through when clearing weekly cadence', async () => {
+    const { storeMod, serviceMod } = await freshStore();
+    const { useRoutinesStore } = storeMod;
+
+    const base = {
+      id: 't1',
+      user_id: 'u1',
+      routine_id: 'r1',
+      title: 'Gym',
+      description: null,
+      due_date: null,
+      due_time: null,
+      is_recurring: true,
+      recurrence_days_of_week: [1, 3, 5],
+      is_done: false,
+      completed_at: null,
+      created_at: new Date(2025, 0, 1, 12).toISOString(),
+      updated_at: new Date(2025, 0, 1, 12).toISOString(),
+    };
+
+    useRoutinesStore.setState({
+      allTasks: [base],
+      tasksByRoutineId: { r1: [base] },
+    });
+
+    vi.mocked(serviceMod.updateTask).mockResolvedValue({
+      ...base,
+      recurrence_days_of_week: null,
+    });
+
+    await useRoutinesStore.getState().editTask({
+      id: 't1',
+      routine_id: 'r1',
+      title: 'Gym',
+      is_recurring: true,
+      recurrence_days_of_week: null,
+    });
+
+    expect(serviceMod.updateTask).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 't1', recurrence_days_of_week: null }),
+    );
+    expect(useRoutinesStore.getState().allTasks[0]?.recurrence_days_of_week).toBeNull();
+  });
+
   it('editTask stores the error message and rethrows so the form can show it', async () => {
     const { storeMod, serviceMod } = await freshStore();
     const { useRoutinesStore } = storeMod;
@@ -1197,6 +1288,56 @@ describe('useRoutinesStore', () => {
       },
     ]);
     expect(vi.mocked(queueMod.removeQueuedTaskInsert)).not.toHaveBeenCalled();
+  });
+
+  it('syncOfflineTasks surfaces the raw error message for a non-FK Error failure', async () => {
+    const { storeMod, serviceMod, queueMod } = await freshStore();
+    const { useRoutinesStore } = storeMod;
+
+    vi.mocked(queueMod.listQueuedTaskInserts).mockResolvedValue([
+      {
+        local_id: 'local_4',
+        user_id: 'u1',
+        routine_id: 'r1',
+        title: 'Bad task',
+        description: null,
+        due_date: null,
+        due_time: null,
+        queued_at: '2026-07-18T10:00:00.000Z',
+      },
+    ]);
+    vi.mocked(serviceMod.createTask).mockRejectedValue(new Error('title too long'));
+
+    await useRoutinesStore.getState().syncOfflineTasks();
+
+    expect(useRoutinesStore.getState().offlineSyncIssues).toEqual([
+      { localId: 'local_4', title: 'Bad task', message: 'title too long' },
+    ]);
+  });
+
+  it('syncOfflineTasks falls back to a generic message for a non-Error thrown value', async () => {
+    const { storeMod, serviceMod, queueMod } = await freshStore();
+    const { useRoutinesStore } = storeMod;
+
+    vi.mocked(queueMod.listQueuedTaskInserts).mockResolvedValue([
+      {
+        local_id: 'local_5',
+        user_id: 'u1',
+        routine_id: 'r1',
+        title: 'Weird failure',
+        description: null,
+        due_date: null,
+        due_time: null,
+        queued_at: '2026-07-18T10:00:00.000Z',
+      },
+    ]);
+    vi.mocked(serviceMod.createTask).mockRejectedValue('not an Error instance');
+
+    await useRoutinesStore.getState().syncOfflineTasks();
+
+    expect(useRoutinesStore.getState().offlineSyncIssues).toEqual([
+      { localId: 'local_5', title: 'Weird failure', message: 'No se pudo sincronizar esta tarea.' },
+    ]);
   });
 
   it('discardOfflineTask removes the queue entry and the local placeholder task', async () => {
