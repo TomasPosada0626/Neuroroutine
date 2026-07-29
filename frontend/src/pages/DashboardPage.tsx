@@ -1412,6 +1412,12 @@ export function DashboardPage() {
                       }}
                     />
                   </div>
+
+                  <div className={'sm:col-span-2 text-xs ' + subtleText}>
+                    Solo organiza cómo ves esta rutina en Hoy/Próximo — no envía notificaciones.
+                    Para recordatorios por email, usa los ajustes de recordatorio en el panel de
+                    personalización.
+                  </div>
                 </>
               ) : null}
             </div>

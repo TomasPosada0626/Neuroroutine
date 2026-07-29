@@ -517,6 +517,11 @@ export function RoutinePanel() {
                             Limpiar
                           </Button>
                         </div>
+                        <div className={'mt-2 text-xs ' + subtleText}>
+                          Solo organiza cómo ves esta rutina en Hoy/Próximo — no envía
+                          notificaciones. Para recordatorios por email, usa los ajustes de
+                          recordatorio en el panel de personalización.
+                        </div>
                       </div>
                     ) : null}
                   </div>
