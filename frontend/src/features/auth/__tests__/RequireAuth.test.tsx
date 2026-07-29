@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { RequireAuth } from '../RequireAuth';
 import { useAuth } from '../authStore';
+import { useUiStore } from '@/shared/state/uiStore';
 
 vi.mock('../authStore', () => ({
   useAuth: vi.fn(),
@@ -30,6 +31,16 @@ describe('RequireAuth', () => {
 
     expect(screen.getByText('Loading…')).toBeInTheDocument();
     expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
+  });
+
+  it('shows the day-theme loading state while the session is resolving', () => {
+    mockedUseAuth.mockReturnValue({ loading: true, session: null } as never);
+    useUiStore.setState({ theme: 'day' });
+
+    renderAtAppRoute();
+
+    expect(screen.getByText('Loading…')).toBeInTheDocument();
+    useUiStore.setState({ theme: 'night' });
   });
 
   it('redirects to /login when there is no session', () => {

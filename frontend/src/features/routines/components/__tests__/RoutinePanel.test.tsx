@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RoutinePanel } from '../RoutinePanel';
-import type { RoutineSchedule } from '@/features/dashboard/store/dashboardPrefsStore';
+import type { RoutineSchedule } from '@/shared/state/dashboardPrefsStore';
 
 const uiState = vi.hoisted(() => ({ theme: 'day' as 'day' | 'night' }));
 vi.mock('@/shared/state/uiStore', () => ({
@@ -23,7 +23,7 @@ const dashboardPrefsState: {
   }),
 };
 
-vi.mock('@/features/dashboard/store/dashboardPrefsStore', () => ({
+vi.mock('@/shared/state/dashboardPrefsStore', () => ({
   useDashboardPrefs: () => dashboardPrefsState,
 }));
 
@@ -575,6 +575,32 @@ describe('RoutinePanel with a selected routine', () => {
     });
   });
 
+  it('adds a day to a schedule that already has other days set', async () => {
+    dashboardPrefsState.routineScheduleById = { r1: { daysOfWeek: [1, 5], hour: null } };
+    const user = userEvent.setup();
+    renderPanel();
+
+    await screen.findByRole('heading', { name: 'Mañana enfocada' });
+    await user.click(screen.getByRole('button', { name: 'Editar programación' }));
+
+    await user.click(screen.getByRole('button', { name: 'M' }));
+    expect(dashboardPrefsState.setRoutineSchedule).toHaveBeenLastCalledWith('r1', {
+      daysOfWeek: [1, 2, 5],
+      hour: null,
+    });
+  });
+
+  it('renders the day pills in night theme', async () => {
+    uiState.theme = 'night';
+    const user = userEvent.setup();
+    renderPanel();
+
+    await screen.findByRole('heading', { name: 'Mañana enfocada' });
+    await user.click(screen.getByRole('button', { name: 'Editar programación' }));
+
+    expect(screen.getByRole('button', { name: 'L' })).toBeInTheDocument();
+  });
+
   it('removes an already-active day when toggled off', async () => {
     dashboardPrefsState.routineScheduleById = { r1: { daysOfWeek: [1], hour: null } };
     const user = userEvent.setup();
@@ -638,7 +664,7 @@ describe('RoutinePanel with a selected routine', () => {
     });
   });
 
-  it('refreshes routines (and the active search) via the Refrescar button', async () => {
+  it('refreshes routines via the Refrescar button', async () => {
     const user = userEvent.setup();
     renderPanel();
 
@@ -646,6 +672,28 @@ describe('RoutinePanel with a selected routine', () => {
     await user.click(screen.getByRole('button', { name: 'Refrescar' }));
 
     expect(listRoutinesMock).toHaveBeenCalled();
+  });
+
+  it('also refreshes the search results when a search query is active', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    searchRoutinesMock.mockResolvedValue([
+      { id: 'r2', user_id: 'u1', title: 'Gym matches search', notes: null },
+    ]);
+
+    renderPanel();
+
+    await screen.findByRole('heading', { name: 'Mañana enfocada' });
+    await user.type(screen.getByPlaceholderText('Buscar rutina…'), 'gym');
+    await vi.advanceTimersByTimeAsync(300);
+    await waitFor(() => expect(searchRoutinesMock).toHaveBeenCalledWith('gym'));
+
+    searchRoutinesMock.mockClear();
+    await user.click(screen.getByRole('button', { name: 'Refrescar' }));
+
+    await waitFor(() => expect(searchRoutinesMock).toHaveBeenCalledWith('gym'));
+
+    vi.useRealTimers();
   });
 
   it('opens the edit routine modal pre-filled and saves changes', async () => {

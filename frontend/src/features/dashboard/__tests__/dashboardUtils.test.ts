@@ -1,9 +1,11 @@
 import {
   addDaysLocal,
+  clamp01,
   computeDayActivitySet,
   computeStreaks,
   computeWeekCounts,
   dateKeyLocal,
+  formatPct,
   formatTimeAgo,
   startOfWeekLocal,
 } from '../utils/dashboardUtils';
@@ -186,5 +188,17 @@ describe('dashboardUtils', () => {
     expect(res.prevWeekCompleted).toBe(0);
     expect(res.thisWeekCompleted).toBe(1);
     expect(res.deltaPct).toBe(100);
+  });
+
+  it('formatPct rounds and clamps into the 0-100 range', () => {
+    expect(formatPct(-10)).toBe('0%');
+    expect(formatPct(42.6)).toBe('43%');
+    expect(formatPct(150)).toBe('100%');
+  });
+
+  it('clamp01 clamps into the 0-1 range', () => {
+    expect(clamp01(-0.5)).toBe(0);
+    expect(clamp01(0.5)).toBe(0.5);
+    expect(clamp01(1.5)).toBe(1);
   });
 });

@@ -51,15 +51,15 @@ export default defineConfig({
       // Raised 2026-07 after closing the real gaps this measured `include` surfaced
       // (previously reported 94%+ was misleading: files with zero unit tests were
       // dropped from the denominator instead of counting as 0%, see the `include`
-      // comment above). Current real numbers are ~96/84/98/98 (stmts/branches/
+      // comment above). Current real numbers are ~97.7/87.5/99.5/99.8 (stmts/branches/
       // funcs/lines) — thresholds sit a few points below that as a real regression
       // gate with headroom, not at the ceiling. Raise them further as coverage grows;
       // don't lower them to make a failing change pass.
       thresholds: {
-        statements: 94,
-        branches: 80,
-        functions: 95,
-        lines: 96,
+        statements: 96,
+        branches: 84,
+        functions: 98,
+        lines: 99,
       },
     },
   },

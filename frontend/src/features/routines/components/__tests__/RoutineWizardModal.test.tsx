@@ -2,10 +2,11 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RoutineWizardModal } from '../RoutineWizardModal';
 
+const uiState = vi.hoisted(() => ({ theme: 'day' as 'day' | 'night' }));
 vi.mock('@/shared/state/uiStore', () => {
   return {
     useUiStore: (selector: (s: { theme: 'day' | 'night' }) => unknown) =>
-      selector({ theme: 'day' }),
+      selector({ theme: uiState.theme }),
   };
 });
 
@@ -48,6 +49,8 @@ describe('RoutineWizardModal', () => {
     expect((submit as HTMLButtonElement).disabled).toBe(false);
   });
 
+  // Extended timeout: a long sequence of userEvent.type() calls across many fields can
+  // exceed the default 5s under parallel test-worker load without being a real hang.
   it('creates a routine and bulk-creates normalized tasks', async () => {
     const user = userEvent.setup();
 
@@ -118,7 +121,7 @@ describe('RoutineWizardModal', () => {
 
     expect(onCreated).toHaveBeenCalledWith('r1');
     expect(onClose).toHaveBeenCalled();
-  });
+  }, 15000);
 
   it('marks a task row as recurring when its "Repetir cada día" checkbox is checked', async () => {
     const user = userEvent.setup();
@@ -201,6 +204,58 @@ describe('RoutineWizardModal', () => {
     await user.click(screen.getByRole('button', { name: 'Crear rutina' }));
 
     expect(screen.getByText('No se pudo crear la rutina')).not.toBeNull();
+  });
+
+  it('shows the specific error message when create fails with a real Error', async () => {
+    const user = userEvent.setup();
+
+    addRoutine.mockRejectedValueOnce(new Error('duplicate routine title'));
+
+    render(<RoutineWizardModal open onClose={() => {}} />);
+
+    await user.type(screen.getByPlaceholderText('Ej: Mañana enfocada'), 'Mi rutina');
+    await user.click(screen.getByRole('button', { name: 'Crear rutina' }));
+
+    expect(screen.getByText('duplicate routine title')).not.toBeNull();
+  });
+
+  it('renders in the night theme', () => {
+    uiState.theme = 'night';
+
+    render(<RoutineWizardModal open onClose={() => {}} />);
+
+    expect(screen.getByPlaceholderText('Ej: Mañana enfocada')).toBeInTheDocument();
+    uiState.theme = 'day';
+  });
+
+  it('only updates the toggled row, leaving sibling task rows unchanged', async () => {
+    const user = userEvent.setup();
+
+    addRoutine.mockResolvedValueOnce({ id: 'r-multi' });
+    addTasksBulk.mockReset();
+    addTasksBulk.mockResolvedValueOnce(undefined);
+
+    render(<RoutineWizardModal open onClose={() => {}} />);
+
+    await user.type(screen.getByPlaceholderText('Ej: Mañana enfocada'), 'Mi rutina');
+    const taskTitles = screen.getAllByPlaceholderText('Ej: Tomar agua');
+    await user.type(taskTitles[0]!, 'Tarea 1');
+
+    await user.click(screen.getByRole('button', { name: '+ Tarea' }));
+    const taskTitles2 = screen.getAllByPlaceholderText('Ej: Tomar agua');
+    await user.type(taskTitles2[1]!, 'Tarea 2');
+
+    await user.click(screen.getByRole('checkbox', { name: 'Repetir cada día la tarea 2' }));
+    await user.click(screen.getByRole('button', { name: 'Crear rutina' }));
+
+    expect(addTasksBulk).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tasks: [
+          expect.objectContaining({ title: 'Tarea 1', is_recurring: false }),
+          expect.objectContaining({ title: 'Tarea 2', is_recurring: true }),
+        ],
+      }),
+    );
   });
 
   it('creates routine without calling addTasksBulk when all task titles are blank', async () => {

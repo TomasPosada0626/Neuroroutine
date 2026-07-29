@@ -48,7 +48,7 @@ vi.mock('@/shared/observability/eventLog', () => ({
   logAppEvent: (...args: unknown[]) => logAppEventMock(...args),
 }));
 
-const { useAuthStore } = await import('../authStore');
+const { useAuthStore, useAuth } = await import('../authStore');
 
 function fakeUser(overrides: Partial<User> = {}): User {
   return {
@@ -338,5 +338,17 @@ describe('useAuthStore.signOut', () => {
     await expect(useAuthStore.getState().signOut()).rejects.toThrow('network error');
     expect(useAuthStore.getState().session).toBeNull();
     expect(useAuthStore.getState().user).toBeNull();
+  });
+});
+
+describe('useAuth', () => {
+  it('exposes the same store state via a hook', async () => {
+    const { renderHook } = await import('@testing-library/react');
+    useAuthStore.setState({ session: null, user: null, loading: false });
+
+    const { result } = renderHook(() => useAuth());
+
+    expect(result.current.session).toBe(useAuthStore.getState().session);
+    expect(typeof result.current.signOut).toBe('function');
   });
 });

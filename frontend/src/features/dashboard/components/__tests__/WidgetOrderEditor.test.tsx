@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { DashboardWidgetId } from '../../store/dashboardPrefsStore';
+import type { DashboardWidgetId } from '@/shared/state/dashboardPrefsStore';
 import { WidgetOrderEditor } from '../WidgetOrderEditor';
 
 type DragEndEvent = { active: { id: string }; over: { id: string } | null };
@@ -116,6 +116,13 @@ describe('WidgetOrderEditor', () => {
     renderEditor();
 
     expect(screen.queryByText('Footer content')).not.toBeInTheDocument();
+  });
+
+  it('renders the day-theme styling', () => {
+    renderEditor({ isDay: true });
+
+    expect(screen.getByText('Hoy')).toBeInTheDocument();
+    expect(screen.getByText(/arrastra/i)).toBeInTheDocument();
   });
 
   it('renders the footer when provided', () => {

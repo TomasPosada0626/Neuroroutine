@@ -1,4 +1,4 @@
-import type { Routine, RoutineTask } from '@/features/routines/types';
+import type { Routine, RoutineTask } from '@/shared/types/routines';
 import type { RoutineTaskEvent } from '@/shared/types/routineEvents';
 import {
   buildAchievements,
@@ -240,6 +240,30 @@ describe('computeSelectedRoutineAnalytics', () => {
 
     vi.useRealTimers();
   });
+
+  it('builds a multi-week series and buckets long gaps between completions', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2025, 1, 1, 12, 0, 0));
+
+    const events = [
+      event('r1', 't1', new Date(2025, 0, 5, 8, 0, 0).toISOString()),
+      event('r1', 't1', new Date(2025, 0, 10, 8, 0, 0).toISOString()), // +5d -> d3_7
+      event('r1', 't1', new Date(2025, 0, 22, 8, 0, 0).toISOString()), // +12d -> gt7d
+    ];
+
+    const analytics = computeSelectedRoutineAnalytics({
+      taskEvents: events,
+      selectedRoutineId: 'r1',
+      range: '28d',
+      taskTitleById: new Map([['t1', 'Agua']]),
+    });
+
+    expect(analytics.weekSeries.length).toBeGreaterThan(1);
+    expect(analytics.intervalBuckets.d3_7).toBeGreaterThan(0);
+    expect(analytics.intervalBuckets.gt7d).toBeGreaterThan(0);
+
+    vi.useRealTimers();
+  });
 });
 
 describe('computeRoutinesRanking', () => {
@@ -263,6 +287,27 @@ describe('computeRoutinesRanking', () => {
     const ranking = computeRoutinesRanking({ taskEvents: events, routines, range: '7d' });
     expect(ranking[0]!.id).toBe('r1'); // 2 active days beats r2's 1
     expect(ranking[0]!.completed).toBe(2);
+
+    vi.useRealTimers();
+  });
+
+  it('breaks a tie in active days by total completions', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2025, 0, 10, 12, 0, 0));
+
+    const routines = [routine('r1', 'Mañana'), routine('r2', 'Noche')];
+    const events = [
+      // Both routines are active on exactly one day (same activePct)...
+      event('r1', 't1', new Date(2025, 0, 10, 8, 0, 0).toISOString()),
+      event('r1', 't1', new Date(2025, 0, 10, 9, 0, 0).toISOString()),
+      event('r2', 't2', new Date(2025, 0, 10, 8, 0, 0).toISOString()),
+    ];
+
+    const ranking = computeRoutinesRanking({ taskEvents: events, routines, range: '7d' });
+    // ...but r1 has 2 completions vs r2's 1, so the completions tie-break decides the order.
+    expect(ranking[0]!.id).toBe('r1');
+    expect(ranking[0]!.completed).toBe(2);
+    expect(ranking[1]!.id).toBe('r2');
 
     vi.useRealTimers();
   });
@@ -311,6 +356,31 @@ describe('computeSelectedRoutineKpis', () => {
     expect(kpis.done).toBe(1);
     expect(kpis.pct).toBe(50);
     expect(kpis.source).toBe('none');
+  });
+
+  it('builds the daily series and streak from real completion events', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2025, 0, 10, 12, 0, 0));
+
+    const events = [
+      event('r1', 't1', new Date(2025, 0, 9, 8, 0, 0).toISOString(), 'completed'),
+      event('r1', 't1', new Date(2025, 0, 10, 8, 0, 0).toISOString(), 'completed'),
+      event('r2', 't2', new Date(2025, 0, 10, 8, 0, 0).toISOString(), 'completed'),
+      event('r1', 't1', new Date(2025, 0, 10, 9, 0, 0).toISOString(), 'uncompleted'),
+    ];
+
+    const kpis = computeSelectedRoutineKpis({
+      selectedRoutineTasks: [task('t1', 'r1', { is_done: true })],
+      selectedRoutineId: 'r1',
+      taskEvents: events,
+    });
+
+    expect(kpis.source).toBe('events');
+    expect(kpis.streak).toBe(2);
+    expect(kpis.best).toBeGreaterThanOrEqual(2);
+    expect(kpis.max).toBeGreaterThan(0);
+
+    vi.useRealTimers();
   });
 });
 

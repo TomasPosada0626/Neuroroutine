@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TaskFormModal } from '../TaskFormModal';
 
@@ -96,6 +96,48 @@ describe('TaskFormModal', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar' }));
 
     expect(await screen.findByText('Something went wrong')).toBeInTheDocument();
+  });
+
+  it('shows the specific error message when saving fails with a real Error', async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn().mockRejectedValue(new Error('title already used'));
+
+    render(
+      <TaskFormModal
+        open
+        initialValues={{ title: 'Task' }}
+        onClose={() => {}}
+        onConfirm={onConfirm}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    expect(await screen.findByText('title already used')).toBeInTheDocument();
+  });
+
+  it('shows a validation error when the description is too long', async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn();
+
+    render(
+      <TaskFormModal
+        open
+        initialValues={{ title: 'Task' }}
+        onClose={() => {}}
+        onConfirm={onConfirm}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('Descripción (opcional)'), {
+      target: { value: 'x'.repeat(301) },
+    });
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    expect(
+      await screen.findByText('Too big: expected string to have <=300 characters'),
+    ).toBeInTheDocument();
+    expect(onConfirm).not.toHaveBeenCalled();
   });
 
   it('renders nothing when closed', () => {

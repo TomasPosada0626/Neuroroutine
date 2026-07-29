@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RoutineFormModal } from '../RoutineFormModal';
 
@@ -70,6 +70,52 @@ describe('RoutineFormModal', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar' }));
 
     expect(await screen.findByText('Something went wrong')).toBeInTheDocument();
+  });
+
+  it('shows the specific error message when saving fails with a real Error', async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn().mockRejectedValue(new Error('routine title already exists'));
+
+    render(
+      <RoutineFormModal
+        open
+        title="Editar rutina"
+        confirmLabel="Guardar"
+        initialValues={{ title: 'Rutina' }}
+        onClose={() => {}}
+        onConfirm={onConfirm}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    expect(await screen.findByText('routine title already exists')).toBeInTheDocument();
+  });
+
+  it('shows a validation error when notes are too long', async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn();
+
+    render(
+      <RoutineFormModal
+        open
+        title="Editar rutina"
+        confirmLabel="Guardar"
+        initialValues={{ title: 'Rutina' }}
+        onClose={() => {}}
+        onConfirm={onConfirm}
+      />,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Pequeñas reglas, intención, recordatorios…'), {
+      target: { value: 'x'.repeat(501) },
+    });
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    expect(
+      await screen.findByText('Too big: expected string to have <=500 characters'),
+    ).toBeInTheDocument();
+    expect(onConfirm).not.toHaveBeenCalled();
   });
 
   it('disables the footer buttons while loading', () => {

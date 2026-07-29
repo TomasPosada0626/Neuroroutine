@@ -83,6 +83,17 @@ describe('Modal', () => {
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Auto Focus' }));
   });
 
+  it('falls back to focusing the dialog itself when there is nothing focusable inside', async () => {
+    render(
+      <Modal open onClose={() => {}}>
+        <div>Just text, no focusable elements</div>
+      </Modal>,
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(document.activeElement).toBe(screen.getByRole('dialog'));
+  });
+
   it('locks and restores document scrolling while open', () => {
     const { rerender } = render(
       <Modal open onClose={() => {}}>
