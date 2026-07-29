@@ -35,8 +35,9 @@ Invoke-RestMethod -Uri "https://<project-ref>.supabase.co/functions/v1/send-due-
 ```
 
 Tests: `index.test.ts` covers every pure function (`escapeHtml`, `renderReminderEmail`,
-`sendReminderEmail`) with a real [Deno](https://deno.com) test run — 14 tests, 91.3%
-branch / 80% function coverage on those functions. Requires the Deno CLI (`irm
+`sendReminderEmail`, `getHourInTimezone`, `isReminderHourNow`) with a real
+[Deno](https://deno.com) test run — 20 tests, 92.0% branch / 85.7% function coverage on those
+functions. Requires the Deno CLI (`irm
 https://deno.land/install.ps1 | iex` on Windows, or `curl -fsSL https://deno.land/install.sh |
 sh` elsewhere) since this project has no other Deno tooling installed by default:
 
@@ -51,12 +52,16 @@ would need more scaffolding than this function's size currently justifies. It's 
 by a live invocation against the real project (see "Invoke manually" above) — do that after any
 change to `handleRequest` itself.
 
-Schedule: `backend/supabase/migrations/0010_schedule_send_due_reminders.sql` sets up a daily
-`pg_cron` + `pg_net` job (`0 12 * * *` UTC) that calls this function automatically — see
+Schedule: `backend/supabase/migrations/0010_schedule_send_due_reminders.sql` sets up a `pg_cron` +
+`pg_net` job that calls this function automatically — see
 [ADR-013](../../../docs/adr/ADR-013-scheduled-reminders-pg-cron.md) for why this was chosen over
-the Dashboard's Edge Functions -> Schedules UI. That migration reads the service role key from
-Supabase Vault rather than embedding it in the file; **after applying the migration you must run
-once, directly in the SQL Editor, never saved/committed anywhere**:
+the Dashboard's Edge Functions -> Schedules UI. `0012_hourly_reminder_schedule.sql` changed it to
+run every hour (`0 * * * *` UTC) instead of once daily, so `handleRequest`'s
+`isReminderHourNow(reminder_hour, timezone, now)` check can actually honor each user's configured
+reminder hour — the original daily-at-noon-UTC version ran once for everyone regardless of what
+they'd set. Either migration reads the service role key from Supabase Vault rather than embedding
+it in the file; **after applying them you must run once, directly in the SQL Editor, never
+saved/committed anywhere**:
 
 ```sql
 select vault.create_secret('<your real service_role key>', 'send_due_reminders_service_key');

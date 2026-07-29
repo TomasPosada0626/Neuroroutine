@@ -46,11 +46,18 @@ Trade-offs:
 - Requires `pg_cron` and `pg_net` to be enabled on the project, and requires the operator to run
   one `vault.create_secret(...)` statement by hand after applying the migration — this ADR
   cannot make that step itself, since it needs a real secret this codebase must never contain.
-- A single daily UTC time (12:00) is a coarse approximation for a user base spread across
-  timezones; `reminder_preferences.reminder_hour`/`timezone` per user aren't consulted by the
-  schedule itself (only by `handleRequest`'s own due-task query) — the cron trigger just decides
-  *that* the function runs today, not a personalized *when* per user. Revisit if per-user
-  scheduling granularity becomes worth the added complexity.
+
+**Update (2026-07-28):** the original schedule ran once daily at a fixed 12:00 UTC and
+`handleRequest` never actually read `reminder_preferences.reminder_hour`/`timezone` — every
+eligible user was emailed at the same instant regardless of what hour they configured in the
+settings screen, which made that field decorative. `0012_hourly_reminder_schedule.sql` changes
+the trigger to run every hour (`0 * * * *`), and `handleRequest` now calls
+`isReminderHourNow(reminder_hour, timezone, now)` to only include a user during the one hour of
+the day that matches their own setting (computed via `Intl.DateTimeFormat` against their IANA
+timezone string). Each user still gets at most one email per day — the per-user hour match is
+only true during a single hourly run — so this doesn't multiply email volume, just fixes when it
+fires. Running the function 24x/day instead of once is negligible cost for an Edge Function that
+short-circuits to a near-empty response when there are no due tasks.
 
 ## Alternatives considered
 
@@ -67,5 +74,6 @@ Trade-offs:
 ## References
 
 - [backend/supabase/migrations/0010_schedule_send_due_reminders.sql](../../backend/supabase/migrations/0010_schedule_send_due_reminders.sql)
+- [backend/supabase/migrations/0012_hourly_reminder_schedule.sql](../../backend/supabase/migrations/0012_hourly_reminder_schedule.sql)
 - [backend/supabase/functions/README.md](../../backend/supabase/functions/README.md)
 - [ADR-012](./ADR-012-resend-email-reminders.md)

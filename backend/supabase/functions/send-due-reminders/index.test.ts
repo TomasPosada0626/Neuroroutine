@@ -1,5 +1,13 @@
 import { assertEquals, assertMatch, assertStringIncludes } from 'jsr:@std/assert@1'
-import { escapeHtml, renderReminderEmail, sendReminderEmail, todayYmd, type DueTaskRow } from './index.ts'
+import {
+  escapeHtml,
+  getHourInTimezone,
+  isReminderHourNow,
+  renderReminderEmail,
+  sendReminderEmail,
+  todayYmd,
+  type DueTaskRow,
+} from './index.ts'
 
 function task(overrides: Partial<DueTaskRow> = {}): DueTaskRow {
   return {
@@ -81,6 +89,41 @@ Deno.test('renderReminderEmail: lists every task in both html and text', () => {
   assertStringIncludes(html, 'Tarea B')
   assertStringIncludes(text, '- Tarea A')
   assertStringIncludes(text, '- Tarea B')
+})
+
+Deno.test('getHourInTimezone: reads the hour in UTC', () => {
+  assertEquals(getHourInTimezone(new Date('2026-01-15T12:00:00Z'), 'UTC'), 12)
+})
+
+Deno.test('getHourInTimezone: converts to a non-UTC timezone', () => {
+  // No DST in January for either zone, so these offsets are stable year-round for this test.
+  assertEquals(getHourInTimezone(new Date('2026-01-15T12:00:00Z'), 'America/New_York'), 7)
+  assertEquals(getHourInTimezone(new Date('2026-01-15T12:00:00Z'), 'Asia/Tokyo'), 21)
+})
+
+Deno.test('getHourInTimezone: normalizes midnight to 0, not 24', () => {
+  assertEquals(getHourInTimezone(new Date('2026-01-15T00:00:00Z'), 'UTC'), 0)
+})
+
+Deno.test('getHourInTimezone: falls back to UTC for an invalid timezone string', () => {
+  assertEquals(
+    getHourInTimezone(new Date('2026-01-15T12:00:00Z'), 'Not/A_Real_Zone'),
+    new Date('2026-01-15T12:00:00Z').getUTCHours(),
+  )
+})
+
+Deno.test('isReminderHourNow: true only during the matching hour', () => {
+  const now = new Date('2026-01-15T09:00:00Z')
+  assertEquals(isReminderHourNow(9, 'UTC', now), true)
+  assertEquals(isReminderHourNow(8, 'UTC', now), false)
+  assertEquals(isReminderHourNow(10, 'UTC', now), false)
+})
+
+Deno.test('isReminderHourNow: matches per-user timezone, not UTC', () => {
+  // 12:00 UTC is 07:00 in America/New_York (no DST in January).
+  const now = new Date('2026-01-15T12:00:00Z')
+  assertEquals(isReminderHourNow(7, 'America/New_York', now), true)
+  assertEquals(isReminderHourNow(12, 'America/New_York', now), false)
 })
 
 Deno.test('sendReminderEmail: posts to Resend with the rendered content and returns ok on success', async () => {

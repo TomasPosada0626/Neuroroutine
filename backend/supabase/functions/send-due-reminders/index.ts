@@ -30,6 +30,27 @@ export function todayYmd() {
   return new Date().toISOString().slice(0, 10)
 }
 
+// Deno/browser Intl can format the midnight hour as "24" instead of "0" for some locale/option
+// combinations - normalize with modulo rather than assume either behavior.
+export function getHourInTimezone(now: Date, timezone: string): number {
+  try {
+    const hourStr = new Intl.DateTimeFormat('en-GB', {
+      hour: 'numeric',
+      hour12: false,
+      timeZone: timezone,
+    }).format(now)
+    return Number(hourStr) % 24
+  } catch {
+    // An invalid/unrecognized IANA timezone string (e.g. stale or hand-edited data) shouldn't
+    // crash the whole run - fall back to UTC rather than skip the user's reminder outright.
+    return now.getUTCHours()
+  }
+}
+
+export function isReminderHourNow(reminderHour: number, timezone: string, now: Date): boolean {
+  return getHourInTimezone(now, timezone) === reminderHour
+}
+
 export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -190,15 +211,24 @@ async function handleRequest(): Promise<Response> {
   )
 
   // Group due tasks by user first: one email per user per day, not one per task.
+  const now = new Date()
   const tasksByUser = new Map<string, DueTaskRow[]>()
   for (const task of tasks) {
     const userId = task.routines?.user_id
     if (!userId) continue
 
     const pref = prefByUser.get(userId)
-    // No stored preference defaults to "reminders on" (matches the table's own DEFAULT true),
-    // so a user who never opened the settings panel still gets reminders.
-    if (pref && !pref.email_enabled) continue
+    // No stored preference defaults to "reminders on" at 08:00 UTC (matches the table's own
+    // DEFAULTs), so a user who never opened the settings panel still gets reminders.
+    const emailEnabled = pref ? pref.email_enabled : true
+    if (!emailEnabled) continue
+
+    const reminderHour = pref ? pref.reminder_hour : 8
+    const timezone = pref ? pref.timezone : 'UTC'
+    // This function is scheduled hourly (see 0012_hourly_reminder_schedule.sql) specifically so
+    // this check can gate on the user's own configured hour instead of emailing everyone at one
+    // fixed UTC time regardless of what they set in the reminders settings screen.
+    if (!isReminderHourNow(reminderHour, timezone, now)) continue
 
     const list = tasksByUser.get(userId) ?? []
     list.push(task)
