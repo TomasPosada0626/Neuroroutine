@@ -40,7 +40,9 @@ describe('ErrorBoundary', () => {
     expect(screen.queryByText('All good')).not.toBeInTheDocument();
     expect(captureExceptionMock).toHaveBeenCalledWith(
       expect.objectContaining({ message: 'boom' }),
-      expect.objectContaining({ extra: expect.objectContaining({ componentStack: expect.any(String) }) }),
+      expect.objectContaining({
+        extra: expect.objectContaining({ componentStack: expect.any(String) }),
+      }),
     );
 
     consoleError.mockRestore();

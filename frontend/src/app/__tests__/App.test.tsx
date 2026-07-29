@@ -14,6 +14,12 @@ vi.mock('@/pages/LoginPage', () => ({
 vi.mock('@/pages/RegisterPage', () => ({
   RegisterPage: () => <div>Register</div>,
 }));
+vi.mock('@/pages/ForgotPasswordPage', () => ({
+  ForgotPasswordPage: () => <div>ForgotPassword</div>,
+}));
+vi.mock('@/pages/ResetPasswordPage', () => ({
+  ResetPasswordPage: () => <div>ResetPassword</div>,
+}));
 vi.mock('@/features/auth/RequireAuth', async () => {
   const { Outlet } = await import('react-router-dom');
   return { RequireAuth: () => <Outlet /> };
@@ -64,6 +70,21 @@ describe('App', () => {
   it('renders the login and register routes', async () => {
     renderApp('/login');
     expect(await screen.findByText('Login')).toBeInTheDocument();
+  });
+
+  it('renders the register route', async () => {
+    renderApp('/register');
+    expect(await screen.findByText('Register')).toBeInTheDocument();
+  });
+
+  it('renders the forgot-password and reset-password routes', async () => {
+    renderApp('/forgot-password');
+    expect(await screen.findByText('ForgotPassword')).toBeInTheDocument();
+  });
+
+  it('renders the reset-password route', async () => {
+    renderApp('/reset-password');
+    expect(await screen.findByText('ResetPassword')).toBeInTheDocument();
   });
 
   it('redirects unknown routes to /', () => {
