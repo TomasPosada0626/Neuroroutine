@@ -5,7 +5,6 @@ import type { ReminderPreferences } from './types';
 // themselves declare, so a never-configured user matches what the backend already assumes.
 const DEFAULTS: Omit<ReminderPreferences, 'user_id' | 'updated_at'> = {
   email_enabled: true,
-  push_enabled: false,
   reminder_hour: 8,
   timezone: 'UTC',
 };
@@ -33,7 +32,6 @@ export async function upsertReminderPreferences(input: {
   const patch = {
     user_id: input.user_id,
     email_enabled: input.email_enabled ?? existing?.email_enabled ?? DEFAULTS.email_enabled,
-    push_enabled: existing?.push_enabled ?? DEFAULTS.push_enabled,
     reminder_hour: input.reminder_hour ?? existing?.reminder_hour ?? DEFAULTS.reminder_hour,
     timezone: input.timezone ?? existing?.timezone ?? DEFAULTS.timezone,
   };

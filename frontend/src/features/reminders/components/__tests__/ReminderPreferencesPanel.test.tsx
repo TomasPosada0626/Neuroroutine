@@ -34,7 +34,6 @@ describe('ReminderPreferencesPanel', () => {
     getReminderPreferencesMock.mockResolvedValue({
       user_id: 'u1',
       email_enabled: false,
-      push_enabled: false,
       reminder_hour: 20,
       timezone: 'UTC',
       updated_at: '2026-07-01T00:00:00.000Z',
@@ -55,7 +54,6 @@ describe('ReminderPreferencesPanel', () => {
     upsertReminderPreferencesMock.mockResolvedValue({
       user_id: 'u1',
       email_enabled: true,
-      push_enabled: false,
       reminder_hour: 9,
       timezone: 'UTC',
       updated_at: '2026-07-01T00:00:00.000Z',
@@ -84,7 +82,6 @@ describe('ReminderPreferencesPanel', () => {
     getReminderPreferencesMock.mockResolvedValue({
       user_id: 'u1',
       email_enabled: true,
-      push_enabled: false,
       reminder_hour: 8,
       timezone: 'UTC',
       updated_at: '2026-07-01T00:00:00.000Z',
@@ -105,7 +102,6 @@ describe('ReminderPreferencesPanel', () => {
     getReminderPreferencesMock.mockResolvedValue({
       user_id: 'u1',
       email_enabled: true,
-      push_enabled: false,
       reminder_hour: 8,
       timezone: 'UTC',
       updated_at: '2026-07-01T00:00:00.000Z',
@@ -124,7 +120,6 @@ describe('ReminderPreferencesPanel', () => {
     getReminderPreferencesMock.mockResolvedValue({
       user_id: 'u1',
       email_enabled: true,
-      push_enabled: false,
       reminder_hour: 8,
       timezone: 'UTC',
       updated_at: '2026-07-01T00:00:00.000Z',
@@ -144,7 +139,6 @@ describe('ReminderPreferencesPanel', () => {
     getReminderPreferencesMock.mockResolvedValue({
       user_id: 'u1',
       email_enabled: true,
-      push_enabled: false,
       reminder_hour: 8,
       timezone: 'UTC',
       updated_at: '2026-07-01T00:00:00.000Z',
@@ -152,7 +146,6 @@ describe('ReminderPreferencesPanel', () => {
     upsertReminderPreferencesMock.mockResolvedValue({
       user_id: 'u1',
       email_enabled: true,
-      push_enabled: false,
       reminder_hour: 8,
       timezone: 'UTC',
       updated_at: '2026-07-01T00:00:00.000Z',
@@ -172,7 +165,6 @@ describe('ReminderPreferencesPanel', () => {
     getReminderPreferencesMock.mockResolvedValue({
       user_id: 'u1',
       email_enabled: true,
-      push_enabled: false,
       reminder_hour: 8,
       timezone: 'UTC',
       updated_at: '2026-07-01T00:00:00.000Z',
@@ -180,7 +172,6 @@ describe('ReminderPreferencesPanel', () => {
     upsertReminderPreferencesMock.mockResolvedValue({
       user_id: 'u1',
       email_enabled: true,
-      push_enabled: false,
       reminder_hour: 8,
       timezone: 'UTC',
       updated_at: '2026-07-01T00:00:00.000Z',

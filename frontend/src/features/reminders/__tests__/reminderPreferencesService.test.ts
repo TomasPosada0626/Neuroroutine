@@ -50,7 +50,6 @@ describe('reminderPreferencesService', () => {
     const row = {
       user_id: 'u1',
       email_enabled: false,
-      push_enabled: false,
       reminder_hour: 20,
       timezone: 'America/Bogota',
       updated_at: '2026-07-01T00:00:00.000Z',
@@ -74,7 +73,6 @@ describe('reminderPreferencesService', () => {
       data: {
         user_id: 'u1',
         email_enabled: true,
-        push_enabled: false,
         reminder_hour: 7,
         timezone: 'UTC',
         updated_at: '2026-07-01T00:00:00.000Z',
@@ -89,7 +87,6 @@ describe('reminderPreferencesService', () => {
       {
         user_id: 'u1',
         email_enabled: true,
-        push_enabled: false,
         reminder_hour: 7,
         timezone: 'UTC',
       },
@@ -102,7 +99,6 @@ describe('reminderPreferencesService', () => {
     const existingRow = {
       user_id: 'u1',
       email_enabled: false,
-      push_enabled: false,
       reminder_hour: 20,
       timezone: 'America/Bogota',
       updated_at: '2026-07-01T00:00:00.000Z',
@@ -120,7 +116,6 @@ describe('reminderPreferencesService', () => {
       {
         user_id: 'u1',
         email_enabled: false,
-        push_enabled: false,
         reminder_hour: 9,
         timezone: 'America/Bogota',
       },
@@ -142,7 +137,6 @@ describe('reminderPreferencesService', () => {
       data: {
         user_id: 'u1',
         email_enabled: true,
-        push_enabled: false,
         reminder_hour: 8,
         timezone: 'UTC',
         updated_at: '2026-07-01T00:00:00.000Z',
