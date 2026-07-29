@@ -38,6 +38,13 @@ test.describe('dashboard accessibility (axe)', () => {
     expect(results.violations, JSON.stringify(results.violations, null, 2)).toEqual([]);
   });
 
+  test('register page has no axe violations', async ({ page }) => {
+    await page.goto('/register');
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    const results = await new AxeBuilder({ page }).analyze();
+    expect(results.violations, JSON.stringify(results.violations, null, 2)).toEqual([]);
+  });
+
   test('dashboard (default, populated) has no axe violations', async ({ page }) => {
     await login(page, env.E2E_USER_IDENTIFIER!, env.E2E_USER_PASSWORD!);
 
@@ -68,6 +75,23 @@ test.describe('dashboard accessibility (axe)', () => {
 
     await page.getByRole('button', { name: 'Editar tarea: A11y modal task' }).click();
     await expect(page.getByRole('dialog', { name: 'Editar tarea' })).toBeVisible();
+
+    const results = await new AxeBuilder({ page }).disableRules(['color-contrast']).analyze();
+    expect(results.violations, JSON.stringify(results.violations, null, 2)).toEqual([]);
+  });
+
+  test('dashboard with the edit routine modal open has no axe violations', async ({ page }) => {
+    await login(page, env.E2E_USER_IDENTIFIER!, env.E2E_USER_PASSWORD!);
+
+    const routineTitle = `A11y Edit Routine ${Date.now()}`;
+    await page.getByRole('button', { name: 'Nueva rutina' }).click();
+    await page.getByPlaceholder('Ej: Mañana enfocada').fill(routineTitle);
+    await page.getByRole('button', { name: 'Crear rutina' }).click();
+    await expect(page.getByRole('button', { name: routineTitle }).first()).toBeVisible();
+
+    await page.getByRole('button', { name: routineTitle }).first().click();
+    await page.getByRole('button', { name: 'Editar', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: 'Editar rutina' })).toBeVisible();
 
     const results = await new AxeBuilder({ page }).disableRules(['color-contrast']).analyze();
     expect(results.violations, JSON.stringify(results.violations, null, 2)).toEqual([]);

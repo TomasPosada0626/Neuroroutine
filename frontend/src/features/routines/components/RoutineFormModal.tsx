@@ -70,16 +70,25 @@ export function RoutineFormModal({
     >
       <form id="routine-form" className="space-y-3" onSubmit={onSubmit}>
         <div className="space-y-1">
-          <label className="text-sm font-medium">Título</label>
-          <Input placeholder="Ej: Mañana enfocada" {...form.register('title')} />
+          <label className="text-sm font-medium" htmlFor="routine-form-title">
+            Título
+          </label>
+          <Input
+            id="routine-form-title"
+            placeholder="Ej: Mañana enfocada"
+            {...form.register('title')}
+          />
           {form.formState.errors.title ? (
             <div className="text-xs text-rose-600">{form.formState.errors.title.message}</div>
           ) : null}
         </div>
 
         <div className="space-y-1">
-          <label className="text-sm font-medium">Notas (opcional)</label>
+          <label className="text-sm font-medium" htmlFor="routine-form-notes">
+            Notas (opcional)
+          </label>
           <Textarea
+            id="routine-form-notes"
             placeholder="Pequeñas reglas, intención, recordatorios…"
             {...form.register('notes')}
           />

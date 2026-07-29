@@ -101,8 +101,11 @@ export function RegisterPage() {
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
-              <label className={labelClass}>Nombre</label>
+              <label className={labelClass} htmlFor="register-first-name">
+                Nombre
+              </label>
               <Input
+                id="register-first-name"
                 autoComplete="given-name"
                 className={inputClass}
                 {...form.register('firstName')}
@@ -115,8 +118,11 @@ export function RegisterPage() {
             </div>
 
             <div className="space-y-1">
-              <label className={labelClass}>Apellidos</label>
+              <label className={labelClass} htmlFor="register-last-name">
+                Apellidos
+              </label>
               <Input
+                id="register-last-name"
                 autoComplete="family-name"
                 className={inputClass}
                 {...form.register('lastName')}
@@ -130,8 +136,15 @@ export function RegisterPage() {
           </div>
 
           <div className="space-y-1">
-            <label className={labelClass}>Nombre de usuario</label>
-            <Input autoComplete="username" className={inputClass} {...form.register('username')} />
+            <label className={labelClass} htmlFor="register-username">
+              Nombre de usuario
+            </label>
+            <Input
+              id="register-username"
+              autoComplete="username"
+              className={inputClass}
+              {...form.register('username')}
+            />
             {form.formState.errors.username && (
               <div className="text-xs text-rose-300">{form.formState.errors.username.message}</div>
             )}
@@ -141,8 +154,11 @@ export function RegisterPage() {
           </div>
 
           <div className="space-y-1">
-            <label className={labelClass}>Email</label>
+            <label className={labelClass} htmlFor="register-email">
+              Email
+            </label>
             <Input
+              id="register-email"
               type="email"
               autoComplete="email"
               className={inputClass}
@@ -155,8 +171,11 @@ export function RegisterPage() {
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
-              <label className={labelClass}>Contraseña</label>
+              <label className={labelClass} htmlFor="register-password">
+                Contraseña
+              </label>
               <PasswordInput
+                id="register-password"
                 autoComplete="new-password"
                 className={inputClass}
                 toggleClassName={toggleClass}
@@ -170,8 +189,11 @@ export function RegisterPage() {
             </div>
 
             <div className="space-y-1">
-              <label className={labelClass}>Confirmar</label>
+              <label className={labelClass} htmlFor="register-confirm-password">
+                Confirmar
+              </label>
               <PasswordInput
+                id="register-confirm-password"
                 autoComplete="new-password"
                 className={inputClass}
                 toggleClassName={toggleClass}
