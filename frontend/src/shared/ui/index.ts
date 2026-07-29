@@ -1,6 +1,7 @@
 export * from './Button';
 export * from './Card';
 export * from './AuthShell';
+export * from './ErrorBoundary';
 export * from './ThemeToggle';
 export * from './Input';
 export * from './Modal';
