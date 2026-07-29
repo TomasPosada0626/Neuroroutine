@@ -80,9 +80,21 @@ This guide complements the existing RLS-first model with practical hardening act
 
 ### Database and RLS
 
-- [ ] Confirm RLS is enabled on every user-scoped table.
-- [ ] Add regression tests for policy assumptions (A cannot read B data).
-- [ ] Restrict or audit privileged RPC functions.
+- [x] Confirm RLS is enabled on every user-scoped table (`profiles`, `routines`,
+      `routine_tasks`, `routine_task_events`, `reminder_preferences`, `rpc_rate_limits`,
+      `app_events` — verified 2026-07-28 by grepping `schema.sql`). `nr_schema_meta` (not
+      user-scoped, just a version counter) was the one table without it; closed in
+      `0011_lock_down_schema_meta_table.sql` for consistency, even though it holds no user data
+      and its only client-facing access path (`get_nr_schema_status()`) is a `security definer`
+      function unaffected by RLS either way.
+- [x] Add regression tests for policy assumptions (A cannot read B data) — see
+      `frontend/e2e/routines.spec.ts`'s "RLS regression (shared accounts)" suite: one test proves
+      user B can't see user A's routine, another attempts a direct REST PATCH/DELETE against
+      user A's row while authenticated as B and asserts zero rows are affected. Run against the
+      real project, not mocked.
+- [x] Restrict or audit privileged RPC functions — both `security definer` functions
+      (`get_email_by_username`, rate-limited and timing-safe; `get_nr_schema_status`, read-only
+      schema metadata with no user data) reviewed 2026-07-28.
 
 ### Secrets and CI/CD
 

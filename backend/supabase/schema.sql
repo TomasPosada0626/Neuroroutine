@@ -446,8 +446,13 @@ create table if not exists public.nr_schema_meta (
   updated_at timestamptz not null default now()
 );
 
+-- No direct client access needed: get_nr_schema_status() below is `security definer` and runs
+-- as the table owner regardless of RLS, so this only closes off direct anon/authenticated
+-- select/insert/update/delete against the raw table.
+alter table public.nr_schema_meta enable row level security;
+
 insert into public.nr_schema_meta (id, version)
-values (1, 9)
+values (1, 11)
 on conflict (id) do update set
   version = excluded.version,
   updated_at = now();
