@@ -404,9 +404,10 @@ This MVP intentionally focuses on core engineering fundamentals. Current scope b
 - `RoutinePanel.tsx` branch coverage went from 67% to 84.7% (schedule editor day/hour toggles,
   night-theme rendering, and refreshing an active search are now exercised); its remaining gap is
   mostly defensive guards that the current component structure makes unreachable through the UI.
-- Stryker mutation score sits at 47.09%, only a modest gain despite the coverage increase — the
-  next real investment is assertion depth (stronger expectations on existing covered code), not
-  more lines touched.
+- Stryker mutation score sits at 46.48% (2026-07-28) — it moved slightly down from 47.09% despite
+  killing more mutants in absolute terms, because the new tests covered previously-untested
+  branches rather than strengthening assertions on already-covered code. The next real investment
+  is assertion depth, not more lines touched.
 
 ---
 
