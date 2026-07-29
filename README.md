@@ -306,8 +306,8 @@ Mutation testing (`npm run test:mutation`, Stryker, scoped to `features/routines
 last measured at **47.09%** (993 killed / 1085 survived / 2 timeout out of 2080 covered mutants),
 re-run after the round of feature work (task editing, postpone, quick-capture, recurring tasks)
 that made the prior 45.48% snapshot stale. This is intentionally reported alongside line coverage
-rather than instead of it: high statement coverage means the code *ran* during tests, mutation
-score measures whether the assertions would actually *catch* a bug — the modest mutation-score
+rather than instead of it: high statement coverage means the code _ran_ during tests, mutation
+score measures whether the assertions would actually _catch_ a bug — the modest mutation-score
 gain despite a large coverage gain is itself evidence that assertion depth, not just line reach,
 is the next thing worth investing in.
 
@@ -360,7 +360,7 @@ npx supabase functions deploy send-due-reminders --project-ref <project-ref>
 
 ---
 
-## Roadmap (Future Advances) 
+## Roadmap (Future Advances)
 
 ### Phase 1
 
@@ -387,30 +387,30 @@ npx supabase functions deploy send-due-reminders --project-ref <project-ref>
 
 This MVP intentionally focuses on core engineering fundamentals. Current scope boundaries are explicit and planned:
 
-| Feature | Status | Reason | Phase |
-|---------|--------|--------|-------|
-| **Service Worker** | Implemented | App-shell caching (`public/sw.js`) + installable PWA manifest; IndexedDB queue covers offline writes | — |
-| **Notifications** | Deployed, schedule pending | Browser Notification API covers same-day reminders (ADR-010); `send-due-reminders` sends real email via Resend (ADR-012) and is deployed with `RESEND_API_KEY` configured, but has no recurring schedule set yet — runs only on manual invocation until one is added in the Dashboard | Phase 1 |
-| **Task Reordering** | Foundation ready | `@dnd-kit` installed; interaction wiring pending | Phase 2 |
-| **User Profile Edit** | Basic profile only | Authentication and profile base exist; edit UX planned | Phase 2 |
-| **Analytics Export** | Planned | CSV/PDF export not in MVP scope | Phase 3 |
-| **Real-time Sync** | Planned | Current sync model is pull-based; realtime planned | Phase 3 |
+| Feature               | Status                     | Reason                                                                                                                                                                                                                                                                                | Phase   |
+| --------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| **Service Worker**    | Implemented                | App-shell caching (`public/sw.js`) + installable PWA manifest; IndexedDB queue covers offline writes                                                                                                                                                                                  | —       |
+| **Notifications**     | Deployed, schedule pending | Browser Notification API covers same-day reminders (ADR-010); `send-due-reminders` sends real email via Resend (ADR-012) and is deployed with `RESEND_API_KEY` configured, but has no recurring schedule set yet — runs only on manual invocation until one is added in the Dashboard | Phase 1 |
+| **Task Reordering**   | Foundation ready           | `@dnd-kit` installed; interaction wiring pending                                                                                                                                                                                                                                      | Phase 2 |
+| **User Profile Edit** | Basic profile only         | Authentication and profile base exist; edit UX planned                                                                                                                                                                                                                                | Phase 2 |
+| **Analytics Export**  | Planned                    | CSV/PDF export not in MVP scope                                                                                                                                                                                                                                                       | Phase 3 |
+| **Real-time Sync**    | Planned                    | Current sync model is pull-based; realtime planned                                                                                                                                                                                                                                    | Phase 3 |
 
 ### Coverage Gaps
 
-- Current test coverage: 96.21% statements / 83.58% branches, measured against every source file
-  (enforced CI gate: `vite.config.ts` fails the build below 94% statements, 80% branches, 95%
-  functions, or 96% lines).
-- `RoutinePanel.tsx` branch coverage went from 67% to 80.6% (schedule editor day/hour toggles and
-  bulk-add are now exercised); its remaining gap is mostly defensive guards that the current
-  component structure makes unreachable through the UI.
+- Current test coverage: 97.66% statements / 87.45% branches, measured against every source file
+  (enforced CI gate: `vite.config.ts` fails the build below 96% statements, 84% branches, 98%
+  functions, or 99% lines).
+- `RoutinePanel.tsx` branch coverage went from 67% to 84.7% (schedule editor day/hour toggles,
+  night-theme rendering, and refreshing an active search are now exercised); its remaining gap is
+  mostly defensive guards that the current component structure makes unreachable through the UI.
 - Stryker mutation score sits at 47.09%, only a modest gain despite the coverage increase — the
   next real investment is assertion depth (stronger expectations on existing covered code), not
   more lines touched.
 
 ---
 
-## What I Learned Building This 
+## What I Learned Building This
 
 - **Database Security:** database-layer RLS is more robust than app-layer-only guards.
 - **State Management:** Zustand provides excellent speed-to-value for MVP complexity.
@@ -421,7 +421,7 @@ This MVP intentionally focuses on core engineering fundamentals. Current scope b
 
 ---
 
-## For Instructors / Evaluators 
+## For Instructors / Evaluators
 
 ### Quick Assessment (20 minutes)
 
