@@ -6,7 +6,7 @@ import {
   useDashboardPrefs,
   type DashboardWidgetId,
   type RoutineSchedule,
-} from '@/features/dashboard/store/dashboardPrefsStore';
+} from '@/shared/state/dashboardPrefsStore';
 import {
   computeDayActivitySet,
   computeStreaks,
@@ -41,7 +41,9 @@ import { useDashboardDemoSeeding } from '@/features/dashboard/hooks/useDashboard
 import { WidgetOrderEditor } from '@/features/dashboard/components/WidgetOrderEditor';
 import { RoutineWizardModal } from '@/features/routines/components/RoutineWizardModal';
 import { RoutinePanel } from '@/features/routines/components/RoutinePanel';
-import { useRoutines } from '@/features/routines/routinesStore';
+import { useRoutines, useRoutinesStore } from '@/features/routines/routinesStore';
+import { ReminderPreferencesPanel } from '@/features/reminders/components/ReminderPreferencesPanel';
+import { upsertReminderPreferences } from '@/features/reminders/reminderPreferencesService';
 import { AppShell } from '@/shared/layout';
 import { cn } from '@/shared/lib/cn';
 import {
@@ -86,6 +88,8 @@ export function DashboardPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [reminderSaved, setReminderSaved] = useState(false);
+  const [reminderSaving, setReminderSaving] = useState(false);
+  const [reminderSaveError, setReminderSaveError] = useState(false);
   const [scheduleRoutineId, setScheduleRoutineId] = useState<string | null>(null);
   const [upcomingDayKey, setUpcomingDayKey] = useState<string | null>(null);
   const [notificationPermission, setNotificationPermission] = useState(getNotificationPermission);
@@ -124,6 +128,7 @@ export function DashboardPage() {
     routineScheduleById: prefs.routineScheduleById,
     setRoutineSchedule: prefs.setRoutineSchedule,
     locationSearch: location.search,
+    getRoutines: () => useRoutinesStore.getState().routines,
   });
 
   const routinePanelRef = useRef<HTMLDivElement | null>(null);
@@ -957,13 +962,27 @@ export function DashboardPage() {
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <Button
                 variant="secondary"
-                onClick={() => {
-                  if (selectedRoutineAnalytics.source !== 'events') return;
-                  prefs.setReminderHour(selectedRoutineAnalytics.bestWindowStart);
-                  setReminderSaved(true);
-                  window.setTimeout(() => setReminderSaved(false), 1500);
+                disabled={selectedRoutineAnalytics.source !== 'events' || reminderSaving}
+                onClick={async () => {
+                  if (selectedRoutineAnalytics.source !== 'events' || !user) return;
+                  setReminderSaveError(false);
+                  setReminderSaving(true);
+                  try {
+                    await upsertReminderPreferences({
+                      user_id: user.id,
+                      reminder_hour: selectedRoutineAnalytics.bestWindowStart,
+                    });
+                    void queryClient.invalidateQueries({
+                      queryKey: ['reminder-preferences', user.id],
+                    });
+                    setReminderSaved(true);
+                    window.setTimeout(() => setReminderSaved(false), 1500);
+                  } catch {
+                    setReminderSaveError(true);
+                  } finally {
+                    setReminderSaving(false);
+                  }
                 }}
-                disabled={selectedRoutineAnalytics.source !== 'events'}
               >
                 Programar recordatorio en mi mejor hora
               </Button>
@@ -971,6 +990,9 @@ export function DashboardPage() {
                 <div className={'text-xs ' + (isDay ? 'text-emerald-600' : 'text-emerald-300')}>
                   Guardado
                 </div>
+              ) : null}
+              {reminderSaveError ? (
+                <div className="text-xs text-rose-600">No se pudo guardar. Intenta de nuevo.</div>
               ) : null}
             </div>
           </div>
@@ -1270,32 +1292,7 @@ export function DashboardPage() {
                 </div>
               </div>
 
-              <div className="sm:col-span-2">
-                <div className={'text-xs ' + subtleText}>Hora típica de recordatorio</div>
-                <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <Input
-                    type="number"
-                    min={0}
-                    max={23}
-                    placeholder="0-23"
-                    aria-label="Hora típica de recordatorio"
-                    value={prefs.reminderHour ?? ''}
-                    onChange={(e) => {
-                      const v = e.target.value.trim();
-                      prefs.setReminderHour(v === '' ? null : Math.max(0, Math.min(23, Number(v))));
-                    }}
-                  />
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      prefs.setReminderHour(null);
-                      setReminderSaved(false);
-                    }}
-                  >
-                    Limpiar
-                  </Button>
-                </div>
-              </div>
+              <ReminderPreferencesPanel isDay={isDay} subtleText={subtleText} />
 
               <div className="sm:col-span-2">
                 <div className={'text-xs ' + subtleText}>

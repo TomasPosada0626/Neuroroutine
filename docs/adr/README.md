@@ -16,6 +16,7 @@ This folder stores architecture decisions that have long-term impact on the proj
 - ADR-010: [Client-only browser notifications as a fallback before real email/push reminders](./ADR-010-client-only-fallback-notifications.md)
 - ADR-011: [Optional per-task weekly cadence for recurring tasks](./ADR-011-weekly-recurring-tasks.md)
 - ADR-012: [Real email reminders via Resend from the existing Edge Function](./ADR-012-resend-email-reminders.md)
+- ADR-013: [Schedule send-due-reminders via pg_cron + pg_net, not the Dashboard UI](./ADR-013-scheduled-reminders-pg-cron.md)
 
 ## ADR status model
 
