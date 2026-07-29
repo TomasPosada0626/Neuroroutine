@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-type DueTaskRow = {
+export type DueTaskRow = {
   id: string
   title: string
   due_date: string | null
@@ -23,11 +23,14 @@ type ProfileRow = {
   first_name: string | null
 }
 
-function todayYmd() {
+// Exported (not just used by Deno.serve below) so index.test.ts can test these directly —
+// they're plain functions with no Deno-specific APIs, the one part of this file that's
+// meaningfully unit-testable outside a running Supabase project.
+export function todayYmd() {
   return new Date().toISOString().slice(0, 10)
 }
 
-function escapeHtml(value: string): string {
+export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -36,7 +39,7 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;')
 }
 
-function renderReminderEmail(params: { firstName: string | null; tasks: DueTaskRow[] }): {
+export function renderReminderEmail(params: { firstName: string | null; tasks: DueTaskRow[] }): {
   subject: string
   html: string
   text: string
@@ -74,7 +77,7 @@ function renderReminderEmail(params: { firstName: string | null; tasks: DueTaskR
   return { subject, html, text }
 }
 
-async function sendReminderEmail(params: {
+export async function sendReminderEmail(params: {
   apiKey: string
   from: string
   to: string
@@ -113,7 +116,15 @@ async function sendReminderEmail(params: {
   }
 }
 
-Deno.serve(async () => {
+// Guarded so index.test.ts can `import` this module for the pure helpers above without also
+// starting an HTTP server (Deno.serve binds a port immediately at call time, as a module-level
+// side effect) — the Supabase Edge Functions runtime loads this file directly as the entry
+// point, where import.meta.main is true, so real deployments are unaffected.
+if (import.meta.main) {
+  Deno.serve(handleRequest)
+}
+
+async function handleRequest(): Promise<Response> {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const serviceRole = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
   const resendApiKey = Deno.env.get('RESEND_API_KEY')
@@ -142,7 +153,11 @@ Deno.serve(async () => {
     })
   }
 
-  const tasks = (dueTasks ?? []) as DueTaskRow[]
+  // supabase-js can't infer the `!inner` join's cardinality from a raw select string (it's
+  // conservatively typed as an array), but this FK is many-to-one (each task has exactly one
+  // routine), so the response shape really is a single nested object, not an array. Double-cast
+  // through `unknown` to be explicit that this override is intentional, not a missed type.
+  const tasks = (dueTasks ?? []) as unknown as DueTaskRow[]
   if (tasks.length === 0) {
     return new Response(
       JSON.stringify({ ok: true, dueDate, remindersPrepared: 0, emailsSent: 0, note: 'No due tasks' }),
@@ -256,4 +271,4 @@ Deno.serve(async () => {
     }),
     { headers: { 'Content-Type': 'application/json' } },
   )
-})
+}
