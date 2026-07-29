@@ -42,6 +42,21 @@ This guide complements the existing RLS-first model with practical hardening act
      risk: an attacker spreading requests across many IPs isn't slowed by an IP-keyed limit;
      a per-username or global cap would close that gap if it's ever observed in practice.
 
+7. Dependency CVE: react-router RSC-mode CSRF bypass (GHSA-qwww-vcr4-c8h2)
+   - Risk: low for this deployment (flagged high by `npm audit` for the package generally)
+   - `react-router-dom@7.18.1` (current, and also the latest published version) falls in the
+     advisory's vulnerable range `>=7.12.0 <8.3.0`. The vulnerability is specifically a CSRF
+     bypass in **RSC (React Server Components) mode** action handling — this app is a plain Vite
+     SPA using `BrowserRouter` with no server-side route/action handlers and no RSC mode enabled
+     anywhere in `frontend/src`, so the vulnerable code path is not reachable here.
+   - `npm audit fix --force` only offers a **downgrade** to `7.11.0` (`isSemVerMajor: true`) —
+     no forward-fixed version exists yet at time of writing. Downgrading five minor versions on a
+     pinned dependency to close a non-exploitable path would trade a real (if small) regression
+     risk for zero actual risk reduction, so it was deliberately not done.
+   - Mitigation: Dependabot (already configured) will surface a patched release when one ships;
+     re-evaluate this entry then. Documented here instead of silently ignored so the decision is
+     auditable, not assumed.
+
 ## Hardening Checklist
 
 ### App and Client
@@ -54,7 +69,8 @@ This guide complements the existing RLS-first model with practical hardening act
       `'unsafe-inline'` because inline `style` attributes from React/`@dnd-kit` depend on it.
 - [x] Raise new-account password minimum from 6 to 10 characters (`registerSchema`); login keeps
       accepting existing shorter passwords so current accounts aren't locked out.
-- [ ] Ensure all external dependencies are pinned and reviewed.
+- [x] Ensure all external dependencies are pinned and reviewed (`npm audit` run 2026-07-27; one
+      open advisory reviewed and documented as not applicable — see threat model item 7).
 
 ### Auth and Session
 
