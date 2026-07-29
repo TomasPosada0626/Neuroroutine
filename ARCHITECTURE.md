@@ -19,7 +19,14 @@ This document defines architecture boundaries and maintenance rules for NeuroRou
 ## Dependency rules
 
 - `shared` cannot import from `features` or `pages`.
-- `features` can import from `shared`, but not from other feature internals.
+- `features` can import from `shared`, but not from other feature internals —
+  **except `features/auth`**: nearly every feature needs to know the current user's identity, so
+  treating auth as a second cross-cutting layer (alongside `shared`) is an intentional,
+  documented exception rather than a violation. `routines` importing `useAuth` from
+  `features/auth/authStore` is expected; a feature reaching into another *non-auth* feature's
+  internals (e.g. `routines` importing `dashboard`'s store directly) is not — that state either
+  belongs in `shared/state` or the dependency should be inverted (pass data in via props/params
+  instead of importing the other feature's store).
 - `pages` can compose from `features` and `shared`, but should not hold business logic.
 - `app` can import from all frontend layers and is the top-level orchestrator.
 

@@ -2,7 +2,7 @@ async function freshStore() {
   vi.resetModules();
   vi.clearAllMocks();
   localStorage.clear();
-  const mod = await import('../store/dashboardPrefsStore');
+  const mod = await import('../dashboardPrefsStore');
   return mod;
 }
 
@@ -42,7 +42,6 @@ describe('useDashboardPrefsStore', () => {
         scope: 'week',
         weekStartsOn: 0,
         weeklyGoal: 7.8,
-        reminderHour: 9,
         widgetOrder: ['goal', 'today', 'unknown'],
         widgetHidden: { goal: true },
         widgetCollapsed: { today: true },
@@ -51,18 +50,39 @@ describe('useDashboardPrefsStore', () => {
     );
 
     vi.resetModules();
-    const { useDashboardPrefsStore } = await import('../store/dashboardPrefsStore');
+    const { useDashboardPrefsStore } = await import('../dashboardPrefsStore');
     const s = useDashboardPrefsStore.getState();
 
     expect(s.scope).toBe('week');
     expect(s.weekStartsOn).toBe(0);
     expect(s.weeklyGoal).toBe(8);
-    expect(s.reminderHour).toBe(9);
     expect(s.widgetOrder[0]).toBe('goal');
     expect(s.widgetOrder).not.toContain('unknown' as never);
     expect(s.widgetHidden.goal).toBe(true);
     expect(s.widgetCollapsed.today).toBe(true);
     expect(s.routineScheduleById.r1?.hour).toBe(7);
+  });
+
+  it('falls back to defaults when the persisted value is malformed JSON', async () => {
+    localStorage.setItem('nr-dashboard-prefs-v1', '{not valid json');
+
+    vi.resetModules();
+    const { useDashboardPrefsStore } = await import('../dashboardPrefsStore');
+    const s = useDashboardPrefsStore.getState();
+
+    expect(s.scope).toBe('today');
+    expect(s.weeklyGoal).toBe(12);
+    expect(s.widgetOrder).toContain('today');
+  });
+
+  it('useDashboardPrefs exposes the same store state via a hook', async () => {
+    const { renderHook } = await import('@testing-library/react');
+    const { useDashboardPrefs, useDashboardPrefsStore } = await freshStore();
+
+    const { result } = renderHook(() => useDashboardPrefs());
+
+    expect(result.current.scope).toBe(useDashboardPrefsStore.getState().scope);
+    expect(typeof result.current.setScope).toBe('function');
   });
 
   it('toggle methods and moveWidget update state and persist', async () => {
@@ -95,7 +115,6 @@ describe('useDashboardPrefsStore', () => {
 
     useDashboardPrefsStore.getState().setScope('month');
     useDashboardPrefsStore.getState().setWeekStartsOn(1);
-    useDashboardPrefsStore.getState().setReminderHour(null);
     useDashboardPrefsStore.getState().setRoutineSchedule('r2', {
       daysOfWeek: [2, 4],
       hour: 10,
@@ -103,7 +122,6 @@ describe('useDashboardPrefsStore', () => {
 
     expect(useDashboardPrefsStore.getState().scope).toBe('month');
     expect(useDashboardPrefsStore.getState().weekStartsOn).toBe(1);
-    expect(useDashboardPrefsStore.getState().reminderHour).toBeNull();
     expect(useDashboardPrefsStore.getState().routineScheduleById.r2?.daysOfWeek).toEqual([2, 4]);
 
     const initial = useDashboardPrefsStore.getState().widgetOrder;

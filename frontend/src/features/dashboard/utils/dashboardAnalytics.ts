@@ -1,7 +1,7 @@
 import type { User } from '@supabase/supabase-js';
-import type { Routine, RoutineTask } from '@/features/routines/types';
+import type { Routine, RoutineTask } from '@/shared/types/routines';
 import type { RoutineTaskEvent } from '@/shared/types/routineEvents';
-import type { RoutineSchedule, WeekStartsOn } from '../store/dashboardPrefsStore';
+import type { RoutineSchedule, WeekStartsOn } from '@/shared/state/dashboardPrefsStore';
 import {
   addDaysLocal,
   dateKeyLocal,

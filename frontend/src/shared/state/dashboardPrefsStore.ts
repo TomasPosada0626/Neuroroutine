@@ -22,7 +22,6 @@ type DashboardPrefsState = {
   scope: TimeScope;
   weekStartsOn: WeekStartsOn;
   weeklyGoal: number;
-  reminderHour: number | null;
 
   widgetOrder: DashboardWidgetId[];
   widgetHidden: Record<DashboardWidgetId, boolean>;
@@ -33,7 +32,6 @@ type DashboardPrefsState = {
   setScope: (scope: TimeScope) => void;
   setWeekStartsOn: (v: WeekStartsOn) => void;
   setWeeklyGoal: (v: number) => void;
-  setReminderHour: (v: number | null) => void;
 
   toggleWidgetHidden: (id: DashboardWidgetId) => void;
   toggleWidgetCollapsed: (id: DashboardWidgetId) => void;
@@ -72,7 +70,6 @@ function persist(get: () => DashboardPrefsState) {
       scope: state.scope,
       weekStartsOn: state.weekStartsOn,
       weeklyGoal: state.weeklyGoal,
-      reminderHour: state.reminderHour,
       widgetOrder: state.widgetOrder,
       widgetHidden: state.widgetHidden,
       widgetCollapsed: state.widgetCollapsed,
@@ -111,7 +108,6 @@ export const useDashboardPrefsStore = create<DashboardPrefsState>((set, get) => 
       typeof fromStorage?.weeklyGoal === 'number'
         ? Math.max(1, Math.round(fromStorage.weeklyGoal))
         : 12,
-    reminderHour: typeof fromStorage?.reminderHour === 'number' ? fromStorage.reminderHour : null,
 
     widgetOrder: initialOrder,
     widgetHidden: {
@@ -160,11 +156,6 @@ export const useDashboardPrefsStore = create<DashboardPrefsState>((set, get) => 
       set({ weeklyGoal: next });
       persist(get);
     },
-    setReminderHour: (v) => {
-      set({ reminderHour: v });
-      persist(get);
-    },
-
     toggleWidgetHidden: (id) => {
       set((s) => ({ widgetHidden: { ...s.widgetHidden, [id]: !s.widgetHidden[id] } }));
       persist(get);

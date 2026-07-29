@@ -1,4 +1,4 @@
-export * from './store/dashboardPrefsStore';
+export * from '@/shared/state/dashboardPrefsStore';
 export * from './utils/dashboardUtils';
 export * from './utils/dashboardAnalytics';
 export * from './data/seedDemoData';

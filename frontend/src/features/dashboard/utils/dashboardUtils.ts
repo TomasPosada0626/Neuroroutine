@@ -1,5 +1,5 @@
 import type { RoutineTaskEvent } from '@/shared/types/routineEvents';
-import type { WeekStartsOn } from '../store/dashboardPrefsStore';
+import type { WeekStartsOn } from '@/shared/state/dashboardPrefsStore';
 
 export function dateKeyLocal(d: Date) {
   const yyyy = d.getFullYear();

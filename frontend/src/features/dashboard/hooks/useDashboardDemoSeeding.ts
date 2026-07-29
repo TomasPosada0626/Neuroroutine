@@ -1,13 +1,13 @@
 import type { User } from '@supabase/supabase-js';
 import { useMemo, useState } from 'react';
 import { IS_DEMO_VARIANT } from '@/shared/config/appVariant';
-import { useRoutinesStore } from '@/features/routines/routinesStore';
+import type { Routine } from '@/shared/types/routines';
 import {
   clearDashboardDemoData,
   seedDashboardDemoData,
   seedFullDemoData,
 } from '../data/seedDemoData';
-import type { RoutineSchedule } from '../store/dashboardPrefsStore';
+import type { RoutineSchedule } from '@/shared/state/dashboardPrefsStore';
 
 type RefreshAll = (params?: { since?: string; userId?: string | null }) => Promise<void>;
 
@@ -28,8 +28,14 @@ export function useDashboardDemoSeeding(params: {
   routineScheduleById: Record<string, RoutineSchedule>;
   setRoutineSchedule: (routineId: string, schedule: RoutineSchedule) => void;
   locationSearch: string;
+  // Read at call time (a getter, not a snapshot value) so applyDemoScheduleDefaults sees routines
+  // created moments earlier by the same seeding call, not a stale render's list. Passed in by the
+  // caller (a page, which may depend on any feature) instead of importing routinesStore directly,
+  // so this dashboard-feature hook doesn't reach into another feature's internals.
+  getRoutines: () => Routine[];
 }) {
-  const { user, refreshAll, routineScheduleById, setRoutineSchedule, locationSearch } = params;
+  const { user, refreshAll, routineScheduleById, setRoutineSchedule, locationSearch, getRoutines } =
+    params;
 
   const showSeedTools = useMemo(() => {
     // Demo seeding is ONLY allowed in the demo variant.
@@ -55,7 +61,7 @@ export function useDashboardDemoSeeding(params: {
     const hasAnySchedule = Object.keys(routineScheduleById ?? {}).length > 0;
     if (hasAnySchedule) return;
 
-    const all = useRoutinesStore.getState().routines;
+    const all = getRoutines();
     if (!all || all.length === 0) return;
 
     // Prefer demo routines if present.

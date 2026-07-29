@@ -3,10 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/features/auth/authStore';
 import { useRoutines } from '@/features/routines/routinesStore';
 import { RoutineFormModal, TaskFormModal } from '@/features/routines/components';
-import {
-  useDashboardPrefs,
-  type RoutineSchedule,
-} from '@/features/dashboard/store/dashboardPrefsStore';
+import { useDashboardPrefs, type RoutineSchedule } from '@/shared/state/dashboardPrefsStore';
 import { listRoutines, searchRoutines } from '@/features/routines/routinesService';
 import { cn } from '@/shared/lib/cn';
 import { Button, Card, Input, Textarea } from '@/shared/ui';

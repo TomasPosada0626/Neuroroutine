@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import type { User } from '@supabase/supabase-js';
-import type { Routine } from '@/features/routines/types';
-import type { RoutineSchedule } from '../../store/dashboardPrefsStore';
+import type { Routine } from '@/shared/types/routines';
+import type { RoutineSchedule } from '@/shared/state/dashboardPrefsStore';
 
 const variantState = vi.hoisted(() => ({ isDemo: true }));
 vi.mock('@/shared/config/appVariant', () => ({
@@ -11,11 +11,6 @@ vi.mock('@/shared/config/appVariant', () => ({
 }));
 
 const routinesState = vi.hoisted(() => ({ routines: [] as Routine[] }));
-vi.mock('@/features/routines/routinesStore', () => ({
-  useRoutinesStore: {
-    getState: () => ({ routines: routinesState.routines }),
-  },
-}));
 
 const seedDashboardDemoData = vi.fn();
 const seedFullDemoData = vi.fn();
@@ -43,6 +38,7 @@ function setup(params: Partial<Parameters<typeof useDashboardDemoSeeding>[0]> = 
       routineScheduleById: {},
       setRoutineSchedule,
       locationSearch: '',
+      getRoutines: () => routinesState.routines,
       ...params,
     }),
   );
