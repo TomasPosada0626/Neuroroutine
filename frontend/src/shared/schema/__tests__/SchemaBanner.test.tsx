@@ -15,9 +15,16 @@ vi.mock('@/shared/state/uiStore', () => ({
 }));
 
 const completeStatus: NrSchemaStatus = {
-  version: 6,
-  task_metadata: { description: true, due_date: true, due_time: true, is_recurring: true },
+  version: 9,
+  task_metadata: {
+    description: true,
+    due_date: true,
+    due_time: true,
+    is_recurring: true,
+    recurrence_days_of_week: true,
+  },
   has_app_events: true,
+  has_rate_limit_table: true,
 };
 
 describe('SchemaBanner', () => {
@@ -69,15 +76,65 @@ describe('SchemaBanner', () => {
     expect(screen.getByText('Falta la tabla `app_events` (event log).')).toBeInTheDocument();
   });
 
-  it('can show multiple warnings at once', () => {
+  it('warns about missing weekly recurrence days only when daily recurring is present', () => {
     schemaState.status = {
-      version: 0,
-      task_metadata: { description: false, due_date: false, due_time: false, is_recurring: false },
-      has_app_events: false,
+      ...completeStatus,
+      task_metadata: { ...completeStatus.task_metadata, recurrence_days_of_week: false },
     };
     render(<SchemaBanner />);
 
-    expect(screen.getAllByRole('listitem')).toHaveLength(3);
+    expect(
+      screen.getByText(
+        'Falta la columna `recurrence_days_of_week` (0008): la recurrencia semanal no hace nada, solo la diaria.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('does not separately warn about weekly days when is_recurring itself is missing', () => {
+    schemaState.status = {
+      ...completeStatus,
+      task_metadata: {
+        ...completeStatus.task_metadata,
+        is_recurring: false,
+        recurrence_days_of_week: false,
+      },
+    };
+    render(<SchemaBanner />);
+
+    expect(
+      screen.queryByText(/Falta la columna `recurrence_days_of_week`/),
+    ).not.toBeInTheDocument();
+  });
+
+  it('warns about the missing rate limit table', () => {
+    schemaState.status = { ...completeStatus, has_rate_limit_table: false };
+    render(<SchemaBanner />);
+
+    expect(
+      screen.getByText(
+        'Falta la tabla `rpc_rate_limits` (0007): `get_email_by_username` no tiene límite de tasa activo.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('can show multiple warnings at once', () => {
+    schemaState.status = {
+      version: 0,
+      task_metadata: {
+        description: false,
+        due_date: false,
+        due_time: false,
+        is_recurring: false,
+        recurrence_days_of_week: false,
+      },
+      has_app_events: false,
+      has_rate_limit_table: false,
+    };
+    render(<SchemaBanner />);
+
+    // description/date/time (1) + is_recurring (1) + app_events (1) + rate_limit_table (1).
+    // recurrence_days_of_week is suppressed here since is_recurring itself is already false.
+    expect(screen.getAllByRole('listitem')).toHaveLength(4);
   });
 
   it('stays hidden outside dev mode even with pending warnings', () => {

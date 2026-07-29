@@ -447,7 +447,7 @@ create table if not exists public.nr_schema_meta (
 );
 
 insert into public.nr_schema_meta (id, version)
-values (1, 8)
+values (1, 9)
 on conflict (id) do update set
   version = excluded.version,
   updated_at = now();
@@ -466,6 +466,8 @@ declare
   has_due_time boolean;
   has_app_events boolean;
   has_is_recurring boolean;
+  has_recurrence_days boolean;
+  has_rate_limit_table boolean;
 begin
   select version into v_version from public.nr_schema_meta where id = 1;
   if v_version is null then
@@ -504,7 +506,16 @@ begin
       and column_name = 'is_recurring'
   ) into has_is_recurring;
 
+  select exists(
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'routine_tasks'
+      and column_name = 'recurrence_days_of_week'
+  ) into has_recurrence_days;
+
   has_app_events := to_regclass('public.app_events') is not null;
+  has_rate_limit_table := to_regclass('public.rpc_rate_limits') is not null;
 
   return jsonb_build_object(
     'version', v_version,
@@ -512,9 +523,11 @@ begin
       'description', has_description,
       'due_date', has_due_date,
       'due_time', has_due_time,
-      'is_recurring', has_is_recurring
+      'is_recurring', has_is_recurring,
+      'recurrence_days_of_week', has_recurrence_days
     ),
-    'has_app_events', has_app_events
+    'has_app_events', has_app_events,
+    'has_rate_limit_table', has_rate_limit_table
   );
 end;
 $$;

@@ -7,8 +7,10 @@ export type NrSchemaStatus = {
     due_date: boolean;
     due_time: boolean;
     is_recurring: boolean;
+    recurrence_days_of_week: boolean;
   };
   has_app_events: boolean;
+  has_rate_limit_table: boolean;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -31,8 +33,10 @@ export async function fetchNrSchemaStatus(): Promise<NrSchemaStatus | null> {
         due_date: taskMeta.due_date === true,
         due_time: taskMeta.due_time === true,
         is_recurring: taskMeta.is_recurring === true,
+        recurrence_days_of_week: taskMeta.recurrence_days_of_week === true,
       },
       has_app_events: data.has_app_events === true,
+      has_rate_limit_table: data.has_rate_limit_table === true,
     };
   } catch {
     return null;

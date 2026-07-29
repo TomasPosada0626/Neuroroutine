@@ -62,9 +62,16 @@ describe('useSchemaStore', () => {
 
     const fetchMock = vi.mocked(serviceMod.fetchNrSchemaStatus);
     fetchMock.mockResolvedValue({
-      version: 6,
-      task_metadata: { description: true, due_date: true, due_time: true, is_recurring: true },
+      version: 9,
+      task_metadata: {
+        description: true,
+        due_date: true,
+        due_time: true,
+        is_recurring: true,
+        recurrence_days_of_week: true,
+      },
       has_app_events: true,
+      has_rate_limit_table: true,
     });
 
     await useSchemaStore.getState().refresh();
@@ -72,7 +79,7 @@ describe('useSchemaStore', () => {
     const state = useSchemaStore.getState();
     expect(state.loading).toBe(false);
     expect(state.error).toBeNull();
-    expect(state.status?.version).toBe(6);
+    expect(state.status?.version).toBe(9);
     expect(state.lastCheckedAt).not.toBeNull();
     expect(localStorage.getItem('nr-schema-status-v1')).not.toBeNull();
   });

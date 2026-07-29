@@ -11,12 +11,19 @@ describe('fetchNrSchemaStatus', () => {
     vi.clearAllMocks();
   });
 
-  it('parses a full status payload, including is_recurring', async () => {
+  it('parses a full status payload, including is_recurring and recurrence_days_of_week', async () => {
     rpcMock.mockResolvedValue({
       data: {
-        version: 6,
-        task_metadata: { description: true, due_date: true, due_time: true, is_recurring: true },
+        version: 9,
+        task_metadata: {
+          description: true,
+          due_date: true,
+          due_time: true,
+          is_recurring: true,
+          recurrence_days_of_week: true,
+        },
         has_app_events: true,
+        has_rate_limit_table: true,
       },
       error: null,
     });
@@ -26,9 +33,16 @@ describe('fetchNrSchemaStatus', () => {
 
     expect(rpcMock).toHaveBeenCalledWith('get_nr_schema_status');
     expect(status).toEqual({
-      version: 6,
-      task_metadata: { description: true, due_date: true, due_time: true, is_recurring: true },
+      version: 9,
+      task_metadata: {
+        description: true,
+        due_date: true,
+        due_time: true,
+        is_recurring: true,
+        recurrence_days_of_week: true,
+      },
       has_app_events: true,
+      has_rate_limit_table: true,
     });
   });
 
@@ -43,8 +57,15 @@ describe('fetchNrSchemaStatus', () => {
 
     expect(status).toEqual({
       version: 0,
-      task_metadata: { description: false, due_date: false, due_time: false, is_recurring: false },
+      task_metadata: {
+        description: false,
+        due_date: false,
+        due_time: false,
+        is_recurring: false,
+        recurrence_days_of_week: false,
+      },
       has_app_events: false,
+      has_rate_limit_table: false,
     });
   });
 

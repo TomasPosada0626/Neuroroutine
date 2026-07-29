@@ -63,9 +63,16 @@ const { clearDashboardDemoData, seedFullDemoData, seedDashboardDemoData } =
   await import('../seedDemoData');
 
 const fullStatus: NrSchemaStatus = {
-  version: 6,
-  task_metadata: { description: true, due_date: true, due_time: true, is_recurring: true },
+  version: 9,
+  task_metadata: {
+    description: true,
+    due_date: true,
+    due_time: true,
+    is_recurring: true,
+    recurrence_days_of_week: true,
+  },
   has_app_events: true,
+  has_rate_limit_table: true,
 };
 
 function resetSupabase(overrides: Record<string, MockResult> = {}) {
@@ -270,8 +277,15 @@ describe('seedFullDemoData', () => {
     });
     fetchNrSchemaStatusMock.mockResolvedValue({
       version: 0,
-      task_metadata: { description: false, due_date: false, due_time: false, is_recurring: false },
+      task_metadata: {
+        description: false,
+        due_date: false,
+        due_time: false,
+        is_recurring: false,
+        recurrence_days_of_week: false,
+      },
       has_app_events: false,
+      has_rate_limit_table: false,
     });
 
     await expect(seedFullDemoData('u1', 'full')).resolves.toBeUndefined();

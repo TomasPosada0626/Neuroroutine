@@ -21,8 +21,18 @@ export function SchemaBanner() {
     if (!status.task_metadata.is_recurring) {
       next.push('Falta la columna `is_recurring` y el RPC `reset_recurring_tasks` (0006).');
     }
+    if (status.task_metadata.is_recurring && !status.task_metadata.recurrence_days_of_week) {
+      next.push(
+        'Falta la columna `recurrence_days_of_week` (0008): la recurrencia semanal no hace nada, solo la diaria.',
+      );
+    }
     if (!status.has_app_events) {
       next.push('Falta la tabla `app_events` (event log).');
+    }
+    if (!status.has_rate_limit_table) {
+      next.push(
+        'Falta la tabla `rpc_rate_limits` (0007): `get_email_by_username` no tiene límite de tasa activo.',
+      );
     }
 
     return next;
