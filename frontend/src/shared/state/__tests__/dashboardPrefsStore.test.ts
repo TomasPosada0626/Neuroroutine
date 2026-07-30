@@ -7,6 +7,26 @@ async function freshStore() {
 }
 
 describe('useDashboardPrefsStore', () => {
+  it('initializes with defaults when localStorage is unavailable at module load', async () => {
+    vi.resetModules();
+    vi.stubGlobal('localStorage', undefined);
+
+    const { useDashboardPrefsStore } = await import('../dashboardPrefsStore');
+
+    expect(useDashboardPrefsStore.getState().widgetOrder).toEqual([
+      'today',
+      'upcoming',
+      'streaks',
+      'goal',
+      'achievements',
+      'insights',
+      'analytics',
+      'routines',
+    ]);
+
+    vi.unstubAllGlobals();
+  });
+
   it('setWidgetOrder filters unknown ids and appends missing defaults', async () => {
     const { useDashboardPrefsStore } = await freshStore();
 
@@ -128,6 +148,32 @@ describe('useDashboardPrefsStore', () => {
     useDashboardPrefsStore.getState().moveWidget(initial[0]!, 'up');
     useDashboardPrefsStore.getState().moveWidget(initial[initial.length - 1]!, 'down');
     expect(useDashboardPrefsStore.getState().widgetOrder).toEqual(initial);
+  });
+
+  it('moveWidget is a no-op for an id that is not in the widget order', async () => {
+    const { useDashboardPrefsStore } = await freshStore();
+    const initial = useDashboardPrefsStore.getState().widgetOrder;
+
+    useDashboardPrefsStore.getState().moveWidget('not-a-real-widget' as never, 'up');
+
+    expect(useDashboardPrefsStore.getState().widgetOrder).toEqual(initial);
+  });
+
+  it('setWidgetOrder falls back to the default order when given a non-array', async () => {
+    const { useDashboardPrefsStore } = await freshStore();
+
+    useDashboardPrefsStore.getState().setWidgetOrder('not-an-array' as never);
+
+    expect(useDashboardPrefsStore.getState().widgetOrder).toEqual([
+      'today',
+      'upcoming',
+      'streaks',
+      'goal',
+      'achievements',
+      'insights',
+      'analytics',
+      'routines',
+    ]);
   });
 
   it('starts with the panel expanded and no favorites by default', async () => {

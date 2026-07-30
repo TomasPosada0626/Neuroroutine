@@ -84,6 +84,18 @@ describe('InsightsWidget', () => {
     await waitFor(() => expect(screen.getByText('Guardado')).toBeInTheDocument());
   });
 
+  it('shows the "Guardado" confirmation in the night theme', async () => {
+    const user = userEvent.setup();
+    upsertReminderPreferencesMock.mockResolvedValue({});
+    renderWidget({ isDay: false, subtleText: 'text-slate-300', panelText: 'text-slate-200' });
+
+    await user.click(
+      screen.getByRole('button', { name: 'Programar recordatorio en mi mejor hora' }),
+    );
+
+    await waitFor(() => expect(screen.getByText('Guardado')).toBeInTheDocument());
+  });
+
   it('shows an error message when saving the reminder fails', async () => {
     const user = userEvent.setup();
     upsertReminderPreferencesMock.mockRejectedValue(new Error('network down'));

@@ -35,6 +35,16 @@ In both cases, the frontend only needs:
 
 - Tables have **Row Level Security** enabled.
 - Policies allow `SELECT/INSERT/UPDATE/DELETE` only when `auth.uid() = user_id`.
+- Verified two ways: a real cross-user attack test in Playwright
+  (`frontend/e2e/routines.spec.ts`, goes through the actual PostgREST + JWT path) and a
+  secret-free pgTAP suite at the SQL layer (`supabase/tests/database/routines_rls.test.sql`,
+  runs on every push in CI). Run it locally with:
+  ```bash
+  cd backend
+  npx supabase start
+  PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres \
+    -f supabase/tests/database/routines_rls.test.sql
+  ```
 
 ## Data model source of truth
 

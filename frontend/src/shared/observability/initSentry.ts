@@ -4,7 +4,7 @@ export function initSentry() {
   const dsn = import.meta.env.VITE_SENTRY_DSN as string | undefined;
   if (!dsn) return;
 
-  const release = (import.meta.env.VITE_BUILD_SHA as string | undefined) ?? undefined;
+  const release = import.meta.env.VITE_BUILD_SHA as string | undefined;
 
   Sentry.init({
     dsn,

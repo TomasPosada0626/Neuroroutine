@@ -38,7 +38,8 @@ async function freshStore() {
   const storeMod = await import('../routinesStore');
   const serviceMod = await import('../routinesService');
   const queueMod = await import('@/shared/offline/taskSyncQueue');
-  return { storeMod, serviceMod, queueMod };
+  const eventLogMod = await import('@/shared/observability/eventLog');
+  return { storeMod, serviceMod, queueMod, eventLogMod };
 }
 
 describe('useRoutinesStore', () => {
@@ -50,7 +51,7 @@ describe('useRoutinesStore', () => {
   });
 
   it('addRoutine prepends routine and selects it', async () => {
-    const { storeMod, serviceMod } = await freshStore();
+    const { storeMod, serviceMod, eventLogMod } = await freshStore();
     const { useRoutinesStore } = storeMod;
 
     const existing = {
@@ -82,6 +83,13 @@ describe('useRoutinesStore', () => {
     expect(s.selectedRoutineId).toBe('r1');
     expect(s.routines.map((r) => r.id)).toEqual(['r1', 'r0']);
     expect(s.loading).toBe(false);
+    expect(eventLogMod.logAppEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: 'u1',
+        event_name: 'routine_created',
+        routine_id: 'r1',
+      }),
+    );
   });
 
   it('useRoutines wrapper returns the same store API and selectRoutine updates selected id', async () => {
@@ -100,7 +108,7 @@ describe('useRoutinesStore', () => {
   });
 
   it('addTasksBulk skips blank titles and updates task lists', async () => {
-    const { storeMod, serviceMod } = await freshStore();
+    const { storeMod, serviceMod, eventLogMod } = await freshStore();
     const { useRoutinesStore } = storeMod;
 
     const createTaskMock = vi.mocked(serviceMod.createTask);
@@ -148,6 +156,14 @@ describe('useRoutinesStore', () => {
     expect(s.allTasks.map((t) => t.id)).toEqual(['t2', 't1']);
     expect((s.tasksByRoutineId['r1'] ?? []).map((t) => t.id)).toEqual(['t1', 't2']);
     expect(s.loading).toBe(false);
+    expect(eventLogMod.logAppEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: 'u1',
+        event_name: 'tasks_created_bulk',
+        routine_id: 'r1',
+        meta: expect.objectContaining({ count: 2 }),
+      }),
+    );
   });
 
   it('addRoutine surfaces errors and stores an error message', async () => {
@@ -491,7 +507,7 @@ describe('useRoutinesStore', () => {
   });
 
   it('setTaskDone updates task entries and appends an optimistic event', async () => {
-    const { storeMod, serviceMod } = await freshStore();
+    const { storeMod, serviceMod, eventLogMod } = await freshStore();
     const { useRoutinesStore } = storeMod;
 
     const otherTask = {
@@ -567,6 +583,14 @@ describe('useRoutinesStore', () => {
     expect(s.tasksByRoutineId.r1?.[1]).toEqual(otherTask);
     expect(s.taskEvents[0]?.event_type).toBe('completed');
     expect(s.loading).toBe(false);
+    expect(eventLogMod.logAppEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: 'u1',
+        event_name: 'task_completed',
+        routine_id: 'r1',
+        routine_task_id: 't1',
+      }),
+    );
   });
 
   it('editTask updates the task in both global and per-routine lists', async () => {
@@ -786,12 +810,12 @@ describe('useRoutinesStore', () => {
   });
 
   it('removeTask removes task from global and routine lists', async () => {
-    const { storeMod, serviceMod } = await freshStore();
+    const { storeMod, serviceMod, eventLogMod } = await freshStore();
     const { useRoutinesStore } = storeMod;
 
     const other = {
       id: 't2',
-      user_id: 'u1',
+      user_id: 'someone-else',
       routine_id: 'r1',
       title: 'Keep me',
       description: null,
@@ -804,6 +828,7 @@ describe('useRoutinesStore', () => {
     };
     useRoutinesStore.setState({
       allTasks: [
+        other,
         {
           id: 't1',
           user_id: 'u1',
@@ -817,10 +842,10 @@ describe('useRoutinesStore', () => {
           created_at: new Date(2025, 0, 1, 12).toISOString(),
           updated_at: new Date(2025, 0, 1, 12).toISOString(),
         },
-        other,
       ],
       tasksByRoutineId: {
         r1: [
+          other,
           {
             id: 't1',
             user_id: 'u1',
@@ -834,7 +859,6 @@ describe('useRoutinesStore', () => {
             created_at: new Date(2025, 0, 1, 12).toISOString(),
             updated_at: new Date(2025, 0, 1, 12).toISOString(),
           },
-          other,
         ],
       },
     });
@@ -847,6 +871,14 @@ describe('useRoutinesStore', () => {
     expect(s.allTasks).toEqual([other]);
     expect(s.tasksByRoutineId.r1).toEqual([other]);
     expect(s.loading).toBe(false);
+    expect(eventLogMod.logAppEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: 'u1',
+        event_name: 'task_deleted',
+        routine_id: 'r1',
+        routine_task_id: 't1',
+      }),
+    );
   });
 
   it('removeTask works even when task user id is not found', async () => {
@@ -914,7 +946,7 @@ describe('useRoutinesStore', () => {
   });
 
   it('removeRoutine drops selected routine and routine task map entry', async () => {
-    const { storeMod, serviceMod } = await freshStore();
+    const { storeMod, serviceMod, eventLogMod } = await freshStore();
     const { useRoutinesStore } = storeMod;
 
     const otherRoutine = {
@@ -954,6 +986,9 @@ describe('useRoutinesStore', () => {
     expect(s.tasksByRoutineId.r1).toBeUndefined();
     expect(s.tasksByRoutineId.r2).toEqual([]);
     expect(s.loading).toBe(false);
+    expect(eventLogMod.logAppEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ user_id: 'u1', event_name: 'routine_deleted', routine_id: 'r1' }),
+    );
   });
 
   it('removeRoutine removes routine even when user id is not found', async () => {
@@ -1054,7 +1089,7 @@ describe('useRoutinesStore', () => {
   });
 
   it('addTask prepends into allTasks and appends into routine bucket', async () => {
-    const { storeMod, serviceMod } = await freshStore();
+    const { storeMod, serviceMod, eventLogMod } = await freshStore();
     const { useRoutinesStore } = storeMod;
 
     const existing = {
@@ -1097,6 +1132,14 @@ describe('useRoutinesStore', () => {
     expect(s.allTasks.map((t) => t.id)).toEqual(['t1', 't0']);
     expect(s.tasksByRoutineId.r3?.map((t) => t.id)).toEqual(['t0', 't1']);
     expect(s.loading).toBe(false);
+    expect(eventLogMod.logAppEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: 'u1',
+        event_name: 'task_created',
+        routine_id: 'r3',
+        routine_task_id: 't1',
+      }),
+    );
   });
 
   it('editRoutine updates existing routine entity', async () => {
@@ -1354,7 +1397,7 @@ describe('useRoutinesStore', () => {
   });
 
   it('setTaskDone supports uncompleted event type branch', async () => {
-    const { storeMod, serviceMod } = await freshStore();
+    const { storeMod, serviceMod, eventLogMod } = await freshStore();
     const { useRoutinesStore } = storeMod;
 
     useRoutinesStore.setState({
@@ -1408,6 +1451,9 @@ describe('useRoutinesStore', () => {
 
     await useRoutinesStore.getState().setTaskDone({ id: 't2', routine_id: 'r1', is_done: false });
     expect(useRoutinesStore.getState().taskEvents[0]?.event_type).toBe('uncompleted');
+    expect(eventLogMod.logAppEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ event_name: 'task_uncompleted' }),
+    );
   });
 
   it('setTaskDone initializes the routine bucket when none existed yet', async () => {
@@ -1567,7 +1613,7 @@ describe('useRoutinesStore', () => {
   });
 
   it('syncOfflineTasks replaces local tasks and removes queue entries on success', async () => {
-    const { storeMod, serviceMod, queueMod } = await freshStore();
+    const { storeMod, serviceMod, queueMod, eventLogMod } = await freshStore();
     const { useRoutinesStore } = storeMod;
 
     const pending = [
@@ -1660,6 +1706,9 @@ describe('useRoutinesStore', () => {
     expect(s.tasksByRoutineId.r1?.find((t) => t.id === 'remote_1')).toBeTruthy();
     expect(s.tasksByRoutineId.r1?.find((t) => t.id === 'unrelated')).toEqual(otherTask);
     expect(vi.mocked(queueMod.removeQueuedTaskInsert)).toHaveBeenCalledWith('local_1');
+    expect(eventLogMod.logAppEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ user_id: 'u1', event_name: 'offline_sync_completed' }),
+    );
   });
 
   it('syncOfflineTasks initializes the routine bucket when none existed yet', async () => {

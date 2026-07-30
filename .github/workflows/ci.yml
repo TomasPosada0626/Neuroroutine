@@ -30,6 +30,47 @@ jobs:
       - name: Run tests
         run: deno test --allow-net --allow-env
 
+  backend-rls:
+    name: Backend RLS (pgTAP, local Postgres)
+    runs-on: ubuntu-latest
+    # No secrets needed at all: this spins up a throwaway local Supabase/Postgres stack via
+    # Docker (already available on ubuntu-latest runners) and tears it down after. It's a
+    # second, secret-free line of defense for RLS on top of e2e-rls-regression's real
+    # cross-user Playwright attack test (which only runs once its 6 secrets are configured).
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start local Supabase stack
+        run: supabase start --ignore-health-check
+
+      - name: Run pgTAP RLS suite
+        run: |
+          output=$(PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres \
+            -v ON_ERROR_STOP=1 -f supabase/tests/database/routines_rls.test.sql)
+          echo "$output"
+          # psql's table-output formatting indents rows with a leading space, so "not ok N" is
+          # never at column 0 — an anchored `^not ok` silently never matches (verified locally
+          # with a deliberately-failing assertion before relying on this in CI).
+          if echo "$output" | grep -qE "not ok [0-9]"; then
+            echo "::error::pgTAP RLS test failure(s) detected"
+            exit 1
+          fi
+
+      - name: Stop local Supabase stack
+        if: always()
+        run: supabase stop
+
   frontend:
     name: Frontend (lint + test + build)
     runs-on: ubuntu-latest

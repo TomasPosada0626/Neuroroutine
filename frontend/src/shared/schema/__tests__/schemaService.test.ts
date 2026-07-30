@@ -76,6 +76,29 @@ describe('fetchNrSchemaStatus', () => {
     expect(await fetchNrSchemaStatus()).toBeNull();
   });
 
+  it('defaults task_metadata fields to false when task_metadata itself is missing', async () => {
+    rpcMock.mockResolvedValue({
+      data: { version: 3 },
+      error: null,
+    });
+
+    const { fetchNrSchemaStatus } = await import('../schemaService');
+    const status = await fetchNrSchemaStatus();
+
+    expect(status).toEqual({
+      version: 3,
+      task_metadata: {
+        description: false,
+        due_date: false,
+        due_time: false,
+        is_recurring: false,
+        recurrence_days_of_week: false,
+      },
+      has_app_events: false,
+      has_rate_limit_table: false,
+    });
+  });
+
   it('returns null when the payload is not a record', async () => {
     rpcMock.mockResolvedValue({ data: 'not-an-object', error: null });
 

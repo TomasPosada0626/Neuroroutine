@@ -46,7 +46,7 @@ export function UpcomingWidget({
   onToggleCollapsed,
 }: Props) {
   const [upcomingDayKey, setUpcomingDayKey] = useState<string | null>(null);
-  const hasSchedule = Object.keys(routineScheduleById ?? {}).length > 0;
+  const hasSchedule = Object.keys(routineScheduleById).length > 0;
 
   const daySchedules = next7Days.map((d, idx) => {
     const ids = scheduledRoutinesByDow.get(d.date.getDay()) ?? [];

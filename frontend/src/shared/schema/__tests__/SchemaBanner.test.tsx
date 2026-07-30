@@ -2,7 +2,10 @@ import { render, screen } from '@testing-library/react';
 import type { NrSchemaStatus } from '../schemaService';
 import { SchemaBanner } from '../SchemaBanner';
 
-const schemaState = vi.hoisted(() => ({ status: null as NrSchemaStatus | null }));
+const schemaState = vi.hoisted(() => ({
+  status: null as NrSchemaStatus | null,
+  theme: 'night' as 'day' | 'night',
+}));
 
 vi.mock('../schemaStore', () => ({
   useSchemaStore: (selector: (s: { status: NrSchemaStatus | null }) => unknown) =>
@@ -11,7 +14,7 @@ vi.mock('../schemaStore', () => ({
 
 vi.mock('@/shared/state/uiStore', () => ({
   useUiStore: (selector: (s: { theme: 'day' | 'night' }) => unknown) =>
-    selector({ theme: 'night' }),
+    selector({ theme: schemaState.theme }),
 }));
 
 const completeStatus: NrSchemaStatus = {
@@ -30,6 +33,7 @@ const completeStatus: NrSchemaStatus = {
 describe('SchemaBanner', () => {
   beforeEach(() => {
     schemaState.status = null;
+    schemaState.theme = 'night';
     vi.unstubAllEnvs();
     vi.stubEnv('DEV', true);
   });
@@ -135,6 +139,14 @@ describe('SchemaBanner', () => {
     // description/date/time (1) + is_recurring (1) + app_events (1) + rate_limit_table (1).
     // recurrence_days_of_week is suppressed here since is_recurring itself is already false.
     expect(screen.getAllByRole('listitem')).toHaveLength(4);
+  });
+
+  it('warns with day-theme styling', () => {
+    schemaState.theme = 'day';
+    schemaState.status = { ...completeStatus, has_app_events: false };
+    render(<SchemaBanner />);
+
+    expect(screen.getByText('Falta la tabla `app_events` (event log).')).toBeInTheDocument();
   });
 
   it('stays hidden outside dev mode even with pending warnings', () => {

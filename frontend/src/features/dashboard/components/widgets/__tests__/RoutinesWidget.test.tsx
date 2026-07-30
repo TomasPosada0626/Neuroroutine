@@ -45,6 +45,24 @@ describe('RoutinesWidget', () => {
     expect(screen.queryByText(/Tus rutinas aparecerán/)).not.toBeInTheDocument();
   });
 
+  it('shows a loading skeleton in the night theme', () => {
+    render(
+      <RoutinesWidget
+        loading
+        routines={[]}
+        tasksByRoutineId={{}}
+        onStartSession={() => {}}
+        isDay={false}
+        subtleText="text-slate-300"
+        panelText="text-slate-200"
+        collapsed={false}
+        onToggleCollapsed={() => {}}
+      />,
+    );
+
+    expect(screen.queryByText(/Tus rutinas aparecerán/)).not.toBeInTheDocument();
+  });
+
   it('shows an empty state pointing at "Nueva rutina" when there are no routines', () => {
     render(
       <RoutinesWidget

@@ -131,10 +131,9 @@ export function TodayWidget({
                     ? 'bg-white ring-slate-200 hover:bg-slate-50'
                     : 'bg-white/5 ring-white/10 hover:bg-white/7')
                 }
-                onClick={() => {
-                  if (offline) return;
-                  onSetTaskDone({ id: t.id, routine_id: t.routine_id, is_done: !t.is_done });
-                }}
+                onClick={() =>
+                  onSetTaskDone({ id: t.id, routine_id: t.routine_id, is_done: !t.is_done })
+                }
                 disabled={offline}
               >
                 <div className="flex items-center gap-3">

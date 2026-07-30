@@ -142,6 +142,28 @@ describe('UpcomingWidget', () => {
     expect(screen.getByText('+1 más')).toBeInTheDocument();
   });
 
+  it('shows the empty-schedule state in the night theme', () => {
+    renderWidget({ isDay: false });
+    expect(
+      screen.getByText('No hay rutinas programadas para los próximos 7 días.'),
+    ).toBeInTheDocument();
+  });
+
+  it('shows the selected day detail with an hour in the night theme', async () => {
+    const user = userEvent.setup();
+    const todayDow = new Date(2026, 6, 28).getDay();
+    renderWidget({
+      isDay: false,
+      routines: [routine('r1', 'Mañana enfocada')],
+      routineScheduleById: { r1: { daysOfWeek: [todayDow], hour: 9 } },
+      scheduledRoutinesByDow: new Map([[todayDow, ['r1']]]),
+    });
+
+    await user.click(screen.getByRole('button', { name: /Hoy/ }));
+    expect(screen.getByText(/Seleccionado: Hoy/)).toBeInTheDocument();
+    expect(screen.getAllByText('Mañana enfocada').length).toBeGreaterThan(0);
+  });
+
   it('opens and closes the day detail panel when a calendar day is clicked', async () => {
     const user = userEvent.setup();
     const todayDow = new Date(2026, 6, 28).getDay();
@@ -158,5 +180,36 @@ describe('UpcomingWidget', () => {
     expect(
       screen.getByText('Toca un día del calendario para ver sus rutinas.'),
     ).toBeInTheDocument();
+  });
+
+  it('closes the day detail panel when the same day is clicked again', async () => {
+    const user = userEvent.setup();
+    const todayDow = new Date(2026, 6, 28).getDay();
+    renderWidget({
+      routines: [routine('r1', 'Mañana enfocada')],
+      routineScheduleById: { r1: { daysOfWeek: [todayDow], hour: null } },
+      scheduledRoutinesByDow: new Map([[todayDow, ['r1']]]),
+    });
+
+    const hoyButton = screen.getByRole('button', { name: /Hoy/ });
+    await user.click(hoyButton);
+    expect(screen.getByText(/Seleccionado: Hoy/)).toBeInTheDocument();
+
+    await user.click(hoyButton);
+    expect(
+      screen.getByText('Toca un día del calendario para ver sus rutinas.'),
+    ).toBeInTheDocument();
+  });
+
+  it('ignores a scheduled routine id that no longer matches any routine', () => {
+    const todayDow = new Date(2026, 6, 28).getDay();
+    renderWidget({
+      routines: [routine('r1', 'Mañana enfocada')],
+      routineScheduleById: { r1: { daysOfWeek: [todayDow], hour: 9 } },
+      scheduledRoutinesByDow: new Map([[todayDow, ['r1', 'stale-deleted-routine']]]),
+    });
+
+    // Only the still-existing routine counts; the orphaned id is silently filtered out.
+    expect(screen.getAllByText('1 en 7 días').length).toBeGreaterThan(0);
   });
 });

@@ -16,6 +16,7 @@ These actions cannot be fully enforced from repository code only.
 Set these as required:
 
 - `Backend (Deno unit tests)`
+- `Backend RLS (pgTAP, local Postgres)`
 - `Frontend (lint + test + build)`
 - `Frontend E2E (Playwright)`
 - `codeql / Analyze`
@@ -78,27 +79,34 @@ actual base URL) to **Authentication -> URL Configuration -> Redirect URLs** in 
 dashboard — GoTrue refuses to redirect a recovery link anywhere not on that allowlist, so the
 test 404s/skips-equivalent-fails without it even with the secret set correctly.
 
-## Follow-up: pgTAP tests for RLS policies at the SQL layer
+## pgTAP tests for RLS policies at the SQL layer
 
-`backend/supabase/schema.sql` has no automated test harness of its own today — RLS is currently
-verified only through `frontend/e2e/routines.spec.ts`'s real cross-user attack test, which is a
-genuine end-to-end proof (it goes through the actual PostgREST + JWT path production traffic
-uses) but requires the secrets above to run. A SQL-level pgTAP suite would add a second, faster,
-secret-free layer of protection that runs on every push instead of only when E2E secrets exist.
-Not implemented in this pass because it needs Docker to pull the full local Supabase stack
-(Postgres + GoTrue + PostgREST + Kong, several GB) from scratch — no images were cached in this
-environment, so a first run's pull time is unpredictable. To add it:
+`backend/supabase/tests/database/routines_rls.test.sql` is a secret-free, SQL-level RLS suite
+(11 assertions: cross-user SELECT/UPDATE/DELETE/INSERT denial plus positive-control checks that
+the owning user can still do all of the above) that runs in the `backend-rls` CI job on every
+push — no secrets needed, since it boots a throwaway local Postgres via the Supabase CLI and
+tears it down after. It's a second, faster line of defense on top of
+`e2e-rls-regression`'s real cross-user Playwright attack test (which goes through the actual
+PostgREST + JWT path but only runs once its 6 secrets are configured).
 
-1. `cd backend/supabase && npx supabase init` (creates `config.toml`; migrations/functions dirs
-   are auto-detected, nothing else changes).
-2. `npx supabase start` — pulls images on first run, then boots local Postgres with the schema
-   already applied from `migrations/*.sql`.
-3. Write test files under `backend/supabase/tests/database/*.test.sql` using pgTAP assertions
-   (`results_eq`, `throws_ok`, etc.), e.g. asserting that setting
-   `request.jwt.claims` to user A's `sub` and querying `routines` never returns user B's rows.
-4. `npx supabase test db` runs them locally.
-5. Add a CI job to `ci.yml` (`services: postgres` or `supabase start` in the runner) that runs
-   `supabase test db` on every push — no secrets needed, since it uses a local, throwaway database.
+Two real gaps this surfaced along the way, now fixed:
+
+- **`migrations/` wasn't replayable from an empty database.** Migrations 0001+ were incremental
+  `ALTER TABLE` statements that silently assumed `routines`/`routine_tasks`/`profiles` already
+  existed from a pre-migrations-era manual `schema.sql` run — a fresh `supabase start` failed
+  immediately on migration 0001. Fixed by adding `migrations/0000_baseline_schema.sql` (a verbatim,
+  fully idempotent copy of `schema.sql`), so the migration history is now self-sufficient. This
+  file is what actually got the local dev stack running in the first place, independent of pgTAP.
+- **A local/CI Postgres has no table-level GRANTs to `authenticated`/`anon`** the way a real
+  Supabase Cloud project does automatically when a schema is exposed to the API. Without them,
+  RLS never even gets a chance to filter — every query fails with a bare "permission denied"
+  first. The test file grants `select, insert, update, delete` on the two tables it exercises,
+  scoped to its own transaction (rolled back at the end, never persisted).
+
+If you ever see `supabase test db` hang locally, it's a known flakiness in this environment tied
+to the `supabase_vector` log-shipping container crash-looping — the CI job and the command used
+to verify this suite locally both call `psql` directly against the started stack instead of going
+through that wrapper.
 
 ## Milestones
 

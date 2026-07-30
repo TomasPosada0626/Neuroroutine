@@ -37,6 +37,33 @@ describe('taskSyncQueue', () => {
     expect(afterRemove.map((x) => x.local_id)).toEqual(['b']);
   });
 
+  it('sorts three out-of-order inserts into ascending queued_at order', async () => {
+    await enqueueTaskInsert({
+      local_id: 'c',
+      user_id: 'u1',
+      routine_id: 'r1',
+      title: 'third',
+      queued_at: '2026-07-18T12:00:00.000Z',
+    });
+    await enqueueTaskInsert({
+      local_id: 'a',
+      user_id: 'u1',
+      routine_id: 'r1',
+      title: 'first',
+      queued_at: '2026-07-18T10:00:00.000Z',
+    });
+    await enqueueTaskInsert({
+      local_id: 'b',
+      user_id: 'u1',
+      routine_id: 'r1',
+      title: 'second',
+      queued_at: '2026-07-18T11:00:00.000Z',
+    });
+
+    const listed = await listQueuedTaskInserts();
+    expect(listed.map((x) => x.local_id)).toEqual(['a', 'b', 'c']);
+  });
+
   it('handles identical queued_at timestamps without throwing', async () => {
     await enqueueTaskInsert({
       local_id: 'same-1',

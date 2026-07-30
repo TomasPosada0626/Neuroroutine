@@ -127,6 +127,39 @@ describe('TodayWidget', () => {
     expect(screen.getByRole('button', { name: /Tomar agua/ })).toBeInTheDocument();
   });
 
+  it('says there are no recent pending tasks in the night theme', () => {
+    renderWidget({
+      isDay: false,
+      routines: [routine('r1', 'Mañana enfocada')],
+      todayFocus: [],
+    });
+    expect(
+      screen.getByText(
+        'No hay pendientes recientes. Puedes abrir una rutina y marcar una tarea para sumar hoy.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('renders an uncompleted task in the night theme', () => {
+    renderWidget({
+      isDay: false,
+      todayFocus: [task('t1', 'r1', 'Tomar agua', false)],
+    });
+
+    expect(screen.getByRole('button', { name: /Tomar agua/ })).toBeInTheDocument();
+  });
+
+  it('renders a completed task in the day theme', () => {
+    renderWidget({
+      isDay: true,
+      scheduledToday: [],
+      routines: [routine('r1', 'Mañana enfocada')],
+      todayFocus: [task('t1', 'r1', 'Tomar agua', true)],
+    });
+
+    expect(screen.getByRole('button', { name: /Tomar agua/ })).toBeInTheDocument();
+  });
+
   it('shows the last activity timestamp when present', () => {
     const lastActivity = new Date(2026, 6, 27, 10, 30);
     renderWidget({ lastActivity });

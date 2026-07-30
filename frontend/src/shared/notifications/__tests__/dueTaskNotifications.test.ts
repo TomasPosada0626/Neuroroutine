@@ -57,6 +57,14 @@ describe('dueTaskNotifications', () => {
     expect(FakeNotification.requestPermission).toHaveBeenCalled();
   });
 
+  it('requestNotificationPermission falls back to the current permission when the browser prompt throws', async () => {
+    FakeNotification.permission = 'denied';
+    FakeNotification.requestPermission = vi.fn(async () => {
+      throw new Error('prompt dismissed');
+    });
+    await expect(requestNotificationPermission()).resolves.toBe('denied');
+  });
+
   it('does nothing when permission is not granted', () => {
     FakeNotification.permission = 'default';
     const fired = notifyDueTasksOnce(
@@ -114,6 +122,19 @@ describe('dueTaskNotifications', () => {
     expect(FakeNotification.lastInstance?.body).toBe('4 tareas te esperan hoy: A, B, C…');
   });
 
+  it('summarizes 2-3 due tasks without an ellipsis', () => {
+    FakeNotification.permission = 'granted';
+    const fired = notifyDueTasksOnce(
+      [
+        { id: 't1', title: 'A', due_date: '2026-07-26', is_done: false },
+        { id: 't2', title: 'B', due_date: '2026-07-26', is_done: false },
+      ],
+      '2026-07-26',
+    );
+    expect(fired).toBe(true);
+    expect(FakeNotification.lastInstance?.body).toBe('2 tareas te esperan hoy: A, B');
+  });
+
   it('only notifies once per local day', () => {
     FakeNotification.permission = 'granted';
     const tasks = [{ id: 't1', title: 'Task', due_date: '2026-07-26', is_done: false }];
@@ -129,6 +150,15 @@ describe('dueTaskNotifications', () => {
 
     expect(notifyDueTasksOnce(tasks, '2026-07-26')).toBe(true);
     expect(notifyDueTasksOnce(tasks, '2026-07-27')).toBe(true);
+  });
+
+  it('alreadyNotifiedToday returns false when localStorage throws', () => {
+    const spy = vi.spyOn(localStorage, 'getItem').mockImplementation(() => {
+      throw new Error('storage disabled');
+    });
+
+    expect(alreadyNotifiedToday('2026-07-26')).toBe(false);
+    spy.mockRestore();
   });
 
   it('returns false and does not mark notified when constructing the Notification throws', () => {

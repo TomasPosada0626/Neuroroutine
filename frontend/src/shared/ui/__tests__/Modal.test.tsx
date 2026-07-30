@@ -70,6 +70,45 @@ describe('Modal', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('renders a description without a title', () => {
+    render(
+      <Modal open description="Just a description" onClose={() => {}}>
+        <div>Body</div>
+      </Modal>,
+    );
+
+    expect(screen.getByText('Just a description')).toBeInTheDocument();
+    expect(screen.queryByRole('heading')).not.toBeInTheDocument();
+  });
+
+  it('does not wrap focus when Tab is pressed from a middle element', () => {
+    render(
+      <Modal open onClose={() => {}}>
+        <button type="button">First</button>
+        <button type="button">Middle</button>
+        <button type="button">Last</button>
+      </Modal>,
+    );
+
+    screen.getByRole('button', { name: 'Middle' }).focus();
+    fireEvent.keyDown(window, { key: 'Tab' });
+
+    // Not first or last, so trapFocus's wrap-around guard doesn't fire — the browser's own
+    // default Tab behavior (untestable in jsdom) would move focus, but our handler shouldn't
+    // have called preventDefault()/forced a specific element here.
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Middle' }));
+  });
+
+  it('ignores Tab when there is nothing focusable inside the dialog', () => {
+    render(
+      <Modal open onClose={() => {}}>
+        <div>Just text, no focusable elements</div>
+      </Modal>,
+    );
+
+    expect(() => fireEvent.keyDown(window, { key: 'Tab' })).not.toThrow();
+  });
+
   it('focuses [data-autofocus] element when available', async () => {
     render(
       <Modal open onClose={() => {}}>
@@ -92,6 +131,25 @@ describe('Modal', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(document.activeElement).toBe(screen.getByRole('dialog'));
+  });
+
+  it('compensates the scrollbar width when the page has a visible scrollbar', () => {
+    const originalInnerWidth = window.innerWidth;
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 });
+    const clientWidthSpy = vi
+      .spyOn(document.documentElement, 'clientWidth', 'get')
+      .mockReturnValue(1000);
+
+    render(
+      <Modal open onClose={() => {}}>
+        <div>Body</div>
+      </Modal>,
+    );
+
+    expect(document.body.style.paddingRight).toBe('24px');
+
+    clientWidthSpy.mockRestore();
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: originalInnerWidth });
   });
 
   it('locks and restores document scrolling while open', () => {
