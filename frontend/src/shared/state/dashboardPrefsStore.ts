@@ -29,6 +29,9 @@ type DashboardPrefsState = {
 
   routineScheduleById: Record<string, RoutineSchedule>;
 
+  routinePanelCollapsed: boolean;
+  favoriteRoutineIds: string[];
+
   setScope: (scope: TimeScope) => void;
   setWeekStartsOn: (v: WeekStartsOn) => void;
   setWeeklyGoal: (v: number) => void;
@@ -39,6 +42,9 @@ type DashboardPrefsState = {
   setWidgetOrder: (order: DashboardWidgetId[]) => void;
 
   setRoutineSchedule: (routineId: string, schedule: RoutineSchedule) => void;
+
+  setRoutinePanelCollapsed: (collapsed: boolean) => void;
+  toggleFavoriteRoutine: (routineId: string) => void;
 };
 
 const STORAGE_KEY = 'nr-dashboard-prefs-v1';
@@ -74,6 +80,8 @@ function persist(get: () => DashboardPrefsState) {
       widgetHidden: state.widgetHidden,
       widgetCollapsed: state.widgetCollapsed,
       routineScheduleById: state.routineScheduleById,
+      routinePanelCollapsed: state.routinePanelCollapsed,
+      favoriteRoutineIds: state.favoriteRoutineIds,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   } catch {
@@ -143,6 +151,11 @@ export const useDashboardPrefsStore = create<DashboardPrefsState>((set, get) => 
       RoutineSchedule
     >,
 
+    routinePanelCollapsed: fromStorage?.routinePanelCollapsed === true,
+    favoriteRoutineIds: Array.isArray(fromStorage?.favoriteRoutineIds)
+      ? fromStorage.favoriteRoutineIds
+      : [],
+
     setScope: (scope) => {
       set({ scope });
       persist(get);
@@ -196,6 +209,19 @@ export const useDashboardPrefsStore = create<DashboardPrefsState>((set, get) => 
 
     setRoutineSchedule: (routineId, schedule) => {
       set((s) => ({ routineScheduleById: { ...s.routineScheduleById, [routineId]: schedule } }));
+      persist(get);
+    },
+
+    setRoutinePanelCollapsed: (collapsed) => {
+      set({ routinePanelCollapsed: collapsed });
+      persist(get);
+    },
+    toggleFavoriteRoutine: (routineId) => {
+      set((s) => ({
+        favoriteRoutineIds: s.favoriteRoutineIds.includes(routineId)
+          ? s.favoriteRoutineIds.filter((id) => id !== routineId)
+          : [...s.favoriteRoutineIds, routineId],
+      }));
       persist(get);
     },
   };

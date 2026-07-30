@@ -129,4 +129,45 @@ describe('useDashboardPrefsStore', () => {
     useDashboardPrefsStore.getState().moveWidget(initial[initial.length - 1]!, 'down');
     expect(useDashboardPrefsStore.getState().widgetOrder).toEqual(initial);
   });
+
+  it('starts with the panel expanded and no favorites by default', async () => {
+    const { useDashboardPrefsStore } = await freshStore();
+
+    expect(useDashboardPrefsStore.getState().routinePanelCollapsed).toBe(false);
+    expect(useDashboardPrefsStore.getState().favoriteRoutineIds).toEqual([]);
+  });
+
+  it('setRoutinePanelCollapsed updates and persists the collapsed flag', async () => {
+    const spy = vi.spyOn(window.localStorage.__proto__, 'setItem');
+    const { useDashboardPrefsStore } = await freshStore();
+
+    useDashboardPrefsStore.getState().setRoutinePanelCollapsed(true);
+
+    expect(useDashboardPrefsStore.getState().routinePanelCollapsed).toBe(true);
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('toggleFavoriteRoutine adds then removes a routine id', async () => {
+    const { useDashboardPrefsStore } = await freshStore();
+
+    useDashboardPrefsStore.getState().toggleFavoriteRoutine('r1');
+    expect(useDashboardPrefsStore.getState().favoriteRoutineIds).toEqual(['r1']);
+
+    useDashboardPrefsStore.getState().toggleFavoriteRoutine('r1');
+    expect(useDashboardPrefsStore.getState().favoriteRoutineIds).toEqual([]);
+  });
+
+  it('hydrates routinePanelCollapsed and favoriteRoutineIds from a persisted value', async () => {
+    localStorage.setItem(
+      'nr-dashboard-prefs-v1',
+      JSON.stringify({ routinePanelCollapsed: true, favoriteRoutineIds: ['r1', 'r2'] }),
+    );
+
+    vi.resetModules();
+    const { useDashboardPrefsStore } = await import('../dashboardPrefsStore');
+    const s = useDashboardPrefsStore.getState();
+
+    expect(s.routinePanelCollapsed).toBe(true);
+    expect(s.favoriteRoutineIds).toEqual(['r1', 'r2']);
+  });
 });

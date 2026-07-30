@@ -13,6 +13,10 @@ vi.mock('@/shared/state/uiStore', () => ({
 const dashboardPrefsState: {
   routineScheduleById: Record<string, RoutineSchedule>;
   setRoutineSchedule: ReturnType<typeof vi.fn>;
+  favoriteRoutineIds: string[];
+  toggleFavoriteRoutine: ReturnType<typeof vi.fn>;
+  routinePanelCollapsed: boolean;
+  setRoutinePanelCollapsed: ReturnType<typeof vi.fn>;
 } = {
   routineScheduleById: {},
   setRoutineSchedule: vi.fn((id: string, sched: RoutineSchedule) => {
@@ -20,6 +24,16 @@ const dashboardPrefsState: {
       ...dashboardPrefsState.routineScheduleById,
       [id]: sched,
     };
+  }),
+  favoriteRoutineIds: [],
+  toggleFavoriteRoutine: vi.fn((id: string) => {
+    dashboardPrefsState.favoriteRoutineIds = dashboardPrefsState.favoriteRoutineIds.includes(id)
+      ? dashboardPrefsState.favoriteRoutineIds.filter((x) => x !== id)
+      : [...dashboardPrefsState.favoriteRoutineIds, id];
+  }),
+  routinePanelCollapsed: false,
+  setRoutinePanelCollapsed: vi.fn((next: boolean) => {
+    dashboardPrefsState.routinePanelCollapsed = next;
   }),
 };
 
@@ -78,6 +92,8 @@ beforeEach(() => {
   localStorage.clear();
   uiState.theme = 'day';
   dashboardPrefsState.routineScheduleById = {};
+  dashboardPrefsState.favoriteRoutineIds = [];
+  dashboardPrefsState.routinePanelCollapsed = false;
   routinesStoreState.selectedRoutineId = null;
   routinesStoreState.error = null;
   routinesStoreState.offline = false;
@@ -158,7 +174,7 @@ describe('RoutinePanel', () => {
     vi.useRealTimers();
   });
 
-  it('marks a routine as favorite and persists the choice to localStorage', async () => {
+  it('marks a routine as favorite via the shared dashboard prefs store', async () => {
     listRoutinesMock.mockResolvedValue([
       { id: 'r1', user_id: 'u1', title: 'Mañana enfocada', notes: null },
     ]);
@@ -169,12 +185,12 @@ describe('RoutinePanel', () => {
     await screen.findByRole('button', { name: /Mañana enfocada/ });
     await user.click(screen.getByRole('button', { name: 'Marcar como favorita' }));
 
-    expect(screen.getByRole('button', { name: 'Quitar de favoritas' })).toBeInTheDocument();
-    expect(JSON.parse(localStorage.getItem('nr-fav-routines') ?? '[]')).toEqual(['r1']);
+    expect(dashboardPrefsState.toggleFavoriteRoutine).toHaveBeenCalledWith('r1');
+    expect(dashboardPrefsState.favoriteRoutineIds).toEqual(['r1']);
   });
 
-  it('unmarks a routine as favorite on a second click', async () => {
-    localStorage.setItem('nr-fav-routines', JSON.stringify(['r1']));
+  it('shows a routine already in favoriteRoutineIds as favorited, and unmarks it on click', async () => {
+    dashboardPrefsState.favoriteRoutineIds = ['r1'];
     listRoutinesMock.mockResolvedValue([
       { id: 'r1', user_id: 'u1', title: 'Mañana enfocada', notes: null },
     ]);
@@ -185,22 +201,8 @@ describe('RoutinePanel', () => {
     await screen.findByRole('button', { name: 'Quitar de favoritas' });
     await user.click(screen.getByRole('button', { name: 'Quitar de favoritas' }));
 
-    expect(screen.getByRole('button', { name: 'Marcar como favorita' })).toBeInTheDocument();
-    expect(JSON.parse(localStorage.getItem('nr-fav-routines') ?? '[]')).toEqual([]);
-  });
-
-  it('falls back to defaults when reading persisted panel/favorite state throws', async () => {
-    const getItemSpy = vi.spyOn(window.localStorage.__proto__, 'getItem').mockImplementation(() => {
-      throw new Error('storage disabled');
-    });
-    listRoutinesMock.mockResolvedValue([]);
-
-    renderPanel();
-
-    // Panel renders expanded (collapsed-state read failed -> defaulted to false).
-    expect(await screen.findByText('Aún no tienes rutinas.')).toBeInTheDocument();
-
-    getItemSpy.mockRestore();
+    expect(dashboardPrefsState.toggleFavoriteRoutine).toHaveBeenCalledWith('r1');
+    expect(dashboardPrefsState.favoriteRoutineIds).toEqual([]);
   });
 
   it('clears a stale selection once the settled routine list no longer contains it', async () => {
@@ -815,7 +817,7 @@ describe('RoutinePanel with a selected routine', () => {
 
 describe('RoutinePanel collapsed state', () => {
   it('starts collapsed when the preference was saved, and can be reopened', async () => {
-    localStorage.setItem('nr-routine-panel-collapsed', '1');
+    dashboardPrefsState.routinePanelCollapsed = true;
     listRoutinesMock.mockResolvedValue([]);
 
     const user = userEvent.setup();
@@ -827,6 +829,6 @@ describe('RoutinePanel collapsed state', () => {
 
     await user.click(screen.getByRole('button', { name: 'Abrir panel' }));
 
-    expect(localStorage.getItem('nr-routine-panel-collapsed')).toBe('0');
+    expect(dashboardPrefsState.setRoutinePanelCollapsed).toHaveBeenCalledWith(false);
   });
 });

@@ -3,21 +3,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/features/auth/authStore';
 import { useRoutines } from '@/features/routines/routinesStore';
 import { RoutineFormModal, TaskFormModal } from '@/features/routines/components';
-import { useDashboardPrefs, type RoutineSchedule } from '@/shared/state/dashboardPrefsStore';
+import { RoutineScheduleEditor } from '@/features/routines/components/RoutineScheduleEditor';
+import { TaskQuickAdd } from '@/features/routines/components/TaskQuickAdd';
+import { useDashboardPrefs } from '@/shared/state/dashboardPrefsStore';
 import { listRoutines, searchRoutines } from '@/features/routines/routinesService';
-import { cn } from '@/shared/lib/cn';
-import { Button, Card, Input, Textarea } from '@/shared/ui';
+import { Button, Card, Input } from '@/shared/ui';
 import { useUiStore } from '@/shared/state/uiStore';
-
-function localDateKey(offsetDays: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + offsetDays);
-  return [
-    d.getFullYear(),
-    String(d.getMonth() + 1).padStart(2, '0'),
-    String(d.getDate()).padStart(2, '0'),
-  ].join('-');
-}
 
 // A recurring task with no specific days repeats daily (the original ADR-008 behavior); one with
 // specific days shows an abbreviated weekday list instead, e.g. "L X V".
@@ -84,31 +75,10 @@ export function RoutinePanel() {
     discardOfflineTask,
   } = useRoutines();
 
-  const [newTaskTitle, setNewTaskTitle] = useState('');
-  const [newTaskRecurring, setNewTaskRecurring] = useState(false);
-  const [newTaskDueDate, setNewTaskDueDate] = useState('');
-  const [bulkMode, setBulkMode] = useState(false);
-  const [bulkText, setBulkText] = useState('');
   const [routineQuery, setRoutineQuery] = useState('');
   const [debouncedRoutineQuery, setDebouncedRoutineQuery] = useState('');
 
-  const [scheduleOpen, setScheduleOpen] = useState(false);
-  const [panelCollapsed, setPanelCollapsed] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem('nr-routine-panel-collapsed') === '1';
-    } catch {
-      return false;
-    }
-  });
-  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => {
-    try {
-      const raw = localStorage.getItem('nr-fav-routines');
-      const ids = raw ? (JSON.parse(raw) as string[]) : [];
-      return new Set(ids);
-    } catch {
-      return new Set();
-    }
-  });
+  const favoriteIds = useMemo(() => new Set(prefs.favoriteRoutineIds), [prefs.favoriteRoutineIds]);
 
   const [editOpen, setEditOpen] = useState(false);
   const [editTaskId, setEditTaskId] = useState<string | null>(null);
@@ -145,47 +115,6 @@ export function RoutinePanel() {
       : routinesSearchQuery.error instanceof Error
         ? routinesSearchQuery.error.message
         : null);
-
-  const persistPanelCollapsed = (next: boolean) => {
-    setPanelCollapsed(next);
-    try {
-      localStorage.setItem('nr-routine-panel-collapsed', next ? '1' : '0');
-    } catch {
-      // ignore
-    }
-  };
-
-  const dayPillClass = (active: boolean) => {
-    const base = 'rounded-lg px-2 py-1 text-xs font-medium ring-1 transition';
-    if (isDay)
-      return (
-        base +
-        (active
-          ? ' bg-slate-900 text-white ring-slate-900'
-          : ' bg-white text-slate-700 ring-slate-200 hover:bg-slate-50')
-      );
-    return (
-      base +
-      (active
-        ? ' bg-white/15 text-white ring-white/25'
-        : ' bg-white/5 text-slate-200 ring-white/10 hover:bg-white/10')
-    );
-  };
-
-  const scheduleSummary = (sched: RoutineSchedule | undefined) => {
-    const days = sched?.daysOfWeek ?? [];
-    const hour = sched?.hour ?? null;
-    if (days.length === 0 && hour === null) return 'Sin programación';
-    const labels = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
-    const daysText = days.length
-      ? days
-          .sort((a, b) => a - b)
-          .map((d) => labels[d] ?? String(d))
-          .join(' ')
-      : 'Sin días';
-    const hourText = hour === null ? '' : ` · ${String(hour).padStart(2, '0')}:00`;
-    return `${daysText}${hourText}`;
-  };
 
   useEffect(() => {
     const id = window.setTimeout(() => {
@@ -237,21 +166,9 @@ export function RoutinePanel() {
     });
   }, [routines, favoriteIds]);
 
-  const toggleFavorite = (routineId: string) => {
-    setFavoriteIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(routineId)) next.delete(routineId);
-      else next.add(routineId);
-      try {
-        localStorage.setItem('nr-fav-routines', JSON.stringify(Array.from(next)));
-      } catch {
-        // ignore
-      }
-      return next;
-    });
-  };
+  const toggleFavorite = prefs.toggleFavoriteRoutine;
 
-  if (panelCollapsed) {
+  if (prefs.routinePanelCollapsed) {
     return (
       <Card>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -261,7 +178,7 @@ export function RoutinePanel() {
               Panel minimizado. Vuelve a abrirlo cuando lo necesites.
             </div>
           </div>
-          <Button variant="secondary" onClick={() => persistPanelCollapsed(false)}>
+          <Button variant="secondary" onClick={() => prefs.setRoutinePanelCollapsed(false)}>
             Abrir panel
           </Button>
         </div>
@@ -420,111 +337,13 @@ export function RoutinePanel() {
                     <div className={'text-sm ' + secondaryText}>{selectedRoutine.notes}</div>
                   ) : null}
 
-                  <div className="mt-2">
-                    <div className={'text-xs ' + subtleText}>Programación (para “Hoy/Próximo”)</div>
-                    <div className="mt-1 flex flex-wrap items-center gap-2">
-                      <div
-                        className={
-                          'rounded-lg px-2 py-1 text-xs ring-1 ' +
-                          (isDay
-                            ? 'bg-slate-50 text-slate-700 ring-slate-200'
-                            : 'bg-white/5 text-slate-200 ring-white/10')
-                        }
-                      >
-                        {scheduleSummary(prefs.routineScheduleById[selectedRoutine.id])}
-                      </div>
-                      <button
-                        type="button"
-                        className={
-                          'text-xs underline ' + (isDay ? 'text-slate-700' : 'text-slate-200')
-                        }
-                        onClick={() => setScheduleOpen((v) => !v)}
-                      >
-                        {/* Distinct from the "Editar" routine button below: two controls with
-                            the same accessible name on one screen is a real a11y ambiguity,
-                            not just a testing inconvenience. */}
-                        {scheduleOpen ? 'Ocultar programación' : 'Editar programación'}
-                      </button>
-                    </div>
-
-                    {scheduleOpen ? (
-                      <div
-                        className={
-                          isDay
-                            ? 'mt-2 rounded-lg bg-slate-50 p-3 ring-1 ring-slate-200'
-                            : 'mt-2 rounded-lg bg-white/5 p-3 ring-1 ring-white/10'
-                        }
-                      >
-                        <div className={'text-xs ' + subtleText}>Días</div>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {['D', 'L', 'M', 'X', 'J', 'V', 'S'].map((label, dow) => {
-                            const current = prefs.routineScheduleById[selectedRoutine.id] as
-                              RoutineSchedule | undefined;
-                            const days = current?.daysOfWeek ?? [];
-                            const active = days.includes(dow);
-                            return (
-                              <button
-                                key={dow}
-                                type="button"
-                                className={dayPillClass(active)}
-                                onClick={() => {
-                                  const nextDays = active
-                                    ? days.filter((x) => x !== dow)
-                                    : [...days, dow].sort((a, b) => a - b);
-                                  prefs.setRoutineSchedule(selectedRoutine.id, {
-                                    daysOfWeek: nextDays,
-                                    hour: current?.hour ?? null,
-                                  });
-                                }}
-                              >
-                                {label}
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        <div className={'mt-3 text-xs ' + subtleText}>Hora (opcional)</div>
-                        <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center">
-                          <Input
-                            type="number"
-                            min={0}
-                            max={23}
-                            placeholder="0-23"
-                            value={prefs.routineScheduleById[selectedRoutine.id]?.hour ?? ''}
-                            onChange={(e) => {
-                              const raw = e.target.value.trim();
-                              const nextHour =
-                                raw === '' ? null : Math.max(0, Math.min(23, Number(raw)));
-                              const current = prefs.routineScheduleById[selectedRoutine.id] as
-                                RoutineSchedule | undefined;
-                              prefs.setRoutineSchedule(selectedRoutine.id, {
-                                daysOfWeek: current?.daysOfWeek ?? [],
-                                hour: nextHour,
-                              });
-                            }}
-                          />
-                          <Button
-                            variant="secondary"
-                            onClick={() => {
-                              const current = prefs.routineScheduleById[selectedRoutine.id] as
-                                RoutineSchedule | undefined;
-                              prefs.setRoutineSchedule(selectedRoutine.id, {
-                                daysOfWeek: current?.daysOfWeek ?? [],
-                                hour: null,
-                              });
-                            }}
-                          >
-                            Limpiar
-                          </Button>
-                        </div>
-                        <div className={'mt-2 text-xs ' + subtleText}>
-                          Solo organiza cómo ves esta rutina en Hoy/Próximo — no envía
-                          notificaciones. Para recordatorios por email, usa los ajustes de
-                          recordatorio en el panel de personalización.
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
+                  <RoutineScheduleEditor
+                    routineId={selectedRoutine.id}
+                    schedule={prefs.routineScheduleById[selectedRoutine.id]}
+                    onSetSchedule={prefs.setRoutineSchedule}
+                    isDay={isDay}
+                    subtleText={subtleText}
+                  />
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
@@ -564,146 +383,17 @@ export function RoutinePanel() {
                   planificadas.
                 </div>
 
-                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                  <button
-                    type="button"
-                    className={'text-xs underline ' + (isDay ? 'text-slate-700' : 'text-slate-200')}
-                    onClick={() => {
-                      setBulkMode((v) => !v);
-                      setBulkText('');
-                    }}
-                  >
-                    {bulkMode ? 'Volver a una sola' : 'Añadir varias'}
-                  </button>
-                </div>
-
-                {bulkMode ? (
-                  <div className="space-y-2">
-                    <Textarea
-                      placeholder={
-                        'Escribe una tarea por línea\nEj: Tomar agua\nEj: 10 min estiramiento\nEj: Revisar agenda'
-                      }
-                      value={bulkText}
-                      onChange={(e) => setBulkText(e.target.value)}
-                      className={isDay ? '' : 'bg-slate-950/40 ring-white/10'}
-                    />
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        disabled={
-                          offline ||
-                          !user ||
-                          !selectedRoutineId ||
-                          actionLoading ||
-                          bulkText.trim().length === 0
-                        }
-                        onClick={async () => {
-                          if (!user) return;
-                          if (!selectedRoutineId) return;
-                          if (offline) return;
-                          const lines = bulkText
-                            .split(/\r?\n/)
-                            .map((x) => x.trim())
-                            .filter(Boolean)
-                            .slice(0, 20);
-
-                          for (const title of lines) {
-                            await addTask({
-                              user_id: user.id,
-                              routine_id: selectedRoutineId,
-                              title,
-                            });
-                          }
-                          setBulkText('');
-                        }}
-                      >
-                        Añadir tareas
-                      </Button>
-                      <Button variant="secondary" onClick={() => setBulkText('')}>
-                        Limpiar
-                      </Button>
-                    </div>
-                    <div className={'text-xs ' + subtleText}>Tip: máximo 20 tareas por batch.</div>
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="Nueva tarea (paso pequeño)…"
-                        value={newTaskTitle}
-                        onChange={(e) => setNewTaskTitle(e.target.value)}
-                      />
-                      <Button
-                        disabled={offline || !user || !newTaskTitle.trim() || actionLoading}
-                        onClick={() => {
-                          if (!user) return;
-                          if (!selectedRoutineId) return;
-                          void addTask({
-                            user_id: user.id,
-                            routine_id: selectedRoutineId,
-                            title: newTaskTitle.trim(),
-                            due_date: newTaskRecurring ? null : newTaskDueDate || null,
-                            is_recurring: newTaskRecurring,
-                          });
-                          setNewTaskTitle('');
-                          setNewTaskRecurring(false);
-                          setNewTaskDueDate('');
-                        }}
-                      >
-                        Añadir
-                      </Button>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        className={dayPillClass(
-                          !newTaskRecurring && newTaskDueDate === localDateKey(0),
-                        )}
-                        onClick={() => {
-                          setNewTaskRecurring(false);
-                          setNewTaskDueDate((d) => (d === localDateKey(0) ? '' : localDateKey(0)));
-                        }}
-                      >
-                        Hoy
-                      </button>
-                      <button
-                        type="button"
-                        className={dayPillClass(
-                          !newTaskRecurring && newTaskDueDate === localDateKey(1),
-                        )}
-                        onClick={() => {
-                          setNewTaskRecurring(false);
-                          setNewTaskDueDate((d) => (d === localDateKey(1) ? '' : localDateKey(1)));
-                        }}
-                      >
-                        Mañana
-                      </button>
-                      <input
-                        type="date"
-                        aria-label="Elegir fecha para la tarea"
-                        value={newTaskDueDate}
-                        disabled={newTaskRecurring}
-                        onChange={(e) => setNewTaskDueDate(e.target.value)}
-                        className={cn(
-                          'h-8 rounded-lg px-2 text-xs ring-1 disabled:opacity-50',
-                          isDay
-                            ? 'bg-white text-slate-700 ring-slate-200'
-                            : 'bg-slate-950/40 text-slate-200 ring-white/10',
-                        )}
-                      />
-                      <label className={'flex items-center gap-2 text-xs ' + subtleText}>
-                        <input
-                          type="checkbox"
-                          checked={newTaskRecurring}
-                          onChange={(e) => {
-                            setNewTaskRecurring(e.target.checked);
-                            if (e.target.checked) setNewTaskDueDate('');
-                          }}
-                        />
-                        Repetir cada día (hábito)
-                      </label>
-                    </div>
-                  </div>
-                )}
+                {selectedRoutineId ? (
+                  <TaskQuickAdd
+                    userId={userId}
+                    routineId={selectedRoutineId}
+                    offline={offline}
+                    actionLoading={actionLoading}
+                    onAddTask={addTask}
+                    isDay={isDay}
+                    subtleText={subtleText}
+                  />
+                ) : null}
 
                 <div className="mt-3 space-y-2">
                   {tasks.length === 0 ? (
