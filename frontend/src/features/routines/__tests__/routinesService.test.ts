@@ -64,6 +64,7 @@ vi.mock('@/shared/api', () => {
   };
 });
 
+import { supabase } from '@/shared/api';
 import {
   createRoutine,
   createTask,
@@ -88,17 +89,19 @@ describe('routinesService', () => {
   });
 
   it('listRoutines returns ordered data', async () => {
-    fromQueue.push(
-      makeChain({
-        data: [{ id: 'r1', title: 'Morning' }],
-        error: null,
-      }),
-    );
+    const chain = makeChain({
+      data: [{ id: 'r1', title: 'Morning' }],
+      error: null,
+    });
+    fromQueue.push(chain);
 
     const data = await listRoutines();
 
     expect(data).toHaveLength(1);
     expect(data[0]?.id).toBe('r1');
+    expect(supabase.from).toHaveBeenCalledWith('routines');
+    expect(chain.select).toHaveBeenCalledWith('*');
+    expect(chain.order).toHaveBeenCalledWith('created_at', { ascending: false });
   });
 
   it('listRoutines throws when Supabase returns an error', async () => {
@@ -123,8 +126,27 @@ describe('routinesService', () => {
     const data = await searchRoutines('focus');
 
     expect(data).toHaveLength(1);
-    expect(queryChain.textSearch).toHaveBeenCalled();
+    expect(supabase.rpc).toHaveBeenCalledWith('search_routines', { p_query: 'focus', p_limit: 50 });
+    expect(queryChain.select).toHaveBeenCalledWith('*');
+    expect(queryChain.textSearch).toHaveBeenCalledWith('title', 'focus', {
+      config: 'spanish',
+      type: 'websearch',
+    });
+    expect(queryChain.order).toHaveBeenCalledWith('created_at', { ascending: false });
     expect(queryChain.ilike).not.toHaveBeenCalled();
+  });
+
+  it('searchRoutines collapses internal whitespace into a single tsquery separator', async () => {
+    rpcQueue.push({ data: null, error: new Error('rpc not available') });
+    const queryChain = makeChain({ data: [{ id: 'r1' }], error: null });
+    fromQueue.push(queryChain);
+
+    await searchRoutines('  focus   morning  ');
+
+    expect(queryChain.textSearch).toHaveBeenCalledWith('title', 'focus & morning', {
+      config: 'spanish',
+      type: 'websearch',
+    });
   });
 
   it('searchRoutines falls back to ilike when text search errors', async () => {
@@ -140,7 +162,9 @@ describe('routinesService', () => {
 
     expect(data).toHaveLength(1);
     expect(first.textSearch).toHaveBeenCalled();
+    expect(fallback.select).toHaveBeenCalledWith('*');
     expect(fallback.ilike).toHaveBeenCalledWith('title', '%focus fallback%');
+    expect(fallback.order).toHaveBeenCalledWith('created_at', { ascending: false });
   });
 
   it('searchRoutines uses RPC result when available', async () => {
@@ -181,6 +205,28 @@ describe('routinesService', () => {
     expect(chain.eq).toHaveBeenCalledWith('user_id', 'me');
   });
 
+  it('getCurrentUserId returns null (RLS-only) when the client has no auth.getSession', async () => {
+    const originalAuth = supabase.auth;
+    (supabase as { auth?: unknown }).auth = {};
+    const chain = makeChain({ data: [{ id: 'r1', title: 'Anything' }], error: null });
+    fromQueue.push(chain);
+
+    await listRoutines();
+
+    expect(chain.eq).not.toHaveBeenCalled();
+    (supabase as { auth?: unknown }).auth = originalAuth;
+  });
+
+  it('getCurrentUserId returns null (RLS-only) when the session has no user id', async () => {
+    getSessionMock.mockResolvedValueOnce({ data: { session: {} } });
+    const chain = makeChain({ data: [{ id: 'r1', title: 'Anything' }], error: null });
+    fromQueue.push(chain);
+
+    await listRoutines();
+
+    expect(chain.eq).not.toHaveBeenCalled();
+  });
+
   it('getCurrentUserId falls back to null (RLS-only) when getSession rejects', async () => {
     getSessionMock.mockRejectedValueOnce(new Error('network down'));
     const chain = makeChain({ data: [{ id: 'r1', title: 'Anything' }], error: null });
@@ -203,6 +249,19 @@ describe('routinesService', () => {
     expect(data).toHaveLength(1);
     expect(data[0]?.id).toBe('r-empty');
     expect(listChain.order).toHaveBeenCalled();
+  });
+
+  it('searchRoutines scopes both the text-search and ilike-fallback queries to the current user', async () => {
+    getSessionMock.mockResolvedValueOnce({ data: { session: { user: { id: 'me' } } } });
+    rpcQueue.push({ data: null, error: new Error('rpc not available') });
+    const textSearchFail = makeChain({ data: null, error: new Error('fts fail') });
+    const fallback = makeChain({ data: [{ id: 'r-mine' }], error: null });
+    fromQueue.push(textSearchFail, fallback);
+
+    await searchRoutines('mine');
+
+    expect(textSearchFail.eq).toHaveBeenCalledWith('user_id', 'me');
+    expect(fallback.eq).toHaveBeenCalledWith('user_id', 'me');
   });
 
   it('searchRoutines throws when fallback ilike also fails', async () => {
@@ -245,6 +304,12 @@ describe('routinesService', () => {
 
     expect(created.id).toBe('t1');
     expect(fromQueue).toHaveLength(0);
+    expect(insert.insert).toHaveBeenCalledWith({
+      user_id: 'u1',
+      routine_id: 'r1',
+      title: 'Task',
+    });
+    expect(insert.select).toHaveBeenCalledWith('*');
   });
 
   it('createTask updates metadata when provided and returns updated row', async () => {
@@ -283,6 +348,8 @@ describe('routinesService', () => {
     expect(created.id).toBe('t3');
     expect((created as { description?: string }).description).toBe('desc');
     expect(update.update).toHaveBeenCalled();
+    expect(update.eq).toHaveBeenCalledWith('id', 't3');
+    expect(update.select).toHaveBeenCalledWith('*');
   });
 
   it('createTask throws when initial insert fails', async () => {
@@ -472,7 +539,9 @@ describe('routinesService', () => {
     const routine = await createRoutine({ user_id: 'u1', title: 'Routine' });
 
     expect(routine.id).toBe('r10');
+    expect(supabase.from).toHaveBeenCalledWith('routines');
     expect(insert.insert).toHaveBeenCalledWith({ user_id: 'u1', title: 'Routine', notes: null });
+    expect(insert.select).toHaveBeenCalledWith('*');
   });
 
   it('updateRoutine updates by id and returns row', async () => {
@@ -490,7 +559,9 @@ describe('routinesService', () => {
     const routine = await updateRoutine({ id: 'r11', title: 'Updated', notes: 'n' });
 
     expect(routine.id).toBe('r11');
+    expect(update.update).toHaveBeenCalledWith({ title: 'Updated', notes: 'n' });
     expect(update.eq).toHaveBeenCalledWith('id', 'r11');
+    expect(update.select).toHaveBeenCalledWith('*');
   });
 
   it('createRoutine, updateRoutine, deleteRoutine, listTasks and listAllTasks propagate errors', async () => {
@@ -536,6 +607,8 @@ describe('routinesService', () => {
     fromQueue.push(chain);
 
     await expect(deleteRoutine('r12')).resolves.toBeUndefined();
+    expect(supabase.from).toHaveBeenCalledWith('routines');
+    expect(chain.delete).toHaveBeenCalled();
     expect(chain.eq).toHaveBeenCalledWith('id', 'r12');
   });
 
@@ -555,7 +628,11 @@ describe('routinesService', () => {
 
     expect(tasks[0]?.id).toBe('tA');
     expect(all[0]?.id).toBe('tB');
+    expect(listByRoutine.select).toHaveBeenCalledWith('*');
     expect(listByRoutine.eq).toHaveBeenCalledWith('routine_id', 'r1');
+    expect(listByRoutine.order).toHaveBeenCalledWith('created_at', { ascending: true });
+    expect(listEverywhere.select).toHaveBeenCalledWith('*');
+    expect(listEverywhere.order).toHaveBeenCalledWith('updated_at', { ascending: false });
   });
 
   it('listTasks, listAllTasks and listTaskEvents return [] when Supabase data is null', async () => {
@@ -634,10 +711,25 @@ describe('routinesService', () => {
 
     expect(res1[0]?.id).toBe('e1');
     expect(res2[0]?.id).toBe('e2');
+    expect(noSince.select).toHaveBeenCalledWith(
+      'id,user_id,routine_id,routine_task_id,event_type,created_at',
+    );
+    expect(noSince.order).toHaveBeenCalledWith('created_at', { ascending: false });
     expect(noSince.limit).toHaveBeenCalledWith(10);
     expect(noSince.gte).not.toHaveBeenCalled();
     expect(withSince.limit).toHaveBeenCalledWith(5);
     expect(withSince.gte).toHaveBeenCalledWith('created_at', '2026-07-01T00:00:00.000Z');
+  });
+
+  it('listTaskEvents defaults the limit to 5000 when none is provided', async () => {
+    const chain = makeChain({ data: [], error: null });
+    chain.order = vi.fn(() => chain);
+    chain.limit = vi.fn(async () => ({ data: [], error: null }));
+    fromQueue.push(chain);
+
+    await listTaskEvents();
+
+    expect(chain.limit).toHaveBeenCalledWith(5000);
   });
 
   it('toggleTaskDone and deleteTask call expected filters', async () => {
@@ -655,7 +747,11 @@ describe('routinesService', () => {
     await deleteTask('t99');
 
     expect(updated.id).toBe('t99');
+    expect(toggle.update).toHaveBeenCalledWith({ is_done: true });
     expect(toggle.eq).toHaveBeenCalledWith('id', 't99');
+    expect(toggle.select).toHaveBeenCalledWith('*');
+    expect(supabase.from).toHaveBeenCalledWith('routine_tasks');
+    expect(del.delete).toHaveBeenCalled();
     expect(del.eq).toHaveBeenCalledWith('id', 't99');
   });
 
@@ -693,6 +789,7 @@ describe('routinesService', () => {
       recurrence_days_of_week: null,
     });
     expect(update.eq).toHaveBeenCalledWith('id', 't10');
+    expect(update.select).toHaveBeenCalledWith('*');
     expect(updated.id).toBe('t10');
   });
 
@@ -776,6 +873,7 @@ describe('routinesService', () => {
     rpcQueue.push({ data: null, error: null });
 
     await expect(resetRecurringTasks('2026-07-26')).resolves.toBeUndefined();
+    expect(supabase.rpc).toHaveBeenCalledWith('reset_recurring_tasks', { p_today: '2026-07-26' });
   });
 
   it('resetRecurringTasks is best-effort: swallows an RPC error instead of throwing', async () => {

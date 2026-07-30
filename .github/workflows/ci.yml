@@ -10,6 +10,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  backend:
+    name: Backend (Deno unit tests)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend/supabase/functions/send-due-reminders
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Run tests
+        run: deno test --allow-net --allow-env
+
   frontend:
     name: Frontend (lint + test + build)
     runs-on: ubuntu-latest
@@ -50,6 +70,10 @@ jobs:
   e2e:
     name: Frontend E2E (Playwright)
     runs-on: ubuntu-latest
+    # `secrets` isn't readable from `if:` conditionals, only from `env:`, so resolve
+    # secret presence into a plain env var first (same pattern as e2e-rls-regression below).
+    env:
+      E2E_SECRETS_READY: ${{ secrets.E2E_USER_IDENTIFIER != '' && secrets.E2E_USER_PASSWORD != '' && secrets.VITE_SUPABASE_URL != '' && secrets.VITE_SUPABASE_ANON_KEY != '' }}
 
     defaults:
       run:
@@ -72,8 +96,22 @@ jobs:
       - name: Install Playwright (Chromium)
         run: npx playwright install --with-deps chromium
 
+      # Without these secrets, everything except the two unauthenticated smoke tests
+      # (landing->login nav, forgot-password generic message) is skipped by design —
+      # see the `test.skip(!env.E2E_USER_IDENTIFIER || ...)` guards in each spec.
       - name: E2E tests
+        env:
+          E2E_USER_IDENTIFIER: ${{ secrets.E2E_USER_IDENTIFIER }}
+          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
         run: npm run e2e
+
+      - name: Note about skipped authenticated E2E coverage
+        if: env.E2E_SECRETS_READY != 'true'
+        run: |
+          echo "::warning::Most E2E tests (dashboard, routines CRUD, accessibility, analytics) are skipped because E2E_USER_IDENTIFIER/E2E_USER_PASSWORD are not configured. See docs/github/manual-actions-checklist.md."
 
   e2e-rls-regression:
     name: RLS regression E2E (cross-user attack test)
@@ -119,4 +157,3 @@ jobs:
         if: env.RLS_SECRETS_READY != 'true'
         run: |
           echo "::warning::Skipping RLS cross-user E2E because required secrets are not configured. See docs/github/manual-actions-checklist.md."
-

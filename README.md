@@ -286,32 +286,40 @@ Quality pipeline includes:
 - `npm run lint`
 - `npm run test`
 - `npm run build`
-- Playwright smoke checks
+- Backend Deno unit tests (`send-due-reminders`)
+- Playwright E2E (unauthenticated smoke always; authenticated dashboard/routines/accessibility/
+  analytics + RLS cross-user attack + real password-reset flow when their respective repository
+  secrets are configured — see `docs/github/manual-actions-checklist.md`)
+- CodeQL (SAST) and Gitleaks (secret scanning) on every push/PR
 
-Coverage snapshot (`npm run test:coverage`, Node 24, 363 tests), measured against every
-`src/**/*.{ts,tsx}` file via `coverage.include` rather than only files a test happens to import
-(a prior 94%+ snapshot silently dropped untested files from the denominator instead of counting
-them as 0%, which overstated the real number — see `frontend/vite.config.ts`):
+Coverage snapshot (`npm run test:coverage`, Node 24, 575 tests across 51 files), measured against
+every `src/**/*.{ts,tsx}` file via `coverage.include` rather than only files a test happens to
+import (a prior 94%+ snapshot silently dropped untested files from the denominator instead of
+counting them as 0%, which overstated the real number — see `frontend/vite.config.ts`):
 
-- **Statements:** 96.21%
-- **Branches:** 83.58%
-- **Functions:** 98.15%
-- **Lines:** 98.43%
+- **Statements:** 98.07%
+- **Branches:** 91.13%
+- **Functions:** 100%
+- **Lines:** 99.89%
 
-`main.tsx`, trivial API-client wiring, and the route-level pages (already covered end-to-end by
-`frontend/e2e/*.spec.ts`, including a full accessibility/axe sweep) are excluded from this metric
-with a documented reason each, not hidden without explanation.
+`main.tsx`, trivial API-client wiring, and the two largest route-level pages (`DashboardPage.tsx`,
+`LandingPage.tsx` — already covered end-to-end by `frontend/e2e/*.spec.ts`, including a full
+accessibility/axe sweep) are excluded from this metric with a documented reason each, not hidden
+without explanation. The four auth pages (Login/Register/Forgot/Reset password) used to be
+excluded the same way but now have dedicated unit tests and are included.
 
 Mutation testing (`npm run test:mutation`, Stryker, scoped to `features/routines` + `shared/lib`):
-last measured at **47.09%** (993 killed / 1085 survived / 2 timeout out of 2080 covered mutants),
-re-run after the round of feature work (task editing, postpone, quick-capture, recurring tasks)
-that made the prior 45.48% snapshot stale. This is intentionally reported alongside line coverage
-rather than instead of it: high statement coverage means the code _ran_ during tests, mutation
-score measures whether the assertions would actually _catch_ a bug — the modest mutation-score
-gain despite a large coverage gain is itself evidence that assertion depth, not just line reach,
-is the next thing worth investing in.
+last measured at **73.44%** (612 killed / 219 survived / 2 timeout out of 833 covered mutants), up
+from 46.48% the same day. That prior number was measured with a broken `mutate` glob that also
+matched the test files themselves, so Stryker was mutating test code and silently counting those
+meaningless mutants as survivors. Fixing the glob, removing a dead-code Zod pattern it surfaced,
+and adding exact call-argument assertions plus multi-item test fixtures (so a `filter`/`map`
+mutant can't hide behind a single-element array) raised the real score by +27 points. This is
+intentionally reported alongside line coverage rather than instead of it: high statement coverage
+means the code _ran_ during tests, mutation score measures whether the assertions would actually
+_catch_ a bug.
 
-**Last updated:** 2026-07-27  
+**Last updated:** 2026-07-30  
 CI reference: https://github.com/TomasPosada0626/Neuroroutine/actions/workflows/ci.yml
 
 ---
@@ -398,16 +406,21 @@ This MVP intentionally focuses on core engineering fundamentals. Current scope b
 
 ### Coverage Gaps
 
-- Current test coverage: 97.66% statements / 87.45% branches, measured against every source file
+- Current test coverage: 98.07% statements / 91.13% branches, measured against every source file
   (enforced CI gate: `vite.config.ts` fails the build below 96% statements, 84% branches, 98%
   functions, or 99% lines).
-- `RoutinePanel.tsx` branch coverage went from 67% to 84.7% (schedule editor day/hour toggles,
-  night-theme rendering, and refreshing an active search are now exercised); its remaining gap is
-  mostly defensive guards that the current component structure makes unreachable through the UI.
-- Stryker mutation score sits at 46.48% (2026-07-28) — it moved slightly down from 47.09% despite
-  killing more mutants in absolute terms, because the new tests covered previously-untested
-  branches rather than strengthening assertions on already-covered code. The next real investment
-  is assertion depth, not more lines touched.
+- `routinesStore.ts` branch coverage is 100% (up from 78.45%) after adding tests for every
+  `instanceof Error` branch, every `?? []`/`?? null` fallback, and a `navigator`-undefined case,
+  rather than only the happy path.
+- Stryker mutation score is 73.44% (2026-07-30), up from a 46.48% snapshot the same day — see
+  "Testing & Quality" above for what changed. Remaining survivors concentrate in fire-and-forget
+  analytics call arguments (`logAppEvent` payloads) and a handful of Supabase query-builder edge
+  cases in `routinesService.ts`, tracked as the next target.
+- Backend (`send-due-reminders`) has 20 Deno unit tests now wired into CI, but no automated test
+  hits the deployed function against real Postgres/pg_cron, and the 12 SQL migrations/RLS policies
+  have no SQL-level (pgTAP) test harness yet — RLS is verified only through the real E2E
+  cross-user attack test. See `docs/github/manual-actions-checklist.md` for a scoped follow-up
+  plan.
 
 ---
 

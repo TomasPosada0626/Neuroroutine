@@ -210,6 +210,63 @@ describe('useRoutinesStore', () => {
     expect(s.tasksByRoutineId.r1?.[0]?.id).toBe('t1');
   });
 
+  it('hydrateFromCache defaults missing/non-array cache fields to empty instead of throwing', async () => {
+    localStorage.setItem(
+      'nr-cache-routines-v1',
+      JSON.stringify({ routines: 'not-an-array', allTasks: null, taskEvents: 42 }),
+    );
+
+    vi.resetModules();
+    const { useRoutinesStore } = await import('../routinesStore');
+
+    useRoutinesStore.getState().hydrateFromCache();
+
+    const s = useRoutinesStore.getState();
+    expect(s.routines).toEqual([]);
+    expect(s.allTasks).toEqual([]);
+    expect(s.taskEvents).toEqual([]);
+    expect(s.selectedRoutineId).toBeNull();
+    expect(s.lastSyncedAt).toBeNull();
+  });
+
+  it('hydrateFromCache treats a non-string cached userId as no user, clearing state for a real user', async () => {
+    localStorage.setItem(
+      'nr-cache-routines-v1',
+      JSON.stringify({
+        userId: 12345,
+        routines: [{ id: 'r1', user_id: 'user-a', title: 'Stale' }],
+        allTasks: [],
+        taskEvents: [],
+      }),
+    );
+
+    vi.resetModules();
+    const { useRoutinesStore } = await import('../routinesStore');
+
+    useRoutinesStore.getState().hydrateFromCache('user-b');
+
+    const s = useRoutinesStore.getState();
+    expect(s.routines).toEqual([]);
+    expect(s.selectedRoutineId).toBeNull();
+  });
+
+  it('hydrateFromCache is a no-op when there is no cache and no user id was given', async () => {
+    localStorage.clear();
+
+    vi.resetModules();
+    const { useRoutinesStore } = await import('../routinesStore');
+    useRoutinesStore.setState({
+      routines: [{ id: 'kept', user_id: 'someone' } as never],
+      selectedRoutineId: 'kept',
+    });
+
+    useRoutinesStore.getState().hydrateFromCache();
+
+    const s = useRoutinesStore.getState();
+    expect(s.routines).toEqual([{ id: 'kept', user_id: 'someone' }]);
+    expect(s.selectedRoutineId).toBe('kept');
+  });
+
   it('hydrateFromCache clears state instead of showing stale data when asked for a user with no cache yet', async () => {
     localStorage.clear();
 
@@ -317,6 +374,87 @@ describe('useRoutinesStore', () => {
     expect(serviceMod.resetRecurringTasks).toHaveBeenCalledWith(
       expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
     );
+  });
+
+  it('refreshAll caches under the explicit params.userId when provided, ignoring routine/task owners', async () => {
+    const { storeMod, serviceMod } = await freshStore();
+    const { useRoutinesStore } = storeMod;
+
+    vi.mocked(serviceMod.listRoutines).mockResolvedValue([
+      {
+        id: 'r1',
+        user_id: 'someone-else',
+        title: 'Rutina',
+        notes: null,
+        created_at: new Date(2025, 0, 1, 12).toISOString(),
+        updated_at: new Date(2025, 0, 1, 12).toISOString(),
+      },
+    ]);
+    vi.mocked(serviceMod.listAllTasks).mockResolvedValue([]);
+    vi.mocked(serviceMod.listTaskEvents).mockResolvedValue([]);
+
+    await useRoutinesStore.getState().refreshAll({ userId: 'explicit-user' });
+
+    const raw = localStorage.getItem('nr-cache-routines-v1');
+    expect(raw).not.toBeNull();
+    expect((JSON.parse(raw as string) as { userId?: string }).userId).toBe('explicit-user');
+  });
+
+  it('refreshAll falls back to the first task owner for the cache when there are no routines, and to null when neither exists', async () => {
+    const { storeMod, serviceMod } = await freshStore();
+    const { useRoutinesStore } = storeMod;
+
+    vi.mocked(serviceMod.listRoutines).mockResolvedValue([]);
+    vi.mocked(serviceMod.listAllTasks).mockResolvedValue([
+      {
+        id: 't1',
+        user_id: 'task-owner',
+        routine_id: 'r1',
+        title: 'Task',
+        description: null,
+        due_date: null,
+        due_time: null,
+        is_done: false,
+        completed_at: null,
+        created_at: new Date(2025, 0, 1, 12).toISOString(),
+        updated_at: new Date(2025, 0, 1, 12).toISOString(),
+      },
+    ]);
+    vi.mocked(serviceMod.listTaskEvents).mockResolvedValue([]);
+
+    await useRoutinesStore.getState().refreshAll();
+
+    const raw = localStorage.getItem('nr-cache-routines-v1');
+    expect((JSON.parse(raw as string) as { userId?: string }).userId).toBe('task-owner');
+
+    vi.mocked(serviceMod.listAllTasks).mockResolvedValue([]);
+    await useRoutinesStore.getState().refreshAll();
+    const raw2 = localStorage.getItem('nr-cache-routines-v1');
+    expect((JSON.parse(raw2 as string) as { userId?: string | null }).userId).toBeNull();
+  });
+
+  it('refreshAll stores a fallback message for a non-Error failure', async () => {
+    const { storeMod, serviceMod } = await freshStore();
+    const { useRoutinesStore } = storeMod;
+
+    vi.mocked(serviceMod.listRoutines).mockRejectedValue('x');
+
+    await useRoutinesStore.getState().refreshAll();
+
+    expect(useRoutinesStore.getState().error).toBe('Failed to refresh');
+  });
+
+  it('refreshAll leaves offline false on failure when navigator is unavailable', async () => {
+    const { storeMod, serviceMod } = await freshStore();
+    const { useRoutinesStore } = storeMod;
+
+    vi.stubGlobal('navigator', undefined);
+    vi.mocked(serviceMod.listRoutines).mockRejectedValue(new Error('down'));
+
+    await useRoutinesStore.getState().refreshAll();
+
+    expect(useRoutinesStore.getState().offline).toBe(false);
+    vi.unstubAllGlobals();
   });
 
   it('refreshAll stores error and marks offline when service fails', async () => {
@@ -965,6 +1103,14 @@ describe('useRoutinesStore', () => {
     const { storeMod, serviceMod } = await freshStore();
     const { useRoutinesStore } = storeMod;
 
+    const other = {
+      id: 'r2',
+      user_id: 'u1',
+      title: 'Untouched',
+      notes: null,
+      created_at: new Date(2025, 0, 1, 12).toISOString(),
+      updated_at: new Date(2025, 0, 1, 12).toISOString(),
+    };
     useRoutinesStore.setState({
       routines: [
         {
@@ -975,6 +1121,7 @@ describe('useRoutinesStore', () => {
           created_at: new Date(2025, 0, 1, 12).toISOString(),
           updated_at: new Date(2025, 0, 1, 12).toISOString(),
         },
+        other,
       ],
     });
 
@@ -991,6 +1138,7 @@ describe('useRoutinesStore', () => {
 
     const s = useRoutinesStore.getState();
     expect(s.routines[0]?.title).toBe('After');
+    expect(s.routines[1]).toEqual(other);
     expect(s.loading).toBe(false);
   });
 
@@ -1133,6 +1281,58 @@ describe('useRoutinesStore', () => {
     expect(useRoutinesStore.getState().error).toBe('delete down');
   });
 
+  it('stores Error.message for Error-instance failures in loaders and remaining routine/task actions', async () => {
+    const { storeMod, serviceMod } = await freshStore();
+    const { useRoutinesStore } = storeMod;
+
+    vi.mocked(serviceMod.listRoutines).mockRejectedValue(new Error('routines down'));
+    await useRoutinesStore.getState().loadRoutines();
+    expect(useRoutinesStore.getState().error).toBe('routines down');
+
+    vi.mocked(serviceMod.listAllTasks).mockRejectedValue(new Error('all tasks down'));
+    await useRoutinesStore.getState().loadAllTasks();
+    expect(useRoutinesStore.getState().error).toBe('all tasks down');
+
+    vi.mocked(serviceMod.listTasks).mockRejectedValue(new Error('tasks down'));
+    await useRoutinesStore.getState().loadTasks('r1');
+    expect(useRoutinesStore.getState().error).toBe('tasks down');
+
+    vi.mocked(serviceMod.deleteRoutine).mockRejectedValue(new Error('delete routine down'));
+    await useRoutinesStore.getState().removeRoutine('r1');
+    expect(useRoutinesStore.getState().error).toBe('delete routine down');
+
+    vi.mocked(serviceMod.createTask).mockRejectedValue(new Error('bulk create down'));
+    await useRoutinesStore
+      .getState()
+      .addTasksBulk({ user_id: 'u1', routine_id: 'r1', tasks: [{ title: 'One' }] });
+    expect(useRoutinesStore.getState().error).toBe('bulk create down');
+
+    vi.mocked(serviceMod.createTask).mockRejectedValue(new Error('add task down'));
+    await useRoutinesStore.getState().addTask({ user_id: 'u1', routine_id: 'r1', title: 'Task' });
+    expect(useRoutinesStore.getState().error).toBe('add task down');
+  });
+
+  it('stores a fallback message for non-Error failures in addRoutine and editTask', async () => {
+    const { storeMod, serviceMod } = await freshStore();
+    const { useRoutinesStore } = storeMod;
+
+    vi.mocked(serviceMod.createRoutine).mockRejectedValue('x');
+    await expect(
+      useRoutinesStore.getState().addRoutine({ user_id: 'u1', title: 'Mi rutina' }),
+    ).rejects.toBe('x');
+    expect(useRoutinesStore.getState().error).toBe('Failed to create routine');
+
+    vi.mocked(serviceMod.updateTask).mockRejectedValue('x');
+    await expect(
+      useRoutinesStore.getState().editTask({ id: 't1', routine_id: 'r1', title: 'x' }),
+    ).rejects.toBe('x');
+    expect(useRoutinesStore.getState().error).toBe('Failed to update task');
+
+    vi.mocked(serviceMod.updateRoutine).mockRejectedValue(new Error('title too long'));
+    await useRoutinesStore.getState().editRoutine({ id: 'r1', title: 'x' });
+    expect(useRoutinesStore.getState().error).toBe('title too long');
+  });
+
   it('addTasksBulk offline with blank-only titles keeps offline flag unchanged', async () => {
     const { storeMod } = await freshStore();
     const { useRoutinesStore } = storeMod;
@@ -1210,6 +1410,133 @@ describe('useRoutinesStore', () => {
     expect(useRoutinesStore.getState().taskEvents[0]?.event_type).toBe('uncompleted');
   });
 
+  it('setTaskDone initializes the routine bucket when none existed yet', async () => {
+    const { storeMod, serviceMod } = await freshStore();
+    const { useRoutinesStore } = storeMod;
+
+    useRoutinesStore.setState({ allTasks: [], tasksByRoutineId: {} });
+    vi.mocked(serviceMod.toggleTaskDone).mockResolvedValue({
+      id: 't9',
+      user_id: 'u1',
+      routine_id: 'r9',
+      title: 'Task',
+      description: null,
+      due_date: null,
+      due_time: null,
+      is_done: true,
+      completed_at: new Date(2025, 0, 2, 12).toISOString(),
+      created_at: new Date(2025, 0, 1, 12).toISOString(),
+      updated_at: new Date(2025, 0, 2, 12).toISOString(),
+    });
+
+    await useRoutinesStore.getState().setTaskDone({ id: 't9', routine_id: 'r9', is_done: true });
+
+    expect(useRoutinesStore.getState().tasksByRoutineId.r9).toEqual([]);
+  });
+
+  it('setTaskDone falls back to a Date-based id when crypto.randomUUID is unavailable', async () => {
+    const { storeMod, serviceMod } = await freshStore();
+    const { useRoutinesStore } = storeMod;
+
+    vi.stubGlobal('crypto', {});
+    vi.mocked(serviceMod.toggleTaskDone).mockResolvedValue({
+      id: 't10',
+      user_id: 'u1',
+      routine_id: 'r1',
+      title: 'Task',
+      description: null,
+      due_date: null,
+      due_time: null,
+      is_done: true,
+      completed_at: new Date(2025, 0, 2, 12).toISOString(),
+      created_at: new Date(2025, 0, 1, 12).toISOString(),
+      updated_at: new Date(2025, 0, 2, 12).toISOString(),
+    });
+
+    await useRoutinesStore.getState().setTaskDone({ id: 't10', routine_id: 'r1', is_done: true });
+
+    expect(useRoutinesStore.getState().taskEvents[0]?.id).toMatch(/^local_\d+$/);
+    vi.unstubAllGlobals();
+  });
+
+  it('editTask initializes the routine bucket when none existed yet', async () => {
+    const { storeMod, serviceMod } = await freshStore();
+    const { useRoutinesStore } = storeMod;
+
+    useRoutinesStore.setState({ allTasks: [], tasksByRoutineId: {} });
+    vi.mocked(serviceMod.updateTask).mockResolvedValue({
+      id: 't11',
+      user_id: 'u1',
+      routine_id: 'r11',
+      title: 'Renamed',
+      description: null,
+      due_date: null,
+      due_time: null,
+      is_recurring: false,
+      is_done: false,
+      completed_at: null,
+      created_at: new Date(2025, 0, 1, 12).toISOString(),
+      updated_at: new Date(2025, 0, 1, 12).toISOString(),
+    });
+
+    await useRoutinesStore.getState().editTask({ id: 't11', routine_id: 'r11', title: 'Renamed' });
+
+    expect(useRoutinesStore.getState().tasksByRoutineId.r11).toEqual([]);
+  });
+
+  it('postponeTask passes through a null due_time unchanged', async () => {
+    const { storeMod, serviceMod } = await freshStore();
+    const { useRoutinesStore } = storeMod;
+
+    const base = {
+      id: 't12',
+      user_id: 'u1',
+      routine_id: 'r1',
+      title: 'No time set',
+      description: null,
+      due_date: '2026-07-26',
+      due_time: null,
+      is_recurring: false,
+      is_done: false,
+      completed_at: null,
+      created_at: new Date(2025, 0, 1, 12).toISOString(),
+      updated_at: new Date(2025, 0, 1, 12).toISOString(),
+    };
+    useRoutinesStore.setState({ allTasks: [base], tasksByRoutineId: { r1: [base] } });
+    vi.mocked(serviceMod.updateTask).mockResolvedValue({ ...base, due_date: '2026-07-27' });
+
+    await useRoutinesStore.getState().postponeTask({ id: 't12', routine_id: 'r1' });
+
+    expect(serviceMod.updateTask).toHaveBeenCalledWith(expect.objectContaining({ due_time: null }));
+  });
+
+  it('addTasksBulk treats a stubbed-out navigator as online', async () => {
+    const { storeMod, serviceMod } = await freshStore();
+    const { useRoutinesStore } = storeMod;
+
+    vi.stubGlobal('navigator', undefined);
+    vi.mocked(serviceMod.createTask).mockResolvedValue({
+      id: 't-bulk-no-nav',
+      user_id: 'u1',
+      routine_id: 'r1',
+      title: 'One',
+      description: null,
+      due_date: null,
+      due_time: null,
+      is_done: false,
+      completed_at: null,
+      created_at: new Date(2025, 0, 1, 12).toISOString(),
+      updated_at: new Date(2025, 0, 1, 12).toISOString(),
+    });
+
+    await useRoutinesStore
+      .getState()
+      .addTasksBulk({ user_id: 'u1', routine_id: 'r1', tasks: [{ title: 'One' }] });
+
+    expect(serviceMod.createTask).toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
   it('syncOfflineTasks returns 0 and marks offline when navigator is offline', async () => {
     const { storeMod, queueMod } = await freshStore();
     const { useRoutinesStore } = storeMod;
@@ -1272,6 +1599,19 @@ describe('useRoutinesStore', () => {
       updated_at: new Date(2026, 6, 18, 10).toISOString(),
     });
 
+    const otherTask = {
+      id: 'unrelated',
+      user_id: 'u1',
+      routine_id: 'r1',
+      title: 'Already synced',
+      description: null,
+      due_date: null,
+      due_time: null,
+      is_done: false,
+      completed_at: null,
+      created_at: new Date(2026, 6, 18, 10).toISOString(),
+      updated_at: new Date(2026, 6, 18, 10).toISOString(),
+    };
     useRoutinesStore.setState({
       allTasks: [
         {
@@ -1287,6 +1627,7 @@ describe('useRoutinesStore', () => {
           created_at: new Date(2026, 6, 18, 10).toISOString(),
           updated_at: new Date(2026, 6, 18, 10).toISOString(),
         },
+        otherTask,
       ],
       tasksByRoutineId: {
         r1: [
@@ -1303,6 +1644,7 @@ describe('useRoutinesStore', () => {
             created_at: new Date(2026, 6, 18, 10).toISOString(),
             updated_at: new Date(2026, 6, 18, 10).toISOString(),
           },
+          otherTask,
         ],
       },
     });
@@ -1313,9 +1655,98 @@ describe('useRoutinesStore', () => {
     expect(synced).toBe(1);
     expect(s.offline).toBe(false);
     expect(s.lastSyncedAt).not.toBeNull();
-    expect(s.allTasks[0]?.id).toBe('remote_1');
-    expect(s.tasksByRoutineId.r1?.[0]?.id).toBe('remote_1');
+    expect(s.allTasks.find((t) => t.id === 'remote_1')).toBeTruthy();
+    expect(s.allTasks.find((t) => t.id === 'unrelated')).toEqual(otherTask);
+    expect(s.tasksByRoutineId.r1?.find((t) => t.id === 'remote_1')).toBeTruthy();
+    expect(s.tasksByRoutineId.r1?.find((t) => t.id === 'unrelated')).toEqual(otherTask);
     expect(vi.mocked(queueMod.removeQueuedTaskInsert)).toHaveBeenCalledWith('local_1');
+  });
+
+  it('syncOfflineTasks initializes the routine bucket when none existed yet', async () => {
+    const { storeMod, serviceMod, queueMod } = await freshStore();
+    const { useRoutinesStore } = storeMod;
+
+    vi.mocked(queueMod.listQueuedTaskInserts).mockResolvedValue([
+      {
+        local_id: 'local_3',
+        user_id: 'u1',
+        routine_id: 'r-no-bucket',
+        title: 'No bucket yet',
+        description: null,
+        due_date: null,
+        due_time: null,
+        queued_at: '2026-07-18T10:00:00.000Z',
+      },
+    ]);
+    vi.mocked(queueMod.removeQueuedTaskInsert).mockResolvedValue(undefined);
+    vi.mocked(serviceMod.createTask).mockResolvedValue({
+      id: 'remote_3',
+      user_id: 'u1',
+      routine_id: 'r-no-bucket',
+      title: 'No bucket yet',
+      description: null,
+      due_date: null,
+      due_time: null,
+      is_done: false,
+      completed_at: null,
+      created_at: new Date(2026, 6, 18, 10).toISOString(),
+      updated_at: new Date(2026, 6, 18, 10).toISOString(),
+    });
+    useRoutinesStore.setState({ allTasks: [], tasksByRoutineId: {} });
+
+    await useRoutinesStore.getState().syncOfflineTasks();
+
+    expect(useRoutinesStore.getState().tasksByRoutineId['r-no-bucket']).toEqual([]);
+  });
+
+  it('syncOfflineTasks skips the completion event when the first pending item has no user id', async () => {
+    const { storeMod, serviceMod, queueMod } = await freshStore();
+    const { useRoutinesStore } = storeMod;
+
+    vi.mocked(queueMod.listQueuedTaskInserts).mockResolvedValue([
+      {
+        local_id: 'local_4',
+        user_id: '',
+        routine_id: 'r1',
+        title: 'No user id',
+        description: null,
+        due_date: null,
+        due_time: null,
+        queued_at: '2026-07-18T10:00:00.000Z',
+      },
+    ]);
+    vi.mocked(queueMod.removeQueuedTaskInsert).mockResolvedValue(undefined);
+    vi.mocked(serviceMod.createTask).mockResolvedValue({
+      id: 'remote_4',
+      user_id: '',
+      routine_id: 'r1',
+      title: 'No user id',
+      description: null,
+      due_date: null,
+      due_time: null,
+      is_done: false,
+      completed_at: null,
+      created_at: new Date(2026, 6, 18, 10).toISOString(),
+      updated_at: new Date(2026, 6, 18, 10).toISOString(),
+    });
+
+    const synced = await useRoutinesStore.getState().syncOfflineTasks();
+
+    expect(synced).toBe(1);
+  });
+
+  it('syncOfflineTasks treats a stubbed-out navigator as online', async () => {
+    const { storeMod, queueMod } = await freshStore();
+    const { useRoutinesStore } = storeMod;
+
+    vi.stubGlobal('navigator', undefined);
+    vi.mocked(queueMod.listQueuedTaskInserts).mockResolvedValue([]);
+
+    const synced = await useRoutinesStore.getState().syncOfflineTasks();
+
+    expect(synced).toBe(0);
+    expect(useRoutinesStore.getState().offline).toBe(false);
+    vi.unstubAllGlobals();
   });
 
   it('syncOfflineTasks keeps queue item and marks offline on a real network failure', async () => {
@@ -1494,7 +1925,82 @@ describe('useRoutinesStore', () => {
     expect(s.offline).toBe(true);
     expect(s.allTasks).toHaveLength(1);
     expect(s.tasksByRoutineId.r5).toHaveLength(1);
+    expect(s.allTasks[0]?.due_date).toBeNull();
     expect(vi.mocked(queueMod.enqueueTaskInsert)).toHaveBeenCalledTimes(1);
+  });
+
+  it('addTask offline keeps a provided due_date and due_time instead of nulling them', async () => {
+    const { storeMod } = await freshStore();
+    const { useRoutinesStore } = storeMod;
+
+    Object.defineProperty(window.navigator, 'onLine', {
+      configurable: true,
+      value: false,
+    });
+
+    await useRoutinesStore.getState().addTask({
+      user_id: 'u1',
+      routine_id: 'r5',
+      title: 'Offline with date',
+      due_date: '2026-08-01',
+      due_time: '09:00',
+    });
+
+    const s = useRoutinesStore.getState();
+    expect(s.allTasks[0]?.due_date).toBe('2026-08-01');
+    expect(s.allTasks[0]?.due_time).toBe('09:00');
+  });
+
+  it('addTask treats a stubbed-out navigator as online', async () => {
+    const { storeMod, serviceMod } = await freshStore();
+    const { useRoutinesStore } = storeMod;
+
+    vi.stubGlobal('navigator', undefined);
+    vi.mocked(serviceMod.createTask).mockResolvedValue({
+      id: 't-no-nav',
+      user_id: 'u1',
+      routine_id: 'r1',
+      title: 'Task',
+      description: null,
+      due_date: null,
+      due_time: null,
+      is_done: false,
+      completed_at: null,
+      created_at: new Date(2025, 0, 1, 12).toISOString(),
+      updated_at: new Date(2025, 0, 1, 12).toISOString(),
+    });
+
+    await useRoutinesStore.getState().addTask({ user_id: 'u1', routine_id: 'r1', title: 'Task' });
+
+    expect(serviceMod.createTask).toHaveBeenCalled();
+    expect(useRoutinesStore.getState().allTasks[0]?.id).toBe('t-no-nav');
+    vi.unstubAllGlobals();
+  });
+
+  it('addTask creates a fresh routine bucket when none existed yet', async () => {
+    const { storeMod, serviceMod } = await freshStore();
+    const { useRoutinesStore } = storeMod;
+
+    useRoutinesStore.setState({ tasksByRoutineId: {} });
+    vi.mocked(serviceMod.createTask).mockResolvedValue({
+      id: 't-fresh',
+      user_id: 'u1',
+      routine_id: 'r-fresh',
+      title: 'Task',
+      description: null,
+      due_date: null,
+      due_time: null,
+      is_done: false,
+      completed_at: null,
+      created_at: new Date(2025, 0, 1, 12).toISOString(),
+      updated_at: new Date(2025, 0, 1, 12).toISOString(),
+    });
+
+    await useRoutinesStore
+      .getState()
+      .addTask({ user_id: 'u1', routine_id: 'r-fresh', title: 'Task' });
+
+    expect(useRoutinesStore.getState().tasksByRoutineId['r-fresh']).toHaveLength(1);
   });
 
   it('addTasksBulk offline queues local tasks and sets offline state', async () => {

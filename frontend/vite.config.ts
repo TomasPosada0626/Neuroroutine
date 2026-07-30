@@ -42,12 +42,11 @@ export default defineConfig({
         // the 2500+ line DashboardPage) would mostly re-assert JSX wiring already
         // covered by E2E; pure logic extracted out of them (dashboardAnalytics.ts,
         // dashboardUtils.ts, seedDemoData.ts, etc.) is unit-tested directly instead.
+        // The auth pages (Login/Register/Forgot/Reset), by contrast, hold real
+        // branching logic (validation, error-vs-non-Error messages, session gating)
+        // that's now covered directly — see src/pages/__tests__/*.
         'src/pages/DashboardPage.tsx',
         'src/pages/LandingPage.tsx',
-        'src/pages/LoginPage.tsx',
-        'src/pages/RegisterPage.tsx',
-        'src/pages/ForgotPasswordPage.tsx',
-        'src/pages/ResetPasswordPage.tsx',
       ],
       reporter: ['text', 'html'],
       // Raised 2026-07 after closing the real gaps this measured `include` surfaced
