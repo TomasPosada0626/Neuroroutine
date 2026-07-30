@@ -53,6 +53,16 @@ describe('useRoutinesStore', () => {
     const { storeMod, serviceMod } = await freshStore();
     const { useRoutinesStore } = storeMod;
 
+    const existing = {
+      id: 'r0',
+      user_id: 'u1',
+      title: 'Existing',
+      notes: null,
+      created_at: new Date(2025, 0, 1, 12).toISOString(),
+      updated_at: new Date(2025, 0, 1, 12).toISOString(),
+    };
+    useRoutinesStore.setState({ routines: [existing] });
+
     const createRoutineMock = vi.mocked(serviceMod.createRoutine);
     createRoutineMock.mockResolvedValue({
       id: 'r1',
@@ -70,7 +80,8 @@ describe('useRoutinesStore', () => {
     const s = useRoutinesStore.getState();
     expect(created.id).toBe('r1');
     expect(s.selectedRoutineId).toBe('r1');
-    expect(s.routines[0]?.id).toBe('r1');
+    expect(s.routines.map((r) => r.id)).toEqual(['r1', 'r0']);
+    expect(s.loading).toBe(false);
   });
 
   it('useRoutines wrapper returns the same store API and selectRoutine updates selected id', async () => {
@@ -136,6 +147,7 @@ describe('useRoutinesStore', () => {
     // allTasks is prepended with reverse() so last created comes first.
     expect(s.allTasks.map((t) => t.id)).toEqual(['t2', 't1']);
     expect((s.tasksByRoutineId['r1'] ?? []).map((t) => t.id)).toEqual(['t1', 't2']);
+    expect(s.loading).toBe(false);
   });
 
   it('addRoutine surfaces errors and stores an error message', async () => {
@@ -293,6 +305,7 @@ describe('useRoutinesStore', () => {
     await useRoutinesStore.getState().refreshAll({ since: '2026-07-15T00:00:00.000Z' });
 
     const s = useRoutinesStore.getState();
+    expect(s.loading).toBe(false);
     expect(s.error).toBeNull();
     expect(s.offline).toBe(false);
     expect(s.lastSyncedAt).not.toBeNull();
@@ -334,13 +347,28 @@ describe('useRoutinesStore', () => {
 
     await useRoutinesStore.getState().loadRoutines();
 
-    expect(useRoutinesStore.getState().selectedRoutineId).toBeNull();
+    const s = useRoutinesStore.getState();
+    expect(s.selectedRoutineId).toBeNull();
+    expect(s.loading).toBe(false);
   });
 
   it('setTaskDone updates task entries and appends an optimistic event', async () => {
     const { storeMod, serviceMod } = await freshStore();
     const { useRoutinesStore } = storeMod;
 
+    const otherTask = {
+      id: 't2',
+      user_id: 'u1',
+      routine_id: 'r1',
+      title: 'Untouched',
+      description: null,
+      due_date: null,
+      due_time: null,
+      is_done: false,
+      completed_at: null,
+      created_at: new Date(2025, 0, 1, 12).toISOString(),
+      updated_at: new Date(2025, 0, 1, 12).toISOString(),
+    };
     useRoutinesStore.setState({
       allTasks: [
         {
@@ -356,6 +384,7 @@ describe('useRoutinesStore', () => {
           created_at: new Date(2025, 0, 1, 12).toISOString(),
           updated_at: new Date(2025, 0, 1, 12).toISOString(),
         },
+        otherTask,
       ],
       tasksByRoutineId: {
         r1: [
@@ -372,6 +401,7 @@ describe('useRoutinesStore', () => {
             created_at: new Date(2025, 0, 1, 12).toISOString(),
             updated_at: new Date(2025, 0, 1, 12).toISOString(),
           },
+          otherTask,
         ],
       },
     });
@@ -394,8 +424,11 @@ describe('useRoutinesStore', () => {
 
     const s = useRoutinesStore.getState();
     expect(s.allTasks[0]?.is_done).toBe(true);
+    expect(s.allTasks[1]).toEqual(otherTask);
     expect(s.tasksByRoutineId.r1?.[0]?.is_done).toBe(true);
+    expect(s.tasksByRoutineId.r1?.[1]).toEqual(otherTask);
     expect(s.taskEvents[0]?.event_type).toBe('completed');
+    expect(s.loading).toBe(false);
   });
 
   it('editTask updates the task in both global and per-routine lists', async () => {
@@ -417,9 +450,11 @@ describe('useRoutinesStore', () => {
       updated_at: new Date(2025, 0, 1, 12).toISOString(),
     };
 
+    const otherTask = { ...base, id: 't2', title: 'Untouched' };
+
     useRoutinesStore.setState({
-      allTasks: [base],
-      tasksByRoutineId: { r1: [base] },
+      allTasks: [base, otherTask],
+      tasksByRoutineId: { r1: [base, otherTask] },
     });
 
     vi.mocked(serviceMod.updateTask).mockResolvedValue({
@@ -437,8 +472,11 @@ describe('useRoutinesStore', () => {
 
     const s = useRoutinesStore.getState();
     expect(s.allTasks[0]?.title).toBe('New title');
+    expect(s.allTasks[1]).toEqual(otherTask);
     expect(s.tasksByRoutineId.r1?.[0]?.due_date).toBe('2026-08-01');
+    expect(s.tasksByRoutineId.r1?.[1]).toEqual(otherTask);
     expect(s.error).toBeNull();
+    expect(s.loading).toBe(false);
   });
 
   it('editTask threads recurrence_days_of_week through to the service call', async () => {
@@ -579,7 +617,9 @@ describe('useRoutinesStore', () => {
     expect(serviceMod.updateTask).toHaveBeenCalledWith(
       expect.objectContaining({ id: 't1', title: 'Pay bills', due_date: tomorrowKey }),
     );
-    expect(useRoutinesStore.getState().allTasks[0]?.due_date).toBe(tomorrowKey);
+    const s = useRoutinesStore.getState();
+    expect(s.allTasks[0]?.due_date).toBe(tomorrowKey);
+    expect(s.loading).toBe(false);
   });
 
   it('postponeTask is a no-op for a recurring task (no fixed due date to move)', async () => {
@@ -611,6 +651,19 @@ describe('useRoutinesStore', () => {
     const { storeMod, serviceMod } = await freshStore();
     const { useRoutinesStore } = storeMod;
 
+    const other = {
+      id: 't2',
+      user_id: 'u1',
+      routine_id: 'r1',
+      title: 'Keep me',
+      description: null,
+      due_date: null,
+      due_time: null,
+      is_done: false,
+      completed_at: null,
+      created_at: new Date(2025, 0, 1, 12).toISOString(),
+      updated_at: new Date(2025, 0, 1, 12).toISOString(),
+    };
     useRoutinesStore.setState({
       allTasks: [
         {
@@ -626,6 +679,7 @@ describe('useRoutinesStore', () => {
           created_at: new Date(2025, 0, 1, 12).toISOString(),
           updated_at: new Date(2025, 0, 1, 12).toISOString(),
         },
+        other,
       ],
       tasksByRoutineId: {
         r1: [
@@ -642,6 +696,7 @@ describe('useRoutinesStore', () => {
             created_at: new Date(2025, 0, 1, 12).toISOString(),
             updated_at: new Date(2025, 0, 1, 12).toISOString(),
           },
+          other,
         ],
       },
     });
@@ -651,8 +706,9 @@ describe('useRoutinesStore', () => {
     await useRoutinesStore.getState().removeTask({ id: 't1', routine_id: 'r1' });
 
     const s = useRoutinesStore.getState();
-    expect(s.allTasks).toHaveLength(0);
-    expect(s.tasksByRoutineId.r1).toEqual([]);
+    expect(s.allTasks).toEqual([other]);
+    expect(s.tasksByRoutineId.r1).toEqual([other]);
+    expect(s.loading).toBe(false);
   });
 
   it('removeTask works even when task user id is not found', async () => {
@@ -723,6 +779,14 @@ describe('useRoutinesStore', () => {
     const { storeMod, serviceMod } = await freshStore();
     const { useRoutinesStore } = storeMod;
 
+    const otherRoutine = {
+      id: 'r2',
+      user_id: 'u1',
+      title: 'Keep me',
+      notes: null,
+      created_at: new Date(2025, 0, 1, 12).toISOString(),
+      updated_at: new Date(2025, 0, 1, 12).toISOString(),
+    };
     useRoutinesStore.setState({
       selectedRoutineId: 'r1',
       routines: [
@@ -734,9 +798,11 @@ describe('useRoutinesStore', () => {
           created_at: new Date(2025, 0, 1, 12).toISOString(),
           updated_at: new Date(2025, 0, 1, 12).toISOString(),
         },
+        otherRoutine,
       ],
       tasksByRoutineId: {
         r1: [],
+        r2: [],
       },
     });
 
@@ -745,9 +811,11 @@ describe('useRoutinesStore', () => {
     await useRoutinesStore.getState().removeRoutine('r1');
 
     const s = useRoutinesStore.getState();
-    expect(s.routines).toHaveLength(0);
+    expect(s.routines).toEqual([otherRoutine]);
     expect(s.selectedRoutineId).toBeNull();
     expect(s.tasksByRoutineId.r1).toBeUndefined();
+    expect(s.tasksByRoutineId.r2).toEqual([]);
+    expect(s.loading).toBe(false);
   });
 
   it('removeRoutine removes routine even when user id is not found', async () => {
@@ -755,7 +823,7 @@ describe('useRoutinesStore', () => {
     const { useRoutinesStore } = storeMod;
 
     useRoutinesStore.setState({
-      selectedRoutineId: null,
+      selectedRoutineId: 'r_untouched',
       routines: [
         {
           id: 'r1',
@@ -776,8 +844,10 @@ describe('useRoutinesStore', () => {
     useRoutinesStore.setState({ routines: [] });
     await useRoutinesStore.getState().removeRoutine('r1');
 
-    expect(useRoutinesStore.getState().routines).toEqual([]);
-    expect(useRoutinesStore.getState().tasksByRoutineId.r1).toBeUndefined();
+    const s = useRoutinesStore.getState();
+    expect(s.routines).toEqual([]);
+    expect(s.tasksByRoutineId.r1).toBeUndefined();
+    expect(s.selectedRoutineId).toBe('r_untouched');
   });
 
   it('loadAllTasks and loadTaskEvents update store slices', async () => {
@@ -816,6 +886,7 @@ describe('useRoutinesStore', () => {
     const s = useRoutinesStore.getState();
     expect(s.allTasks).toHaveLength(1);
     expect(s.taskEvents).toHaveLength(1);
+    expect(s.loading).toBe(false);
   });
 
   it('loadTasks stores tasks by routine id', async () => {
@@ -839,12 +910,32 @@ describe('useRoutinesStore', () => {
     ]);
 
     await useRoutinesStore.getState().loadTasks('r2');
-    expect(useRoutinesStore.getState().tasksByRoutineId.r2?.[0]?.id).toBe('t1');
+    const s = useRoutinesStore.getState();
+    expect(s.tasksByRoutineId.r2?.[0]?.id).toBe('t1');
+    expect(s.loading).toBe(false);
   });
 
   it('addTask prepends into allTasks and appends into routine bucket', async () => {
     const { storeMod, serviceMod } = await freshStore();
     const { useRoutinesStore } = storeMod;
+
+    const existing = {
+      id: 't0',
+      user_id: 'u1',
+      routine_id: 'r3',
+      title: 'Existing',
+      description: null,
+      due_date: null,
+      due_time: null,
+      is_done: false,
+      completed_at: null,
+      created_at: new Date(2025, 0, 1, 12).toISOString(),
+      updated_at: new Date(2025, 0, 1, 12).toISOString(),
+    };
+    useRoutinesStore.setState({
+      allTasks: [existing],
+      tasksByRoutineId: { r3: [existing] },
+    });
 
     vi.mocked(serviceMod.createTask).mockResolvedValue({
       id: 't1',
@@ -865,8 +956,9 @@ describe('useRoutinesStore', () => {
       .addTask({ user_id: 'u1', routine_id: 'r3', title: 'Task r3' });
 
     const s = useRoutinesStore.getState();
-    expect(s.allTasks[0]?.id).toBe('t1');
-    expect(s.tasksByRoutineId.r3?.[0]?.id).toBe('t1');
+    expect(s.allTasks.map((t) => t.id)).toEqual(['t1', 't0']);
+    expect(s.tasksByRoutineId.r3?.map((t) => t.id)).toEqual(['t0', 't1']);
+    expect(s.loading).toBe(false);
   });
 
   it('editRoutine updates existing routine entity', async () => {
@@ -897,7 +989,9 @@ describe('useRoutinesStore', () => {
 
     await useRoutinesStore.getState().editRoutine({ id: 'r1', title: 'After', notes: 'Updated' });
 
-    expect(useRoutinesStore.getState().routines[0]?.title).toBe('After');
+    const s = useRoutinesStore.getState();
+    expect(s.routines[0]?.title).toBe('After');
+    expect(s.loading).toBe(false);
   });
 
   it('stores fallback error messages for non-Error throws in task actions', async () => {
