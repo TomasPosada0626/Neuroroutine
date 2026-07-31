@@ -25,42 +25,48 @@ test('reset-password: a real recovery link lets the user set a new password and 
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
+  // Resolved up front, before anything risky runs, so the `finally` below can always restore
+  // the account's real password even if an assertion throws partway through the test — a
+  // shared real account left on a randomly-generated password would break every other spec
+  // that logs in as this user until someone noticed and fixed it by hand.
+  const { data: users } = await admin.auth.admin.listUsers();
+  const testUser = users.users.find((u) => u.email === env.E2E_USER_IDENTIFIER);
+
   const newPassword = `E2E-reset-${Date.now()}`;
 
-  const { data, error } = await admin.auth.admin.generateLink({
-    type: 'recovery',
-    email: env.E2E_USER_IDENTIFIER!,
-    options: { redirectTo: `${baseURL}/reset-password` },
-  });
-  expect(error).toBeNull();
-  const actionLink = data?.properties?.action_link;
-  expect(actionLink).toBeTruthy();
+  try {
+    const { data, error } = await admin.auth.admin.generateLink({
+      type: 'recovery',
+      email: env.E2E_USER_IDENTIFIER!,
+      options: { redirectTo: `${baseURL}/reset-password` },
+    });
+    expect(error).toBeNull();
+    const actionLink = data?.properties?.action_link;
+    expect(actionLink).toBeTruthy();
 
-  // Following the real GoTrue verify link redirects back into the app with a recovery session
-  // already established (the same thing clicking the emailed link does).
-  await page.goto(actionLink!);
-  await expect(page).toHaveURL(/\/reset-password/);
-  await expect(page.getByRole('heading', { name: 'Elige una nueva contraseña' })).toBeVisible();
+    // Following the real GoTrue verify link redirects back into the app with a recovery session
+    // already established (the same thing clicking the emailed link does).
+    await page.goto(actionLink!);
+    await expect(page).toHaveURL(/\/reset-password/);
+    await expect(page.getByRole('heading', { name: 'Elige una nueva contraseña' })).toBeVisible();
 
-  await page.getByLabel('Nueva contraseña').fill(newPassword);
-  await page.getByLabel('Confirmar contraseña').fill(newPassword);
-  await page.getByRole('button', { name: 'Guardar nueva contraseña' }).click();
+    await page.getByLabel('Nueva contraseña').fill(newPassword);
+    await page.getByLabel('Confirmar contraseña').fill(newPassword);
+    await page.getByRole('button', { name: 'Guardar nueva contraseña' }).click();
 
-  await expect(page).toHaveURL(/\/app/);
+    await expect(page).toHaveURL(/\/app/);
 
-  // Prove the new password actually works by signing out and back in with it.
-  await page.evaluate(() => localStorage.clear());
-  await page.goto('/login');
-  await page.getByTestId('login-identifier').fill(env.E2E_USER_IDENTIFIER!);
-  await page.getByTestId('login-password').fill(newPassword);
-  await page.getByTestId('login-submit').click();
-  await expect(page).toHaveURL(/\/app/);
-
-  // Leave the account in a known state for the next run/other specs sharing it.
-  if (env.E2E_USER_PASSWORD) {
-    const { data: users } = await admin.auth.admin.listUsers();
-    const testUser = users.users.find((u) => u.email === env.E2E_USER_IDENTIFIER);
-    if (testUser) {
+    // Prove the new password actually works by signing out and back in with it.
+    await page.evaluate(() => localStorage.clear());
+    await page.goto('/login');
+    await page.getByTestId('login-identifier').fill(env.E2E_USER_IDENTIFIER!);
+    await page.getByTestId('login-password').fill(newPassword);
+    await page.getByTestId('login-submit').click();
+    await expect(page).toHaveURL(/\/app/);
+  } finally {
+    // Runs even if an assertion above threw, so the shared account never gets stuck on the
+    // random password this test generated.
+    if (env.E2E_USER_PASSWORD && testUser) {
       await admin.auth.admin.updateUserById(testUser.id, { password: env.E2E_USER_PASSWORD });
     }
   }
