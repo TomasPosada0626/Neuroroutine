@@ -185,8 +185,9 @@ test('authenticated happy path: create routine + tasks and complete one task', a
   await expect(checkbox).toBeChecked({ timeout: 10000 });
 });
 
-// Both tests below log in against the SAME two real E2E_USER_A/B accounts and mutate their
-// routines. Running them concurrently (Playwright's default) caused resource contention on
+// Both tests below log in against the SAME two real accounts (E2E_USER_IDENTIFIER as "user A",
+// E2E_USER_B_IDENTIFIER as "user B") and mutate their routines. Running them concurrently
+// (Playwright's default) caused resource contention on
 // CI (2 Chromium instances + 2 concurrent Supabase round trips on a 2-core runner) severe
 // enough to blow the 30s login timeout, and risks one test's writes leaking into the other's
 // assertions. Force them to run one after another instead.
@@ -202,17 +203,17 @@ test.describe.serial('RLS regression (shared accounts)', () => {
       'Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to enable real backend E2E',
     );
     test.skip(
-      !env.E2E_USER_A_IDENTIFIER ||
-        !env.E2E_USER_A_PASSWORD ||
+      !env.E2E_USER_IDENTIFIER ||
+        !env.E2E_USER_PASSWORD ||
         !env.E2E_USER_B_IDENTIFIER ||
         !env.E2E_USER_B_PASSWORD,
-      'Set E2E_USER_A_IDENTIFIER/PASSWORD and E2E_USER_B_IDENTIFIER/PASSWORD to enable this test',
+      'Set E2E_USER_IDENTIFIER/PASSWORD and E2E_USER_B_IDENTIFIER/PASSWORD to enable this test',
     );
 
     const routineTitle = `E2E RLS ${Date.now()}`;
 
     // Login as user A and create a routine.
-    await login(page, env.E2E_USER_A_IDENTIFIER!, env.E2E_USER_A_PASSWORD!);
+    await login(page, env.E2E_USER_IDENTIFIER!, env.E2E_USER_PASSWORD!);
     await page.getByRole('button', { name: 'Nueva rutina' }).click();
     await page.getByPlaceholder('Ej: Mañana enfocada').fill(routineTitle);
     await page.getByRole('button', { name: 'Crear rutina' }).click();
@@ -238,17 +239,17 @@ test.describe.serial('RLS regression (shared accounts)', () => {
       'Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to enable real backend E2E',
     );
     test.skip(
-      !env.E2E_USER_A_IDENTIFIER ||
-        !env.E2E_USER_A_PASSWORD ||
+      !env.E2E_USER_IDENTIFIER ||
+        !env.E2E_USER_PASSWORD ||
         !env.E2E_USER_B_IDENTIFIER ||
         !env.E2E_USER_B_PASSWORD,
-      'Set E2E_USER_A_IDENTIFIER/PASSWORD and E2E_USER_B_IDENTIFIER/PASSWORD to enable this test',
+      'Set E2E_USER_IDENTIFIER/PASSWORD and E2E_USER_B_IDENTIFIER/PASSWORD to enable this test',
     );
 
     const routineTitle = `E2E RLS MUT ${Date.now()}`;
     const taskTitle = `E2E RLS TASK ${Date.now()}`;
 
-    await login(page, env.E2E_USER_A_IDENTIFIER!, env.E2E_USER_A_PASSWORD!);
+    await login(page, env.E2E_USER_IDENTIFIER!, env.E2E_USER_PASSWORD!);
 
     await page.getByRole('button', { name: 'Nueva rutina' }).click();
     await page.getByPlaceholder('Ej: Mañana enfocada').fill(routineTitle);
@@ -273,7 +274,7 @@ test.describe.serial('RLS regression (shared accounts)', () => {
 
     await logout(page);
 
-    await login(page, env.E2E_USER_A_IDENTIFIER!, env.E2E_USER_A_PASSWORD!);
+    await login(page, env.E2E_USER_IDENTIFIER!, env.E2E_USER_PASSWORD!);
     await expect(page.getByRole('button', { name: routineTitle }).first()).toBeVisible();
     await expect(page.getByText(taskTitle, { exact: true }).first()).toBeVisible();
   });

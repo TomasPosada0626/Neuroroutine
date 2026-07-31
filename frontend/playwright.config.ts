@@ -4,16 +4,15 @@ const PORT = 4173;
 const BASE_URL = `http://localhost:${PORT}`;
 
 // Several specs share the same two real Supabase test accounts (E2E_USER_IDENTIFIER doubles as
-// E2E_USER_A). Running them across multiple parallel workers lets one test's routine creation/
-// deletion interleave with another's read of the same account mid-run - observed in practice as
-// a "Rutina para analíticas" select coming back empty and a duplicate-button strict-mode
-// violation, neither reproducible when the same spec runs alone. Force a single worker whenever
-// those credentials are set (i.e. whenever the real-backend tests will actually execute, not
-// skip) so the whole real-backend suite runs sequentially instead of racing itself.
+// "user A" in the RLS regression tests). Running them across multiple parallel workers lets one
+// test's routine creation/deletion interleave with another's read of the same account mid-run -
+// observed in practice as a "Rutina para analíticas" select coming back empty and a
+// duplicate-button strict-mode violation, neither reproducible when the same spec runs alone.
+// Force a single worker whenever those credentials are set (i.e. whenever the real-backend tests
+// will actually execute, not skip) so the whole real-backend suite runs sequentially instead of
+// racing itself.
 const usesSharedRealAccounts = Boolean(
-  process.env.E2E_USER_IDENTIFIER ||
-  process.env.E2E_USER_A_IDENTIFIER ||
-  process.env.E2E_USER_B_IDENTIFIER,
+  process.env.E2E_USER_IDENTIFIER || process.env.E2E_USER_B_IDENTIFIER,
 );
 
 export default defineConfig({

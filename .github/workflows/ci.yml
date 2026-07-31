@@ -137,23 +137,6 @@ jobs:
       - name: Install Playwright (Chromium)
         run: npx playwright install --with-deps chromium
 
-      # TEMPORARY debug step: prints only lengths and equality checks, never raw secret
-      # values, to diagnose why E2E_USER_IDENTIFIER/PASSWORD keep rejecting a login that
-      # verifies fine directly against the Supabase Auth API. Remove once resolved.
-      - name: Debug secret shape (temporary, no raw values printed)
-        env:
-          E2E_USER_IDENTIFIER: ${{ secrets.E2E_USER_IDENTIFIER }}
-          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
-          E2E_USER_A_IDENTIFIER: ${{ secrets.E2E_USER_A_IDENTIFIER }}
-          E2E_USER_A_PASSWORD: ${{ secrets.E2E_USER_A_PASSWORD }}
-        run: |
-          echo "IDENTIFIER length: ${#E2E_USER_IDENTIFIER}"
-          echo "PASSWORD length: ${#E2E_USER_PASSWORD}"
-          echo "IDENTIFIER first/last char: ${E2E_USER_IDENTIFIER:0:1} / ${E2E_USER_IDENTIFIER: -1}"
-          echo "PASSWORD first/last char: ${E2E_USER_PASSWORD:0:1} / ${E2E_USER_PASSWORD: -1}"
-          if [ "$E2E_USER_IDENTIFIER" = "$E2E_USER_A_IDENTIFIER" ]; then echo "IDENTIFIER matches A: yes"; else echo "IDENTIFIER matches A: NO"; fi
-          if [ "$E2E_USER_PASSWORD" = "$E2E_USER_A_PASSWORD" ]; then echo "PASSWORD matches A: yes"; else echo "PASSWORD matches A: NO"; fi
-
       # Without these secrets, everything except the two unauthenticated smoke tests
       # (landing->login nav, forgot-password generic message) is skipped by design —
       # see the `test.skip(!env.E2E_USER_IDENTIFIER || ...)` guards in each spec.
@@ -176,8 +159,11 @@ jobs:
     runs-on: ubuntu-latest
     # `secrets` isn't readable from `if:` conditionals, only from `env:`, so resolve
     # secret presence into a plain env var first and branch on that instead.
+    # Uses the same account as the main `e2e` job as "user A" (E2E_USER_IDENTIFIER) instead of a
+    # separately-maintained E2E_USER_A_* duplicate — two secrets that are supposed to always hold
+    # the identical value only ever drift out of sync when someone updates one and not the other.
     env:
-      RLS_SECRETS_READY: ${{ secrets.E2E_USER_A_IDENTIFIER != '' && secrets.E2E_USER_A_PASSWORD != '' && secrets.E2E_USER_B_IDENTIFIER != '' && secrets.E2E_USER_B_PASSWORD != '' && secrets.VITE_SUPABASE_URL != '' && secrets.VITE_SUPABASE_ANON_KEY != '' }}
+      RLS_SECRETS_READY: ${{ secrets.E2E_USER_IDENTIFIER != '' && secrets.E2E_USER_PASSWORD != '' && secrets.E2E_USER_B_IDENTIFIER != '' && secrets.E2E_USER_B_PASSWORD != '' && secrets.VITE_SUPABASE_URL != '' && secrets.VITE_SUPABASE_ANON_KEY != '' }}
 
     defaults:
       run:
@@ -203,8 +189,8 @@ jobs:
       - name: RLS isolation tests
         if: env.RLS_SECRETS_READY == 'true'
         env:
-          E2E_USER_A_IDENTIFIER: ${{ secrets.E2E_USER_A_IDENTIFIER }}
-          E2E_USER_A_PASSWORD: ${{ secrets.E2E_USER_A_PASSWORD }}
+          E2E_USER_IDENTIFIER: ${{ secrets.E2E_USER_IDENTIFIER }}
+          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
           E2E_USER_B_IDENTIFIER: ${{ secrets.E2E_USER_B_IDENTIFIER }}
           E2E_USER_B_PASSWORD: ${{ secrets.E2E_USER_B_PASSWORD }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
