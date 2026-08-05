@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { env } from 'node:process';
+import { apiLogin } from './helpers/auth';
 
 function hasRealBackendEnv() {
   return Boolean(env.VITE_SUPABASE_URL && env.VITE_SUPABASE_ANON_KEY);
@@ -122,17 +123,6 @@ async function logout(page: import('@playwright/test').Page) {
   });
 }
 
-async function login(page: import('@playwright/test').Page, identifier: string, password: string) {
-  await page.goto('/login');
-  await page.getByTestId('login-identifier').fill(identifier);
-  await page.getByTestId('login-password').fill(password);
-  await page.getByTestId('login-submit').click();
-  // Real sign-in against a live Supabase project: password grant + profile sync are two
-  // sequential network round trips before the redirect fires, plus dev-server cold-start
-  // compilation on the first hit. The 5s default expect timeout is too tight for that.
-  await expect(page).toHaveURL(/\/app/, { timeout: 15000 });
-}
-
 test('authenticated happy path: create routine + tasks and complete one task', async ({ page }) => {
   test.skip(
     !hasRealBackendEnv(),
@@ -143,7 +133,7 @@ test('authenticated happy path: create routine + tasks and complete one task', a
     'Set E2E_USER_IDENTIFIER and E2E_USER_PASSWORD to enable this test',
   );
 
-  await login(page, env.E2E_USER_IDENTIFIER!, env.E2E_USER_PASSWORD!);
+  await apiLogin(page, env.E2E_USER_IDENTIFIER!, env.E2E_USER_PASSWORD!);
 
   const routineTitle = `E2E Routine ${Date.now()}`;
   const task1 = 'E2E Task 1';
@@ -213,7 +203,7 @@ test.describe.serial('RLS regression (shared accounts)', () => {
     const routineTitle = `E2E RLS ${Date.now()}`;
 
     // Login as user A and create a routine.
-    await login(page, env.E2E_USER_IDENTIFIER!, env.E2E_USER_PASSWORD!);
+    await apiLogin(page, env.E2E_USER_IDENTIFIER!, env.E2E_USER_PASSWORD!);
     await page.getByRole('button', { name: 'Nueva rutina' }).click();
     await page.getByPlaceholder('Ej: Mañana enfocada').fill(routineTitle);
     await page.getByRole('button', { name: 'Crear rutina' }).click();
@@ -224,7 +214,7 @@ test.describe.serial('RLS regression (shared accounts)', () => {
     await logout(page);
 
     // Login as user B and verify the routine is not visible.
-    await login(page, env.E2E_USER_B_IDENTIFIER!, env.E2E_USER_B_PASSWORD!);
+    await apiLogin(page, env.E2E_USER_B_IDENTIFIER!, env.E2E_USER_B_PASSWORD!);
 
     // Ensure routines are loaded (button becomes enabled).
     await expect(page.getByRole('button', { name: 'Refrescar' })).toBeEnabled();
@@ -249,7 +239,7 @@ test.describe.serial('RLS regression (shared accounts)', () => {
     const routineTitle = `E2E RLS MUT ${Date.now()}`;
     const taskTitle = `E2E RLS TASK ${Date.now()}`;
 
-    await login(page, env.E2E_USER_IDENTIFIER!, env.E2E_USER_PASSWORD!);
+    await apiLogin(page, env.E2E_USER_IDENTIFIER!, env.E2E_USER_PASSWORD!);
 
     await page.getByRole('button', { name: 'Nueva rutina' }).click();
     await page.getByPlaceholder('Ej: Mañana enfocada').fill(routineTitle);
@@ -261,7 +251,7 @@ test.describe.serial('RLS regression (shared accounts)', () => {
 
     await logout(page);
 
-    await login(page, env.E2E_USER_B_IDENTIFIER!, env.E2E_USER_B_PASSWORD!);
+    await apiLogin(page, env.E2E_USER_B_IDENTIFIER!, env.E2E_USER_B_PASSWORD!);
 
     await expect(page.getByRole('button', { name: routineTitle })).toHaveCount(0);
 
@@ -274,7 +264,7 @@ test.describe.serial('RLS regression (shared accounts)', () => {
 
     await logout(page);
 
-    await login(page, env.E2E_USER_IDENTIFIER!, env.E2E_USER_PASSWORD!);
+    await apiLogin(page, env.E2E_USER_IDENTIFIER!, env.E2E_USER_PASSWORD!);
     await expect(page.getByRole('button', { name: routineTitle }).first()).toBeVisible();
     await expect(page.getByText(taskTitle, { exact: true }).first()).toBeVisible();
   });
@@ -290,7 +280,7 @@ test('offline cycle (optional): create local task, reconnect and sync', async ({
     'Set E2E_USER_IDENTIFIER and E2E_USER_PASSWORD to enable this test',
   );
 
-  await login(page, env.E2E_USER_IDENTIFIER!, env.E2E_USER_PASSWORD!);
+  await apiLogin(page, env.E2E_USER_IDENTIFIER!, env.E2E_USER_PASSWORD!);
 
   const routineTitle = `E2E Offline ${Date.now()}`;
   const offlineTaskTitle = `Offline task ${Date.now()}`;

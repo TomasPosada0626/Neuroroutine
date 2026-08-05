@@ -1,16 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { env } from 'node:process';
+import { apiLogin } from './helpers/auth';
 
 function hasRealBackendEnv() {
   return Boolean(env.VITE_SUPABASE_URL && env.VITE_SUPABASE_ANON_KEY);
-}
-
-async function login(page: import('@playwright/test').Page, identifier: string, password: string) {
-  await page.goto('/login');
-  await page.getByTestId('login-identifier').fill(identifier);
-  await page.getByTestId('login-password').fill(password);
-  await page.getByTestId('login-submit').click();
-  await expect(page).toHaveURL(/\/app/, { timeout: 15000 });
 }
 
 test('completing a task feeds the dashboard analytics for its routine', async ({ page }) => {
@@ -23,7 +16,7 @@ test('completing a task feeds the dashboard analytics for its routine', async ({
     'Set E2E_USER_IDENTIFIER and E2E_USER_PASSWORD to enable this test',
   );
 
-  await login(page, env.E2E_USER_IDENTIFIER!, env.E2E_USER_PASSWORD!);
+  await apiLogin(page, env.E2E_USER_IDENTIFIER!, env.E2E_USER_PASSWORD!);
 
   const routineTitle = `E2E Dashboard ${Date.now()}`;
   const taskTitle = 'E2E dashboard task';

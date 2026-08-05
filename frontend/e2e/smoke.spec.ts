@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { env } from 'node:process';
+import { apiLogin } from './helpers/auth';
 
 test('landing loads and can navigate to login', async ({ page }) => {
   await page.goto('/');
@@ -37,10 +38,7 @@ test('authenticated happy path (optional, requires real Supabase creds)', async 
     'Set E2E_USER_IDENTIFIER and E2E_USER_PASSWORD to enable this test',
   );
 
-  await page.goto('/login');
-  await page.getByTestId('login-identifier').fill(env.E2E_USER_IDENTIFIER!);
-  await page.getByTestId('login-password').fill(env.E2E_USER_PASSWORD!);
-  await page.getByTestId('login-submit').click();
+  await apiLogin(page, env.E2E_USER_IDENTIFIER!, env.E2E_USER_PASSWORD!);
 
   // After login we should be in /app.
   await expect(page).toHaveURL(/\/app/);

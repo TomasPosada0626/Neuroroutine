@@ -1,17 +1,10 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import { env } from 'node:process';
+import { apiLogin } from './helpers/auth';
 
 function hasRealBackendEnv() {
   return Boolean(env.VITE_SUPABASE_URL && env.VITE_SUPABASE_ANON_KEY);
-}
-
-async function login(page: import('@playwright/test').Page, identifier: string, password: string) {
-  await page.goto('/login');
-  await page.getByTestId('login-identifier').fill(identifier);
-  await page.getByTestId('login-password').fill(password);
-  await page.getByTestId('login-submit').click();
-  await expect(page).toHaveURL(/\/app/, { timeout: 15000 });
 }
 
 test.describe('dashboard accessibility (axe)', () => {
@@ -46,7 +39,7 @@ test.describe('dashboard accessibility (axe)', () => {
   });
 
   test('dashboard (default, populated) has no axe violations', async ({ page }) => {
-    await login(page, env.E2E_USER_IDENTIFIER!, env.E2E_USER_PASSWORD!);
+    await apiLogin(page, env.E2E_USER_IDENTIFIER!, env.E2E_USER_PASSWORD!);
 
     const routineTitle = `A11y Dashboard ${Date.now()}`;
     await page.getByRole('button', { name: 'Nueva rutina' }).click();
@@ -64,7 +57,7 @@ test.describe('dashboard accessibility (axe)', () => {
   });
 
   test('dashboard with the task edit modal open has no axe violations', async ({ page }) => {
-    await login(page, env.E2E_USER_IDENTIFIER!, env.E2E_USER_PASSWORD!);
+    await apiLogin(page, env.E2E_USER_IDENTIFIER!, env.E2E_USER_PASSWORD!);
 
     const routineTitle = `A11y Modal ${Date.now()}`;
     await page.getByRole('button', { name: 'Nueva rutina' }).click();
@@ -81,7 +74,7 @@ test.describe('dashboard accessibility (axe)', () => {
   });
 
   test('dashboard with the edit routine modal open has no axe violations', async ({ page }) => {
-    await login(page, env.E2E_USER_IDENTIFIER!, env.E2E_USER_PASSWORD!);
+    await apiLogin(page, env.E2E_USER_IDENTIFIER!, env.E2E_USER_PASSWORD!);
 
     const routineTitle = `A11y Edit Routine ${Date.now()}`;
     await page.getByRole('button', { name: 'Nueva rutina' }).click();
@@ -100,7 +93,7 @@ test.describe('dashboard accessibility (axe)', () => {
   test('dashboard with a widget expanded and the customize panel open has no axe violations', async ({
     page,
   }) => {
-    await login(page, env.E2E_USER_IDENTIFIER!, env.E2E_USER_PASSWORD!);
+    await apiLogin(page, env.E2E_USER_IDENTIFIER!, env.E2E_USER_PASSWORD!);
 
     await page.getByRole('button', { name: 'Personalizar' }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
@@ -110,7 +103,7 @@ test.describe('dashboard accessibility (axe)', () => {
   });
 
   test('dashboard color contrast (checked in isolation)', async ({ page }) => {
-    await login(page, env.E2E_USER_IDENTIFIER!, env.E2E_USER_PASSWORD!);
+    await apiLogin(page, env.E2E_USER_IDENTIFIER!, env.E2E_USER_PASSWORD!);
 
     const results = await new AxeBuilder({ page }).withRules(['color-contrast']).analyze();
     expect(results.violations, JSON.stringify(results.violations, null, 2)).toEqual([]);
