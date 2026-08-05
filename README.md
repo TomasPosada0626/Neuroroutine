@@ -126,8 +126,11 @@ Scope intent: this repository prioritizes engineering fundamentals done well ove
 - Routine search via Postgres RPC with full-text fallback, wired to a debounced search input
   in `RoutinePanel` (RPC result → Postgres full-text search → `ilike` fallback, in that order).
 - Offline-first task queue with IndexedDB persistence (service worker planned for Phase 2).
-- Reminder foundation (database schema + preferences ready; Edge Function deployment pending);
-  local browser notifications cover the gap in the meantime.
+- Scheduled email reminders: a deployed Edge Function (`send-due-reminders`) checks each user's
+  due tasks against their own configured reminder hour/timezone and sends a summary email via
+  Resend, triggered automatically every hour by a `pg_cron` + `pg_net` job defined in a migration
+  (see [ADR-012](docs/adr/ADR-012-resend-email-reminders.md)); local browser notifications
+  (ADR-010) still cover same-session, same-day nudges as a client-only complement.
 - Full-page accessibility verified with automated axe scans (landing, login, dashboard in
   multiple states, color contrast) as real E2E tests against the live app, not just the shared UI
   kit — see `frontend/e2e/dashboard-accessibility.spec.ts`.
@@ -202,7 +205,7 @@ Architecture references:
 - Supabase Postgres
 - Row-Level Security (RLS)
 - SQL migrations
-- Edge Function scaffolding for reminders
+- Deno Edge Function for scheduled email reminders, triggered hourly via `pg_cron` + `pg_net`
 
 ### Quality and Delivery
 
@@ -373,9 +376,9 @@ npx supabase functions deploy send-due-reminders --project-ref <project-ref>
 
 ### Phase 1
 
-- Set a daily schedule for `send-due-reminders` (Dashboard -> Edge Functions -> Schedules,
-  suggested cron `0 12 * * *`). The function is deployed and `RESEND_API_KEY` is configured
-  (ADR-012); it currently only runs on manual invocation until a schedule is set.
+- Add an integration-style test that hits the deployed `send-due-reminders` function itself
+  (real Postgres + `pg_cron` trigger path), not just its pure logic in isolation — the current
+  20 Deno unit tests don't exercise the actual scheduled invocation.
 - Expanded automated test depth for auth/routine critical paths.
 
 ### Phase 2
@@ -399,7 +402,7 @@ This MVP intentionally focuses on core engineering fundamentals. Current scope b
 | Feature               | Status                     | Reason                                                                                                                                                                                                                                                                                | Phase   |
 | --------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
 | **Service Worker**    | Implemented                | App-shell caching (`public/sw.js`) + installable PWA manifest; IndexedDB queue covers offline writes                                                                                                                                                                                  | —       |
-| **Notifications**     | Deployed, schedule pending | Browser Notification API covers same-day reminders (ADR-010); `send-due-reminders` sends real email via Resend (ADR-012) and is deployed with `RESEND_API_KEY` configured, but has no recurring schedule set yet — runs only on manual invocation until one is added in the Dashboard | Phase 1 |
+| **Notifications**     | Implemented                | Browser Notification API covers same-day reminders (ADR-010); `send-due-reminders` is deployed, sends real email via Resend (ADR-012), and runs automatically every hour via a `pg_cron` job, emailing each user only during their own configured reminder hour                                    | —       |
 | **Task Reordering**   | Foundation ready           | `@dnd-kit` installed; interaction wiring pending                                                                                                                                                                                                                                      | Phase 2 |
 | **User Profile Edit** | Basic profile only         | Authentication and profile base exist; edit UX planned                                                                                                                                                                                                                                | Phase 2 |
 | **Analytics Export**  | Planned                    | CSV/PDF export not in MVP scope                                                                                                                                                                                                                                                       | Phase 3 |
