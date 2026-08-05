@@ -137,17 +137,6 @@ jobs:
       - name: Install Playwright (Chromium)
         run: npx playwright install --with-deps chromium
 
-      # TEMPORARY: diagnosing "Invalid login credentials" from the new API-based E2E login (see
-      # e2e/helpers/auth.ts). Prints only account existence/ids/timestamps, never secret values -
-      # remove this step once the account state mismatch is understood and fixed.
-      - name: Debug E2E account state
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
-          E2E_USER_IDENTIFIER: ${{ secrets.E2E_USER_IDENTIFIER }}
-          E2E_USER_B_IDENTIFIER: ${{ secrets.E2E_USER_B_IDENTIFIER }}
-        run: node e2e/scripts/debug-account-state.mjs
-
       # Without these secrets, everything except the two unauthenticated smoke tests
       # (landing->login nav, forgot-password generic message) is skipped by design —
       # see the `test.skip(!env.E2E_USER_IDENTIFIER || ...)` guards in each spec.
