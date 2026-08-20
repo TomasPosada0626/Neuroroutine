@@ -152,7 +152,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lighthouse-report
-          path: frontend/reports/lighthouse
+          # LHCI's `upload.outputDir` in lighthouserc.json is not honored by this action's
+          # invocation - reports land at `.lighthouseci/` relative to the repo root regardless
+          # (confirmed against a real run: 2026-08-20). Point the artifact upload there instead
+          # of the configured-but-ineffective path.
+          path: .lighthouseci
           retention-days: 14
           if-no-files-found: ignore
 
