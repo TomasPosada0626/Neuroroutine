@@ -46,6 +46,7 @@
 - [What I Learned Building This [NEW]](#what-i-learned-building-this-new)
 - [For Instructors / Evaluators [NEW]](#for-instructors--evaluators-new)
 - [Contributing](#contributing)
+- [Legal](#legal)
 - [Author](#author)
 - [License](#license)
 
@@ -494,6 +495,13 @@ Contribution checklist:
 - No secrets committed.
 - Relevant tests added or updated.
 - Docs updated when behavior changes.
+
+---
+
+## Legal
+
+- [Privacy Policy / Política de Privacidad](PRIVACY.md)
+- [Terms of Service / Términos de Servicio](TERMS.md)
 
 ---
 

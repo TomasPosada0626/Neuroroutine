@@ -313,18 +313,23 @@ declare
   window_len constant interval := interval '1 minute';
   max_calls constant integer := 8;
   current_count integer;
+  xff_parts text[];
 begin
-  -- PostgREST (Supabase's API layer) exposes request headers as a JSON GUC. x-forwarded-for is
-  -- set by Supabase's edge network for every API request; it can be a comma-separated chain
-  -- (client, proxy1, proxy2, ...), so take the left-most (original client) entry. If headers
-  -- aren't available at all (e.g. a direct Postgres connection bypassing PostgREST), every
-  -- caller falls into one shared "unknown" bucket, which is strictly more restrictive than no
-  -- limit at all, not a bypass.
+  -- PostgREST (Supabase's API layer) exposes request headers as a JSON GUC. x-forwarded-for can
+  -- be a comma-separated chain (client, proxy1, proxy2, ...); each hop APPENDS its observed peer
+  -- to the right rather than overwriting the header, so the left-most entry is whatever the
+  -- original caller sent and is fully attacker-controlled (a client can send its own fake
+  -- x-forwarded-for and get a fresh rate-limit bucket on every call). The right-most entry is the
+  -- one Supabase's own edge appended from the connection it actually observed, so that's the
+  -- only value here that isn't spoofable by the caller. If headers aren't available at all (e.g.
+  -- a direct Postgres connection bypassing PostgREST), every caller falls into one shared
+  -- "unknown" bucket, which is strictly more restrictive than no limit at all, not a bypass.
+  xff_parts := regexp_split_to_array(
+    coalesce(current_setting('request.headers', true)::json ->> 'x-forwarded-for', ''),
+    '\s*,\s*'
+  );
   client_key := coalesce(
-    nullif(
-      btrim(split_part(current_setting('request.headers', true)::json ->> 'x-forwarded-for', ',', 1)),
-      ''
-    ),
+    nullif(btrim(xff_parts[array_upper(xff_parts, 1)]), ''),
     'unknown'
   );
   bucket := 'get_email_by_username:' || client_key;

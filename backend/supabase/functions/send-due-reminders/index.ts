@@ -51,6 +51,17 @@ export function isReminderHourNow(reminderHour: number, timezone: string, now: D
   return getHourInTimezone(now, timezone) === reminderHour
 }
 
+// Constant-time comparison so an attacker probing the Authorization header can't use response
+// timing to learn the service-role key one byte at a time.
+export function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false
+  let result = 0
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  }
+  return result === 0
+}
+
 export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -145,7 +156,7 @@ if (import.meta.main) {
   Deno.serve(handleRequest)
 }
 
-async function handleRequest(): Promise<Response> {
+async function handleRequest(req: Request): Promise<Response> {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const serviceRole = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
   const resendApiKey = Deno.env.get('RESEND_API_KEY')
@@ -156,6 +167,20 @@ async function handleRequest(): Promise<Response> {
       JSON.stringify({ error: 'Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } },
     )
+  }
+
+  // Supabase's platform JWT verification (verify_jwt) accepts ANY validly-signed project JWT,
+  // which includes the public anon key shipped in every deployed page - it does not by itself
+  // restrict this endpoint to the pg_cron trigger. The cron job (migration 0012) already sends
+  // the service-role key as its bearer token, so require that same value here: only the caller
+  // who actually holds the service-role secret (the cron job, via Vault) can trigger real sends.
+  const authHeader = req.headers.get('Authorization') ?? ''
+  const callerToken = authHeader.match(/^Bearer (.+)$/)?.[1] ?? ''
+  if (!timingSafeEqual(callerToken, serviceRole)) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    })
   }
 
   const supabase = createClient(supabaseUrl, serviceRole)

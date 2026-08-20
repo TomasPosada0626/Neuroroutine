@@ -5,6 +5,7 @@ import {
   isReminderHourNow,
   renderReminderEmail,
   sendReminderEmail,
+  timingSafeEqual,
   todayYmd,
   type DueTaskRow,
 } from './index.ts'
@@ -29,6 +30,22 @@ Deno.test('escapeHtml escapes all five reserved characters', () => {
 
 Deno.test('escapeHtml leaves plain text untouched', () => {
   assertEquals(escapeHtml('Tomar agua'), 'Tomar agua')
+})
+
+Deno.test('timingSafeEqual: true for identical strings', () => {
+  assertEquals(timingSafeEqual('service-role-secret', 'service-role-secret'), true)
+})
+
+Deno.test('timingSafeEqual: false for different strings of the same length', () => {
+  assertEquals(timingSafeEqual('service-role-secret', 'service-role-secreX'), false)
+})
+
+Deno.test('timingSafeEqual: false for different lengths (never index out of bounds)', () => {
+  assertEquals(timingSafeEqual('short', 'a-much-longer-value'), false)
+})
+
+Deno.test('timingSafeEqual: empty caller token never matches a real secret', () => {
+  assertEquals(timingSafeEqual('', 'service-role-secret'), false)
 })
 
 Deno.test('renderReminderEmail: singular subject for exactly one task', () => {

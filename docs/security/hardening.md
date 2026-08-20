@@ -36,26 +36,44 @@ This guide complements the existing RLS-first model with practical hardening act
    - Mitigation: login always performs an equivalent-cost dummy Supabase Auth call when
      a username doesn't resolve, so a nonexistent username can't be distinguished from a
      wrong password by response time alone. The RPC also enforces a server-side per-caller
-     rate limit (8 calls/minute, keyed by the `x-forwarded-for` client IP from PostgREST's
-     request headers, falling back to one shared bucket if that header is ever unavailable)
-     — see `backend/supabase/migrations/0007_rate_limit_get_email_by_username.sql`. Residual
-     risk: an attacker spreading requests across many IPs isn't slowed by an IP-keyed limit;
-     a per-username or global cap would close that gap if it's ever observed in practice.
+     rate limit (8 calls/minute, keyed by the client IP) — see
+     `backend/supabase/migrations/0007_rate_limit_get_email_by_username.sql`. **2026-08-14:**
+     the IP was originally read from the left-most entry of `x-forwarded-for`, which is
+     attacker-supplied (each hop *appends* rather than overwrites), so a caller could send a
+     different fake left-most value on every request and get a fresh bucket each time,
+     defeating the limiter entirely. Fixed in
+     `0013_fix_rate_limit_ip_spoofing.sql` to read the right-most entry instead — the one
+     Supabase's own edge appended from the connection it actually observed, which the caller
+     cannot forge. Residual risk: an attacker spreading requests across many *real* IPs still
+     isn't slowed by an IP-keyed limit; a per-username or global cap would close that if it's
+     ever observed in practice.
 
 7. Dependency CVE: react-router RSC-mode CSRF bypass (GHSA-qwww-vcr4-c8h2)
-   - Risk: low for this deployment (flagged high by `npm audit` for the package generally)
-   - `react-router-dom@7.18.1` (current, and also the latest published version) falls in the
-     advisory's vulnerable range `>=7.12.0 <8.3.0`. The vulnerability is specifically a CSRF
-     bypass in **RSC (React Server Components) mode** action handling — this app is a plain Vite
-     SPA using `BrowserRouter` with no server-side route/action handlers and no RSC mode enabled
-     anywhere in `frontend/src`, so the vulnerable code path is not reachable here.
-   - `npm audit fix --force` only offers a **downgrade** to `7.11.0` (`isSemVerMajor: true`) —
-     no forward-fixed version exists yet at time of writing. Downgrading five minor versions on a
-     pinned dependency to close a non-exploitable path would trade a real (if small) regression
-     risk for zero actual risk reduction, so it was deliberately not done.
-   - Mitigation: Dependabot (already configured) will surface a patched release when one ships;
-     re-evaluate this entry then. Documented here instead of silently ignored so the decision is
-     auditable, not assumed.
+   - Risk: **resolved 2026-08-14.** `react-router-dom` bumped from `^7.13.0` to `^7.18.2`
+     (`package.json`), the first published release outside the advisory's vulnerable range
+     `7.12.0–7.18.1`. `npm audit --omit=dev` now reports 0 vulnerabilities. Full test suite
+     (597 tests) and production build re-verified green after the bump. This was low actual
+     risk even before the fix — the vulnerability is specifically a CSRF bypass in RSC (React
+     Server Components) mode action handling, and this app is a plain Vite SPA using
+     `BrowserRouter` with no server-side route/action handlers or RSC mode — but a
+     zero-regression-risk one-line fix existing made "documented as not applicable" the wrong
+     call once it shipped.
+
+8. Unauthenticated invocation of `send-due-reminders` (critical, found and fixed 2026-08-14)
+   - Risk: was critical, now closed.
+   - Supabase's platform JWT verification (`verify_jwt`) accepts any validly-signed project
+     JWT, which includes the public `anon` key embedded in every deployed page — it does not by
+     itself restrict a function to its intended caller. `handleRequest()` in
+     `backend/supabase/functions/send-due-reminders/index.ts` took no request argument at all
+     and built a full `service_role` Supabase client unconditionally, so anyone holding the
+     public anon key could call the deployed function endpoint directly and repeatedly,
+     triggering real Resend emails to real users on demand with no rate limit — cost and spam
+     abuse, not just a data leak.
+   - Mitigation: the function now requires the `Authorization` header's bearer token to
+     exactly match `SUPABASE_SERVICE_ROLE_KEY` (constant-time comparison — see
+     `timingSafeEqual`), the same value the `pg_cron` trigger already sends from Vault
+     (`0012_hourly_reminder_schedule.sql`). Any caller without that secret gets a 401 before any
+     database or Resend call happens. Covered by new Deno unit tests for `timingSafeEqual`.
 
 ## Hardening Checklist
 
@@ -69,8 +87,11 @@ This guide complements the existing RLS-first model with practical hardening act
       `'unsafe-inline'` because inline `style` attributes from React/`@dnd-kit` depend on it.
 - [x] Raise new-account password minimum from 6 to 10 characters (`registerSchema`); login keeps
       accepting existing shorter passwords so current accounts aren't locked out.
-- [x] Ensure all external dependencies are pinned and reviewed (`npm audit` run 2026-07-27; one
-      open advisory reviewed and documented as not applicable — see threat model item 7).
+- [x] Ensure all external dependencies are pinned and reviewed (`npm audit --omit=dev` clean as
+      of 2026-08-14 — see threat model item 7).
+- [x] Add `Strict-Transport-Security` header (`frontend/nginx.conf`, `frontend/vercel.json`) —
+      neither deploy target's repo config set this explicitly before 2026-08-14; whether the
+      platform added it at its own edge was unverifiable from the repo alone.
 
 ### Auth and Session
 
