@@ -19,33 +19,38 @@ needs to be reapplied or extended.
 - `Frontend (lint + test + build)`
 - `Analyze (javascript-typescript)` (codeql)
 - `gitleaks` (secret-scan)
+- `Frontend E2E (Playwright)`
+- `RLS regression E2E (cross-user attack test)`
 
-`Frontend E2E (Playwright)` and `RLS regression E2E (cross-user attack test)` are intentionally
-**not** in this list, even though the secrets for both are configured — see the next section for
-why, and what needs to happen before they can be added.
+All 7 checks are required as of 2026-08-20 (see the next section for how the last two got fixed).
 
-## Known issue: authenticated E2E jobs can't fail the build yet
+## RESOLVED (2026-08-20): authenticated E2E jobs are blocking again
 
-Both `e2e` and `e2e-rls-regression` in `ci.yml` end their real test-running step with
-`|| echo "::warning::..."`, so the step (and therefore the job, and the commit's check) reports
-green even when the tests inside it fail.
+Both `e2e` and `e2e-rls-regression` in `ci.yml` used to end their real test-running step with
+`|| echo "::warning::..."`, so the step (and therefore the job, and the commit's check) reported
+green even when the tests inside it failed. That fallback is now removed from both.
 
-**Root cause (found 2026-08-20):** the actual failure is `Invalid login credentials` returned by
-the Supabase Auth API itself — not a stuck `/login` page, not GitHub Actions' shared-runner IPs
-being rate-limited by Supabase (that was the original working theory; ruled out once the real
-error message was read instead of just the symptom). The `E2E_USER_PASSWORD` secret stored in
-GitHub no longer matches this test account's actual current password in Supabase — most likely it
-drifted before commit `763264e` made the password-reset E2E test always restore the account's real
-password afterward, and nobody has updated the GitHub secret to match since.
+**Root cause:** the actual failure was `Invalid login credentials` returned by the Supabase Auth
+API itself — not a stuck `/login` page, not GitHub Actions' shared-runner IPs being rate-limited
+by Supabase (that was the original working theory; ruled out once the real error message was read
+instead of just the symptom). Two things had drifted, discovered in this order:
 
-**To fix:** reset the test account's password directly in Supabase (Dashboard -> Authentication,
-or the Admin API), then run `gh secret set E2E_USER_PASSWORD` locally with the new value (don't
-paste the password into a chat/PR), then confirm both jobs pass on the next push. Once confirmed:
-remove the `|| echo "::warning::..."` fallback from both steps' `run:` blocks in `ci.yml`, and add
-`Frontend E2E (Playwright)` and `RLS regression E2E (cross-user attack test)` to the required
-status checks list above (same `gh api --method PUT .../branches/main/protection` pattern used for
-the rest of this list), so a real future cross-user/session regression goes back to blocking
-merges instead of only printing a warning.
+1. `E2E_USER_PASSWORD` no longer matched the test account's real password in Supabase (reset via
+   the app's own `/forgot-password` -> `/reset-password` flow — the Supabase dashboard's
+   "Send Password Recovery" button ended up being a dead end here because the production domain
+   `https://neuroroutine.vercel.app/reset-password` wasn't in **Authentication -> URL
+   Configuration -> Redirect URLs** yet either; both that and a stray trailing dot on the Site URL
+   got fixed along the way).
+2. Even after that, the job still failed — `E2E_USER_IDENTIFIER` (and `E2E_USER_B_IDENTIFIER`)
+   stored in GitHub had themselves drifted from the actual working accounts. Both accounts'
+   credentials were verified directly against `POST {SUPABASE_URL}/auth/v1/token?grant_type=password`
+   (a plain `curl` with the `apikey` header, no secrets needed beyond the public anon key) before
+   resetting the GitHub secrets, to confirm the fix before spending another CI run on a guess.
+
+With both synced, `Frontend E2E (Playwright)` (14 passed, 2 intentionally skipped, 1 flaky-but-
+passed-on-retry unrelated UI timing issue in `dashboard-analytics.spec.ts`) and
+`RLS regression E2E (cross-user attack test)` (2 passed) ran clean, the `|| echo` fallback was
+removed from both jobs, and both were added to the required status checks list above.
 
 ## Enable the authenticated E2E suite (dashboard, routines CRUD, accessibility, analytics)
 

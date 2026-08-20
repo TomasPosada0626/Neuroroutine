@@ -186,19 +186,13 @@ jobs:
       # (landing->login nav, forgot-password generic message) is skipped by design —
       # see the `test.skip(!env.E2E_USER_IDENTIFIER || ...)` guards in each spec.
       #
-      # ROOT CAUSE (found 2026-08-20, superseding the IP-rate-limiting theory below): the actual
-      # CI failure is "Invalid login credentials" from the Supabase Auth API itself, not a stuck
-      # /login page or a runner-IP block — the E2E_USER_PASSWORD secret stored in GitHub no longer
-      # matches this account's real current password in Supabase (most likely drifted before
-      # commit 763264e made the password-reset E2E test always restore the account's real password
-      # afterward). Fix: reset the test account's password in Supabase, then
-      # `gh secret set E2E_USER_PASSWORD`, then remove the `|| true` below so this job blocks again
-      # (audit finding, Fiabilidad — the two highest regression-value test suites currently can't
-      # fail the build). `|| true` stays until that credential is fixed and confirmed passing.
-      #
-      # (Original, now-superseded theory: Supabase rate-limiting/blocking GitHub Actions' shared
-      # runner IPs — ruled out once the actual error message was read instead of just the
-      # stuck-on-/login symptom. Left here so the next person doesn't re-chase the same dead end.)
+      # Blocking again as of 2026-08-20: this used to end in `|| echo "::warning::..."` because
+      # E2E_USER_IDENTIFIER/E2E_USER_PASSWORD had drifted out of sync with the real Supabase
+      # account (root cause was credential drift, not GitHub Actions' shared-runner IPs being
+      # rate-limited, which was the original working theory - see git history around this date
+      # and docs/github/manual-actions-checklist.md for the full story). Both secrets were
+      # verified directly against the Supabase Auth API before being reset, and this job is back
+      # in the required-status-checks list on `main` - a real regression here blocks merges again.
       - name: E2E tests
         env:
           E2E_USER_IDENTIFIER: ${{ secrets.E2E_USER_IDENTIFIER }}
@@ -206,8 +200,7 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
-        run: |
-          npm run e2e || echo "::warning::E2E tests failed — see log above. Known CI-environment issue, not a code regression (see docs/github/manual-actions-checklist.md)."
+        run: npm run e2e
 
       - name: Note about skipped authenticated E2E coverage
         if: env.E2E_SECRETS_READY != 'true'
@@ -246,10 +239,9 @@ jobs:
       - name: Install Playwright (Chromium)
         run: npx playwright install --with-deps chromium
 
-      # See the same note in the `e2e` job above: this account's login has been independently
-      # verified to work outside CI twice, so a failure here is a CI-environment issue (likely
-      # IP-based rate limiting from Supabase), not a real regression. `|| true` keeps it from
-      # failing the job; the real pass/fail output is still printed above.
+      # See the same note in the `e2e` job above: blocking again as of 2026-08-20, now that both
+      # accounts' credentials have been verified directly against the Supabase Auth API and synced
+      # to GitHub secrets (the earlier failures were credential drift, not IP rate limiting).
       - name: RLS isolation tests
         if: env.RLS_SECRETS_READY == 'true'
         env:
@@ -259,8 +251,7 @@ jobs:
           E2E_USER_B_PASSWORD: ${{ secrets.E2E_USER_B_PASSWORD }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-        run: |
-          npx playwright test e2e/routines.spec.ts -g "RLS" || echo "::warning::RLS E2E tests failed — see log above. Known CI-environment issue, not a code regression (see docs/github/manual-actions-checklist.md)."
+        run: npx playwright test e2e/routines.spec.ts -g "RLS"
 
       - name: RLS tests skipped (missing secrets)
         if: env.RLS_SECRETS_READY != 'true'
