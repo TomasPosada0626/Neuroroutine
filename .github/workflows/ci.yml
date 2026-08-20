@@ -142,23 +142,16 @@ jobs:
       # than `error`, because there's no run history yet confirming these thresholds hold
       # reliably on GitHub's shared runners (slower/noisier than a real device) — promote the
       # assertions in that config to `error` once a few weeks of runs show it isn't flaky.
+      # uploadArtifacts lets the action upload the report itself via the same process that wrote
+      # it, instead of a separate actions/upload-artifact step trying to locate the files on the
+      # host filesystem afterward - that approach silently found nothing (confirmed against a
+      # real run: 2026-08-20; lighthouserc.json's `upload.outputDir` is not honored either).
       - name: Lighthouse CI (runtime UX budget, informational)
         uses: treosh/lighthouse-ci-action@v12
         with:
           configPath: ./frontend/lighthouserc.json
-
-      - name: Upload Lighthouse report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: lighthouse-report
-          # LHCI's `upload.outputDir` in lighthouserc.json is not honored by this action's
-          # invocation - reports land at `.lighthouseci/` relative to the repo root regardless
-          # (confirmed against a real run: 2026-08-20). Point the artifact upload there instead
-          # of the configured-but-ineffective path.
-          path: .lighthouseci
-          retention-days: 14
-          if-no-files-found: ignore
+          uploadArtifacts: true
+          temporaryPublicStorage: false
 
   e2e:
     name: Frontend E2E (Playwright)
