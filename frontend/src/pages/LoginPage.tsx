@@ -44,7 +44,9 @@ export function LoginPage() {
       await signInWithPassword(values.identifier, values.password);
       navigate(from, { replace: true });
     } catch (e) {
-      form.setError('root', { message: e instanceof Error ? e.message : 'Login failed' });
+      form.setError('root', {
+        message: e instanceof Error ? e.message : 'No se pudo iniciar sesión',
+      });
     }
   });
 
@@ -65,7 +67,7 @@ export function LoginPage() {
                 await signInWithGoogle();
               } catch (e) {
                 form.setError('root', {
-                  message: e instanceof Error ? e.message : 'Google login failed',
+                  message: e instanceof Error ? e.message : 'No se pudo iniciar sesión con Google',
                 });
               }
             }}

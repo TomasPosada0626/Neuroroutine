@@ -110,7 +110,7 @@ describe('LoginPage', () => {
     await user.type(screen.getByTestId('login-password'), 'secret123');
     await user.click(screen.getByTestId('login-submit'));
 
-    expect(await screen.findByText('Login failed')).toBeInTheDocument();
+    expect(await screen.findByText('No se pudo iniciar sesión')).toBeInTheDocument();
   });
 
   it('signs in with Google', async () => {
@@ -156,7 +156,7 @@ describe('LoginPage', () => {
 
     await user.click(screen.getByRole('button', { name: 'Continuar con Google' }));
 
-    expect(await screen.findByText('Google login failed')).toBeInTheDocument();
+    expect(await screen.findByText('No se pudo iniciar sesión con Google')).toBeInTheDocument();
   });
 
   it('links to the register and forgot-password routes', () => {

@@ -51,6 +51,8 @@ import { RoutineWizardModal } from '@/features/routines/components/RoutineWizard
 import { RoutinePanel } from '@/features/routines/components/RoutinePanel';
 import { useRoutines, useRoutinesStore } from '@/features/routines/routinesStore';
 import { ReminderPreferencesPanel } from '@/features/reminders/components/ReminderPreferencesPanel';
+import { upsertReminderPreferences } from '@/features/reminders/reminderPreferencesService';
+import { DeleteAccountSection } from '@/features/auth/components/DeleteAccountSection';
 import { AppShell } from '@/shared/layout';
 import { cn } from '@/shared/lib/cn';
 import {
@@ -105,6 +107,15 @@ export function DashboardPage() {
     void signOut().catch(() => {
       // ignore; landing page does not require auth
     });
+  };
+
+  // Owns the reminders-service call so InsightsWidget doesn't import another feature's internals
+  // directly (ARCHITECTURE.md only sanctions cross-feature imports for features/auth) — the page
+  // composes dashboard + reminders instead, which is exactly what pages are for.
+  const handleScheduleReminderAtHour = async (hour: number) => {
+    if (!user?.id) return;
+    await upsertReminderPreferences({ user_id: user.id, reminder_hour: hour });
+    void queryClient.invalidateQueries({ queryKey: ['reminder-preferences', user.id] });
   };
 
   useEffect(() => {
@@ -424,6 +435,7 @@ export function DashboardPage() {
           panelText={panelText}
           collapsed={collapsed}
           onToggleCollapsed={onToggleCollapsed}
+          onScheduleReminderAtHour={handleScheduleReminderAtHour}
         />
       );
     }
@@ -690,6 +702,8 @@ export function DashboardPage() {
               />
             </div>
           </div>
+
+          <DeleteAccountSection isDay={isDay} subtleText={subtleText} />
         </div>
       </Modal>
 

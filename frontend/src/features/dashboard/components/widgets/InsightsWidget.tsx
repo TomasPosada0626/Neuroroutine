@@ -1,12 +1,10 @@
 import { useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { WidgetCardShell } from '@/features/dashboard/components/WidgetCardShell';
 import {
   computeSelectedRoutineAnalytics,
   computeStruggleTasks,
 } from '@/features/dashboard/utils/dashboardAnalytics';
 import { computeWeekCounts, formatHour } from '@/features/dashboard/utils/dashboardUtils';
-import { upsertReminderPreferences } from '@/features/reminders/reminderPreferencesService';
 import { Button } from '@/shared/ui';
 import type { DashboardWidgetId } from '@/shared/state/dashboardPrefsStore';
 
@@ -20,6 +18,10 @@ type Props = {
   panelText: string;
   collapsed: boolean;
   onToggleCollapsed: (id: DashboardWidgetId) => void;
+  // Owned by the page, not this widget: ARCHITECTURE.md only sanctions features/auth as a
+  // cross-feature import, so scheduling a reminder (features/reminders) is injected as a callback
+  // instead of this widget importing that feature's service directly.
+  onScheduleReminderAtHour: (hour: number) => Promise<void>;
 };
 
 export function InsightsWidget({
@@ -32,8 +34,8 @@ export function InsightsWidget({
   panelText,
   collapsed,
   onToggleCollapsed,
+  onScheduleReminderAtHour,
 }: Props) {
-  const queryClient = useQueryClient();
   const [reminderSaving, setReminderSaving] = useState(false);
   const [reminderSaved, setReminderSaved] = useState(false);
   const [reminderSaveError, setReminderSaveError] = useState(false);
@@ -82,13 +84,7 @@ export function InsightsWidget({
                 setReminderSaveError(false);
                 setReminderSaving(true);
                 try {
-                  await upsertReminderPreferences({
-                    user_id: userId,
-                    reminder_hour: selectedRoutineAnalytics.bestWindowStart,
-                  });
-                  void queryClient.invalidateQueries({
-                    queryKey: ['reminder-preferences', userId],
-                  });
+                  await onScheduleReminderAtHour(selectedRoutineAnalytics.bestWindowStart);
                   setReminderSaved(true);
                   window.setTimeout(() => setReminderSaved(false), 1500);
                 } catch {

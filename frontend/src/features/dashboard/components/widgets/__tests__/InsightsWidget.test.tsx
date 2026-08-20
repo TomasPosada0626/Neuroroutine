@@ -1,13 +1,9 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { InsightsWidget } from '../InsightsWidget';
 import type { SelectedRoutineAnalytics } from '@/features/dashboard/utils/dashboardAnalytics';
 
-const upsertReminderPreferencesMock = vi.fn();
-vi.mock('@/features/reminders/reminderPreferencesService', () => ({
-  upsertReminderPreferences: (...args: unknown[]) => upsertReminderPreferencesMock(...args),
-}));
+const onScheduleReminderAtHourMock = vi.fn();
 
 const weekCounts = {
   startThis: new Date(),
@@ -28,28 +24,26 @@ function analytics(overrides: Partial<SelectedRoutineAnalytics> = {}): SelectedR
 }
 
 function renderWidget(props: Partial<React.ComponentProps<typeof InsightsWidget>> = {}) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <QueryClientProvider client={queryClient}>
-      <InsightsWidget
-        userId="u1"
-        weekCounts={weekCounts}
-        selectedRoutineAnalytics={analytics()}
-        struggleTasks={[]}
-        isDay
-        subtleText="text-slate-600"
-        panelText="text-slate-700"
-        collapsed={false}
-        onToggleCollapsed={() => {}}
-        {...props}
-      />
-    </QueryClientProvider>,
+    <InsightsWidget
+      userId="u1"
+      weekCounts={weekCounts}
+      selectedRoutineAnalytics={analytics()}
+      struggleTasks={[]}
+      isDay
+      subtleText="text-slate-600"
+      panelText="text-slate-700"
+      collapsed={false}
+      onToggleCollapsed={() => {}}
+      onScheduleReminderAtHour={onScheduleReminderAtHourMock}
+      {...props}
+    />,
   );
 }
 
 describe('InsightsWidget', () => {
   beforeEach(() => {
-    upsertReminderPreferencesMock.mockReset();
+    onScheduleReminderAtHourMock.mockReset();
   });
 
   it('shows the weekly comparison and best window', () => {
@@ -70,23 +64,20 @@ describe('InsightsWidget', () => {
 
   it('saves the best-hour reminder and shows a confirmation', async () => {
     const user = userEvent.setup();
-    upsertReminderPreferencesMock.mockResolvedValue({});
+    onScheduleReminderAtHourMock.mockResolvedValue(undefined);
     renderWidget();
 
     await user.click(
       screen.getByRole('button', { name: 'Programar recordatorio en mi mejor hora' }),
     );
 
-    expect(upsertReminderPreferencesMock).toHaveBeenCalledWith({
-      user_id: 'u1',
-      reminder_hour: 9,
-    });
+    expect(onScheduleReminderAtHourMock).toHaveBeenCalledWith(9);
     await waitFor(() => expect(screen.getByText('Guardado')).toBeInTheDocument());
   });
 
   it('shows the "Guardado" confirmation in the night theme', async () => {
     const user = userEvent.setup();
-    upsertReminderPreferencesMock.mockResolvedValue({});
+    onScheduleReminderAtHourMock.mockResolvedValue(undefined);
     renderWidget({ isDay: false, subtleText: 'text-slate-300', panelText: 'text-slate-200' });
 
     await user.click(
@@ -98,7 +89,7 @@ describe('InsightsWidget', () => {
 
   it('shows an error message when saving the reminder fails', async () => {
     const user = userEvent.setup();
-    upsertReminderPreferencesMock.mockRejectedValue(new Error('network down'));
+    onScheduleReminderAtHourMock.mockRejectedValue(new Error('network down'));
     renderWidget();
 
     await user.click(
@@ -129,13 +120,13 @@ describe('InsightsWidget', () => {
     await user.click(
       screen.getByRole('button', { name: 'Programar recordatorio en mi mejor hora' }),
     );
-    expect(upsertReminderPreferencesMock).not.toHaveBeenCalled();
+    expect(onScheduleReminderAtHourMock).not.toHaveBeenCalled();
   });
 
   it('hides the "Guardado" confirmation again after the timeout elapses', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    upsertReminderPreferencesMock.mockResolvedValue({});
+    onScheduleReminderAtHourMock.mockResolvedValue(undefined);
     renderWidget();
 
     await user.click(

@@ -5,6 +5,13 @@ import { fileURLToPath, URL } from 'node:url';
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  // Makes the previously-implicit Vite default an explicit, documented product decision (matches
+  // the `browserslist` field in package.json). es2020 covers every evergreen browser released
+  // after ~2020, which is already the practical floor: the app ships native ESM, top-level
+  // async/await, and other baseline-modern syntax with no legacy transpile target.
+  build: {
+    target: 'es2020',
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
