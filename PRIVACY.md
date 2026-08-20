@@ -1,6 +1,6 @@
 # Política de Privacidad de NeuroRoutine
 
-**Última actualización:** 2026-08-14
+**Última actualización:** 2026-08-20
 
 Esta política describe qué datos recoge NeuroRoutine, para qué se usan, con quién se comparten y
 qué derechos tienes sobre ellos. Está escrita para reflejar lo que la aplicación realmente hace
@@ -100,24 +100,29 @@ propia política de privacidad como procesador de datos.
 
 ## 5. Cuánto tiempo conservamos tus datos
 
-Conservamos los datos de tu cuenta mientras esta exista. **A la fecha de esta política, NeuroRoutine
-no tiene una función de autoservicio para eliminar tu cuenta ni una política automática de
-purgado de tu historial de eventos** — ver la sección 6 para cómo solicitar la eliminación
-manualmente. Esto es una limitación conocida del producto en su etapa actual, no una decisión de
+Conservamos los datos de tu cuenta mientras esta exista. Puedes eliminar tu cuenta y todos tus
+datos en cualquier momento desde la propia app (ver sección 6) o pidiéndonoslo por email.
+NeuroRoutine todavía no purga automáticamente tu historial de eventos si conservas la cuenta
+activa; esto es una limitación conocida del producto en su etapa actual, no una decisión de
 retención indefinida deliberada.
 
 ## 6. Tus derechos
 
-Puedes solicitarnos en cualquier momento, escribiendo a **agendatomas2025@gmail.com**:
+Puedes ejercer los siguientes derechos sobre tus datos, reconocidos por la Ley 1581 de 2012 de
+Colombia (Ley de Protección de Datos Personales) y normas equivalentes de otras jurisdicciones:
 
-- Acceso a los datos que tenemos sobre ti.
-- Corrección de datos incorrectos (algunos, como tu nombre, también puedes editarlos tú mismo
-  desde la app).
-- Eliminación de tu cuenta y tus datos.
-- Copia de tus datos en un formato exportable.
+- **Acceso**: conocer los datos que tenemos sobre ti.
+- **Corrección**: corregir datos incorrectos (algunos, como tu nombre, también puedes editarlos
+  tú mismo desde la app).
+- **Eliminación**: eliminar tu cuenta y tus datos. Puedes hacerlo tú mismo en cualquier momento
+  desde **Personalizar dashboard -> Zona de peligro -> Eliminar mi cuenta**, sin necesidad de
+  escribirnos: la acción borra tu cuenta y en cascada tus rutinas, tareas, historial y
+  preferencias, de forma inmediata e irreversible.
+- **Portabilidad**: solicitar copia de tus datos en un formato exportable.
 
-Como hoy esto se gestiona manualmente (no hay un botón de "eliminar mi cuenta" en la app), haremos
-el mejor esfuerzo por responder y ejecutar tu solicitud en un plazo razonable.
+Para corrección o portabilidad, o si prefieres que lo hagamos nosotros en vez de usar el botón de
+la app, escríbenos a **agendatomas2025@gmail.com** y haremos el mejor esfuerzo por resolver tu
+solicitud en un plazo razonable (máximo 15 días hábiles).
 
 ## 7. Seguridad
 

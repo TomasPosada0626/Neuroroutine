@@ -2,9 +2,15 @@
 
 name: Deploy (Vercel)
 
+# Gated on CI (see ci.yml) finishing successfully on main, instead of firing independently off
+# the same push — previously a lint/test/build/bundle-budget failure did not stop this from
+# deploying broken code to production (audit finding, Disponibilidad). workflow_dispatch is kept
+# for manual redeploys (e.g. re-running a deploy without re-running CI).
 on:
   workflow_dispatch:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [main]
 
 concurrency:
@@ -15,10 +21,18 @@ jobs:
   deploy:
     name: Deploy frontend to Vercel
     runs-on: ubuntu-latest
+    # Only deploy when explicitly triggered by hand, or when the triggering CI run actually
+    # passed — a workflow_run event fires on every CI completion, success or failure.
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          # workflow_run always checks out the default branch by default, which can be a newer,
+          # not-yet-CI-validated commit than the one that actually triggered this run — pin to
+          # the exact commit CI validated instead.
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Setup Node
         uses: actions/setup-node@v5
@@ -55,7 +69,7 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
-          VITE_BUILD_SHA: ${{ github.sha }}
+          VITE_BUILD_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
           VITE_BUILD_RUN_NUMBER: ${{ github.run_number }}
         run: |
           npx vercel deploy --prod --yes --token="$VERCEL_TOKEN" \

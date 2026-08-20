@@ -8,6 +8,24 @@ The format follows Keep a Changelog and Semantic Versioning principles.
 
 ### Added
 
+- Self-service account deletion (`delete_own_account()` RPC + "Zona de peligro" in the
+  customize-dashboard panel): deletes the account and cascades through every user-data table,
+  closing the gap between what `PRIVACY.md` promised and what the product did.
+- Database indexes on `routines.user_id`, `routine_tasks.user_id`, and `routine_tasks.routine_id`
+  — every RLS policy on those tables filters by exactly these columns.
+- A second rate-limit bucket on `get_email_by_username`, keyed by the queried username instead of
+  only the caller's IP, so distributing probes across many real IPs no longer evades the limit.
+- Daily purge of stale `rpc_rate_limits` rows via `pg_cron`.
+- `main` branch protection enforced live via the GitHub API (required status checks, no
+  force-push, no branch deletion); production deploys now gated on CI success (`workflow_run`)
+  instead of firing independently off the same push.
+- Lighthouse CI (informational) and a scheduled synthetic uptime check against production.
+- A CI check that `schema.sql`'s declared version matches the highest applied migration.
+- ESLint-enforced architecture boundaries (`eslint.config.js`): a feature can no longer import
+  another feature's internals except `features/auth`, matching `ARCHITECTURE.md`'s documented
+  rule instead of relying on manual review alone.
+- Explicit `browserslist` (`package.json`) and Vite `build.target`, replacing an undocumented
+  implicit default.
 - Task editing: title, description, date/time, and the recurring flag can now be changed after
   creation (`TaskFormModal`) instead of only create-or-delete.
 - "Posponer" action to move a one-off task's due date to tomorrow in a single click.
@@ -47,6 +65,16 @@ The format follows Keep a Changelog and Semantic Versioning principles.
 
 ### Fixed
 
+- `<html lang="en">` corrected to `lang="es"` — every visible string in the app is Spanish; the
+  wrong declared language broke WCAG 3.1.1 and made screen readers use English pronunciation.
+- English fallback error copy in `LoginPage` ("Login failed" / "Google login failed") translated
+  to Spanish; they only ever appeared on an unexpected non-`Error` throw, but broke language
+  consistency when they did.
+- `dashboard`'s `InsightsWidget` importing `features/reminders` internals directly (the only
+  cross-feature import ARCHITECTURE.md sanctions is `features/auth`) — inverted into a callback
+  the page injects instead.
+- `schema.sql`'s declared `nr_schema_meta` version was stuck at 11 while 13+ migrations had
+  already applied; now kept in sync and checked in CI.
 - Creating a routine from the dashboard's wizard could leave the analytics selector and the
   routine panel out of sync with each other until a manual refresh (two independent caches of
   the same routine list).

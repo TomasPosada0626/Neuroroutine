@@ -34,8 +34,15 @@ This checklist tracks practical controls aligned with common OWASP risks.
 ## A05 Security Misconfiguration
 
 - [x] CSP and security headers configured for Vercel/Nginx.
-- [x] Branch protection on `main` requires changes through a pull request (owner retains bypass,
-      expected for a solo-maintained repository).
+- [x] Branch protection on `main` requires 5 status checks to pass (backend tests, backend RLS,
+      frontend lint/test/build, CodeQL, gitleaks) and disallows force-push/branch deletion,
+      applied live via the GitHub API 2026-08-20 (previously documented as configured but the
+      live API response showed `required_status_checks.contexts` was actually empty — see
+      `docs/github/manual-actions-checklist.md`). `enforce_admins` stays off so the owner retains
+      bypass, expected for a solo-maintained repository with no second PR reviewer.
+- [x] Production deploys (`deploy-vercel.yml`, `deploy-render.yml`) now gated on `CI` completing
+      successfully via `workflow_run`, instead of firing independently off the same push — a
+      failing build could previously still reach production.
 
 ## A06 Vulnerable and Outdated Components
 
@@ -50,10 +57,11 @@ This checklist tracks practical controls aligned with common OWASP risks.
 - [x] New-account password minimum raised to 10 characters; username-login lookup performs a
       timing-equalized dummy auth call to reduce user-enumeration via response time.
 - [ ] Review redirect URLs/session settings and bot resistance.
-- [x] Server-side rate limiting on `get_email_by_username` (8 calls/min per client IP, enforced
-      inside the RPC itself — migration `0007_rate_limit_get_email_by_username`, IP-spoofing fix
-      in `0013_fix_rate_limit_ip_spoofing`). Limit is IP-keyed, so it doesn't stop enumeration
-      spread across many real IPs; revisit if that's observed.
+- [x] Server-side rate limiting on `get_email_by_username`: 8 calls/min per client IP (migration
+      `0007_rate_limit_get_email_by_username`, IP-spoofing fix in
+      `0013_fix_rate_limit_ip_spoofing`) plus a second 20 calls/min bucket keyed by the queried
+      username itself (`0016_username_rate_limit_defense.sql`, 2026-08-20), so distributing
+      probes across many real IPs no longer evades the limit.
 - [ ] Login itself (`signInWithPassword`) has no app-level lockout/backoff beyond Supabase Auth's
       own built-in protections — not yet verified against this project's dashboard configuration.
 

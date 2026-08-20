@@ -11,7 +11,8 @@
 
 JS/CSS budgets above are enforced automatically: `frontend/scripts/check-bundle-budget.mjs`
 runs after every CI build (`npm run build:check-budget`) and fails the build if exceeded — not a
-manual weekly check. Runtime UX targets (below) are not automated yet; see Enforcement cadence.
+manual weekly check. Runtime UX targets (below) are now measured automatically too; see
+Enforcement cadence.
 
 3. Runtime UX targets
    - p75 FCP desktop: <= 1800 ms
@@ -28,8 +29,14 @@ manual weekly check. Runtime UX targets (below) are not automated yet; see Enfor
 
 - JS/CSS bundle budgets: automated, every CI run (see above) — a regression fails the build
   immediately, not on a weekly cadence.
-- Runtime UX targets (FCP/TTI/action latency): still a weekly manual review from CI artifacts
-  and app events; no automated gate yet. Open issue when exceeded for 2 consecutive runs.
+- Runtime UX targets (FCP/TTI): automated via Lighthouse CI on every CI run against the built
+  `frontend/dist` output (`frontend/lighthouserc.json`, wired into the `frontend` job in
+  `.github/workflows/ci.yml`), desktop preset. Currently `warn`-severity (informational, does
+  not fail the build) until a few weeks of runs confirm the thresholds hold reliably on GitHub's
+  shared runners; promote to `error` in `lighthouserc.json` once that baseline exists. Action
+  latency targets (routine create / task complete) still rely on a weekly manual review from
+  CI artifacts and app events — Lighthouse doesn't exercise authenticated in-app interactions.
+  Open an issue when any target is exceeded for 2 consecutive runs.
 
 ## Action playbook when exceeded
 

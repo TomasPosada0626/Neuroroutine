@@ -9,7 +9,16 @@
   where any holder of the public anon key could trigger real emails on demand — see
   `hardening.md` threat model item 8)
 - Server-side rate limiting for `get_email_by_username`, keyed by a client IP that cannot be
-  spoofed via `x-forwarded-for` (fixed 2026-08-14 — see `hardening.md` threat model item 6)
+  spoofed via `x-forwarded-for` (fixed 2026-08-14 — see `hardening.md` threat model item 6), plus
+  a second bucket keyed by the queried username itself so distributing requests across many real
+  IPs no longer evades the limit (`0016_username_rate_limit_defense.sql`, 2026-08-20)
+- Self-service account deletion (`delete_own_account()` RPC, `0017_account_deletion.sql`) —
+  closes the gap between what `PRIVACY.md` promised and what the product did (see `hardening.md`
+  threat model item 9)
+- Branch protection on `main` enforced via the GitHub API (required status checks, no
+  force-push, no branch deletion) and production deploys gated on CI success via `workflow_run`
+  instead of firing independently off the same push (2026-08-20 — see
+  `docs/github/manual-actions-checklist.md`)
 
 ## Pending controls and status
 

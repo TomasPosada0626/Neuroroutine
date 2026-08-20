@@ -10,6 +10,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  schema-version-check:
+    name: schema.sql version matches latest migration
+    runs-on: ubuntu-latest
+    # ARCHITECTURE.md calls schema.sql the "full schema source of truth" and requires keeping it
+    # aligned with migrations/ after every change - it drifted silently to a stale version number
+    # for a while (audit finding, Mantenibilidad) because nothing checked it. This just compares
+    # two numbers; no build/install needed.
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compare declared version against the highest migration file
+        run: |
+          latest=$(ls backend/supabase/migrations | grep -E '^[0-9]{4}_.*\.sql$' \
+            | sed -E 's/^([0-9]{4}).*/\1/' | sort -n | tail -1 | sed 's/^0*//')
+          latest=${latest:-0}
+          declared=$(grep -oE 'values \(1, [0-9]+\)' backend/supabase/schema.sql | tail -1 \
+            | grep -oE '[0-9]+' | tail -1)
+
+          echo "Highest migration file: $latest"
+          echo "schema.sql declared version: $declared"
+
+          if [ "$latest" != "$declared" ]; then
+            echo "::error::schema.sql declares nr_schema_meta version $declared but the highest migration file is $latest. Update the 'insert into public.nr_schema_meta' statement near the end of backend/supabase/schema.sql (see ARCHITECTURE.md: keep schema.sql aligned after every schema change)."
+            exit 1
+          fi
+
   backend:
     name: Backend (Deno unit tests)
     runs-on: ubuntu-latest
@@ -108,6 +136,26 @@ jobs:
       - name: Bundle size budget
         run: npm run build:check-budget
 
+      # Automates the runtime UX budget (p75 FCP <=1800ms, p75 TTI <=3000ms) from
+      # docs/architecture/performance-budget.md, which was previously only a manual weekly
+      # review, not a CI gate. `warn`-severity for now (see frontend/lighthouserc.json) rather
+      # than `error`, because there's no run history yet confirming these thresholds hold
+      # reliably on GitHub's shared runners (slower/noisier than a real device) — promote the
+      # assertions in that config to `error` once a few weeks of runs show it isn't flaky.
+      - name: Lighthouse CI (runtime UX budget, informational)
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          configPath: ./frontend/lighthouserc.json
+
+      - name: Upload Lighthouse report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-report
+          path: frontend/reports/lighthouse
+          retention-days: 14
+          if-no-files-found: ignore
+
   e2e:
     name: Frontend E2E (Playwright)
     runs-on: ubuntu-latest
@@ -141,14 +189,19 @@ jobs:
       # (landing->login nav, forgot-password generic message) is skipped by design —
       # see the `test.skip(!env.E2E_USER_IDENTIFIER || ...)` guards in each spec.
       #
-      # The authenticated tests here have been failing consistently in CI (stuck on /login)
-      # even though the exact same login has been independently verified twice outside CI — a
-      # direct Supabase Auth API call and a full reproduction of the UI flow against a local dev
-      # server both succeeded instantly against the same real project. The most likely
-      # explanation is Supabase rate-limiting/blocking GitHub Actions' shared runner IPs, not a
-      # defect in the app or the credentials — see docs/github/manual-actions-checklist.md.
-      # `|| true` keeps this from failing the job over an environment issue outside this repo's
-      # control; the full pass/fail output above is still there for whenever that clears up.
+      # ROOT CAUSE (found 2026-08-20, superseding the IP-rate-limiting theory below): the actual
+      # CI failure is "Invalid login credentials" from the Supabase Auth API itself, not a stuck
+      # /login page or a runner-IP block — the E2E_USER_PASSWORD secret stored in GitHub no longer
+      # matches this account's real current password in Supabase (most likely drifted before
+      # commit 763264e made the password-reset E2E test always restore the account's real password
+      # afterward). Fix: reset the test account's password in Supabase, then
+      # `gh secret set E2E_USER_PASSWORD`, then remove the `|| true` below so this job blocks again
+      # (audit finding, Fiabilidad — the two highest regression-value test suites currently can't
+      # fail the build). `|| true` stays until that credential is fixed and confirmed passing.
+      #
+      # (Original, now-superseded theory: Supabase rate-limiting/blocking GitHub Actions' shared
+      # runner IPs — ruled out once the actual error message was read instead of just the
+      # stuck-on-/login symptom. Left here so the next person doesn't re-chase the same dead end.)
       - name: E2E tests
         env:
           E2E_USER_IDENTIFIER: ${{ secrets.E2E_USER_IDENTIFIER }}

@@ -1,0 +1,44 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
+name: Uptime check
+
+# Zero-cost synthetic monitoring (audit finding, Disponibilidad): nothing previously verified the
+# production site was actually reachable end-to-end — availability depended entirely on trusting
+# Vercel/Render's own dashboards. A failed scheduled run here shows up as a red run in the Actions
+# tab and (per GitHub's default notification settings) an email to the repo owner, which is a free
+# alerting channel — no external uptime service needed.
+#
+# Runs every 6 hours (not more often) to stay light on Actions minutes, since this is a private
+# repo on a free plan with a limited monthly minutes budget.
+#
+# Target URL: defaults to the documented production URL (README.md), but can be overridden
+# without editing this file by setting a repo/environment variable named PRODUCTION_URL
+# (Settings -> Secrets and variables -> Actions -> Variables).
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 */6 * * *"
+
+jobs:
+  check:
+    name: Check production is reachable
+    runs-on: ubuntu-latest
+    env:
+      TARGET_URL: ${{ vars.PRODUCTION_URL || 'https://neuroroutine.vercel.app' }}
+
+    steps:
+      - name: Ping production
+        run: |
+          if [ -z "$TARGET_URL" ]; then
+            echo "Skipping uptime check: no PRODUCTION_URL configured and no default available." >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+
+          echo "Checking $TARGET_URL ..." >> $GITHUB_STEP_SUMMARY
+          if curl --fail --silent --show-error --max-time 10 --retry 2 --retry-delay 3 "$TARGET_URL" > /dev/null; then
+            echo "OK: $TARGET_URL responded successfully." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "FAILED: $TARGET_URL did not respond successfully." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi

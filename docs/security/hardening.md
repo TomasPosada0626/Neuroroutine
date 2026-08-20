@@ -44,9 +44,12 @@ This guide complements the existing RLS-first model with practical hardening act
      defeating the limiter entirely. Fixed in
      `0013_fix_rate_limit_ip_spoofing.sql` to read the right-most entry instead — the one
      Supabase's own edge appended from the connection it actually observed, which the caller
-     cannot forge. Residual risk: an attacker spreading requests across many *real* IPs still
-     isn't slowed by an IP-keyed limit; a per-username or global cap would close that if it's
-     ever observed in practice.
+     cannot forge. **2026-08-20:** the residual gap noted here (an attacker spreading requests
+     across many *real* IPs wasn't slowed by an IP-keyed limit alone) is closed by
+     `0016_username_rate_limit_defense.sql`: a second bucket keyed by the *username being
+     queried*, independent of caller IP, so probing one username from many different IPs now
+     still hits a shared counter (20 calls/minute — higher than the IP bucket's 8, so a real user
+     mistyping their username a few times is never blocked by this).
 
 7. Dependency CVE: react-router RSC-mode CSRF bypass (GHSA-qwww-vcr4-c8h2)
    - Risk: **resolved 2026-08-14.** `react-router-dom` bumped from `^7.13.0` to `^7.18.2`
@@ -74,6 +77,21 @@ This guide complements the existing RLS-first model with practical hardening act
      `timingSafeEqual`), the same value the `pg_cron` trigger already sends from Vault
      (`0012_hourly_reminder_schedule.sql`). Any caller without that secret gets a 401 before any
      database or Resend call happens. Covered by new Deno unit tests for `timingSafeEqual`.
+
+9. Missing self-service account/data deletion (Legal/GDPR-style exposure, found and fixed
+   2026-08-20)
+   - Risk: was medium (a real gap between what `PRIVACY.md` promised and what the product did,
+     not an access-control bug), now closed.
+   - `PRIVACY.md` SS5-6 promised account deletion as a user right, but no self-service path existed
+     anywhere in `frontend/src/features/auth` — only a manual email request.
+   - Mitigation: `delete_own_account()` (`0017_account_deletion.sql`), a `security definer` RPC
+     scoped to `auth.uid()` that deletes the caller's `auth.users` row. Every user-data table
+     already declared `on delete cascade` off `auth.users(id)`, so this one delete cascades
+     through routines/tasks/history/preferences/events and also signs the user out everywhere
+     (Supabase's own auth schema cascades the same way). Exposed in the app as
+     **Personalizar dashboard -> Zona de peligro -> Eliminar mi cuenta**
+     (`DeleteAccountSection.tsx`), gated behind typing a confirmation word, not just a second
+     click, given it's an irreversible cascading delete.
 
 ## Hardening Checklist
 
@@ -119,8 +137,18 @@ This guide complements the existing RLS-first model with practical hardening act
 
 ### Secrets and CI/CD
 
-- [ ] Enforce branch protection for `main`.
-- [ ] Require passing CI before merge.
+- [x] Enforce branch protection for `main` — applied live 2026-08-20 (see
+      `docs/github/manual-actions-checklist.md`): required status checks, no force-push, no
+      branch deletion. `enforce_admins` deliberately stays off (solo-maintainer repo, no second
+      approver to route a PR through), so this hardens PR-based/non-admin merges without locking
+      the owner out of direct pushes.
+- [x] Require passing CI before merge — same change: `Backend (Deno unit tests)`,
+      `Backend RLS (pgTAP, local Postgres)`, `Frontend (lint + test + build)`, CodeQL, and
+      gitleaks are required status checks. The two authenticated E2E jobs are intentionally not
+      required yet (see `docs/github/manual-actions-checklist.md` for why and what unblocks it).
+- [x] Gate production deploys on CI success, not just the same push — `deploy-vercel.yml` /
+      `deploy-render.yml` now trigger on `workflow_run` after `CI` completes successfully,
+      instead of firing independently off the same `push` event.
 - [ ] Rotate deploy tokens periodically.
 - [ ] Use environment-scoped secrets in GitHub where possible.
 - [x] Enable automated dependency and code scanning (`.github/dependabot.yml`, `.github/workflows/codeql.yml`).

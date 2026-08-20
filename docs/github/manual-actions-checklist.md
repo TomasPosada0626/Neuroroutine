@@ -2,38 +2,50 @@
 
 These actions cannot be fully enforced from repository code only.
 
-## Branch protection for main
+## Branch protection for main — DONE (2026-08-20)
 
-1. Settings -> Branches -> Add rule for `main`.
-2. Require pull request before merging.
-3. Require status checks to pass before merging.
-4. Require conversation resolution before merging.
-5. Disallow force pushes.
-6. Disallow deletions.
+Applied live via the GitHub API (`PUT /repos/.../branches/main/protection`), not just documented
+here: required status checks (see below), force-push disallowed, branch deletion disallowed,
+`required_conversation_resolution` on. `enforce_admins` is deliberately **off** — this is a
+solo-maintainer repo where the owner pushes directly to `main`; turning it on would also block the
+owner's own pushes unless every change went through a PR with a second approver, which doesn't
+exist here. Re-run the same API call (see git history around 2026-08-20) any time the protection
+needs to be reapplied or extended.
 
-## Required status checks
-
-Set these as required:
+## Required status checks — DONE, currently set to:
 
 - `Backend (Deno unit tests)`
 - `Backend RLS (pgTAP, local Postgres)`
 - `Frontend (lint + test + build)`
-- `codeql / Analyze`
-- `secret-scan / gitleaks`
+- `Analyze (javascript-typescript)` (codeql)
+- `gitleaks` (secret-scan)
 
 `Frontend E2E (Playwright)` and `RLS regression E2E (cross-user attack test)` are intentionally
-**not** in this list, even though the secrets for both are configured. The authenticated tests
-inside them have been failing consistently in CI while the exact same login (same account, same
-code) verifies successfully both via a direct Supabase Auth API call and by reproducing the full
-UI flow against a local dev server — strong evidence this is Supabase rate-limiting/blocking
-GitHub Actions' shared runner IPs, not a real regression, since real credentials against the real
-code both work everywhere except from a GitHub-hosted runner.
+**not** in this list, even though the secrets for both are configured — see the next section for
+why, and what needs to happen before they can be added.
 
-Both jobs' actual test-running step ends with `|| echo "::warning::..."` in `ci.yml`, so the step
-(and therefore the job, and the commit's check) reports green even when the tests inside it fail
-— the full pass/fail output is still printed in the step's log for whenever this clears up. If it
-ever does, remove the `|| echo ...` fallback from both steps and add the two checks back to this
-required-checks list, so a real future regression goes back to blocking merges.
+## Known issue: authenticated E2E jobs can't fail the build yet
+
+Both `e2e` and `e2e-rls-regression` in `ci.yml` end their real test-running step with
+`|| echo "::warning::..."`, so the step (and therefore the job, and the commit's check) reports
+green even when the tests inside it fail.
+
+**Root cause (found 2026-08-20):** the actual failure is `Invalid login credentials` returned by
+the Supabase Auth API itself — not a stuck `/login` page, not GitHub Actions' shared-runner IPs
+being rate-limited by Supabase (that was the original working theory; ruled out once the real
+error message was read instead of just the symptom). The `E2E_USER_PASSWORD` secret stored in
+GitHub no longer matches this test account's actual current password in Supabase — most likely it
+drifted before commit `763264e` made the password-reset E2E test always restore the account's real
+password afterward, and nobody has updated the GitHub secret to match since.
+
+**To fix:** reset the test account's password directly in Supabase (Dashboard -> Authentication,
+or the Admin API), then run `gh secret set E2E_USER_PASSWORD` locally with the new value (don't
+paste the password into a chat/PR), then confirm both jobs pass on the next push. Once confirmed:
+remove the `|| echo "::warning::..."` fallback from both steps' `run:` blocks in `ci.yml`, and add
+`Frontend E2E (Playwright)` and `RLS regression E2E (cross-user attack test)` to the required
+status checks list above (same `gh api --method PUT .../branches/main/protection` pattern used for
+the rest of this list), so a real future cross-user/session regression goes back to blocking
+merges instead of only printing a warning.
 
 ## Enable the authenticated E2E suite (dashboard, routines CRUD, accessibility, analytics)
 

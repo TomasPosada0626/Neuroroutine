@@ -1,6 +1,6 @@
 # Términos de Servicio de NeuroRoutine
 
-**Última actualización:** 2026-08-14
+**Última actualización:** 2026-08-20
 
 Al crear una cuenta o usar NeuroRoutine, aceptas estos términos. Léelos junto con nuestra
 [Política de Privacidad](PRIVACY.md), que explica qué datos recogemos y cómo los usamos.
@@ -10,10 +10,6 @@ Al crear una cuenta o usar NeuroRoutine, aceptas estos términos. Léelos junto 
 NeuroRoutine es operado por **Tomas Posada**, a título individual (no existe una entidad legal
 registrada detrás del proyecto a la fecha de estos términos). Contacto:
 **agendatomas2025@gmail.com**
-
-> **Nota para quien publique estos términos:** la sección 9 (ley aplicable) queda marcada como
-> pendiente porque no se ha confirmado un país/jurisdicción específico. Complétala antes de
-> depender de estos términos frente a un cliente real en una disputa formal.
 
 ## 2. Qué es NeuroRoutine
 
@@ -71,8 +67,10 @@ que incumplan la sección 4 de estos términos.
 
 ## 9. Ley aplicable
 
-**[Pendiente de definir]** — esta sección debe completarse con el país/jurisdicción bajo la cual
-se regirán estos términos antes de usarlos frente a clientes reales en una disputa formal.
+Estos términos se rigen por las leyes de la República de Colombia. Cualquier disputa relacionada
+con estos términos o el uso de NeuroRoutine se someterá a los jueces y tribunales de Colombia,
+sin perjuicio de los derechos que la ley de protección de datos aplicable (ver la sección 6 de la
+[Política de Privacidad](PRIVACY.md)) te reconozca en tu país de residencia.
 
 ## 10. Cambios a estos términos
 

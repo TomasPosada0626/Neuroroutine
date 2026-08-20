@@ -2,9 +2,19 @@
 
 name: Deploy (Render)
 
+# Gated on CI (see ci.yml) finishing successfully on main, instead of firing independently off
+# the same push — previously a lint/test/build/bundle-budget failure did not stop this from
+# deploying broken code to production (audit finding, Disponibilidad). workflow_dispatch is kept
+# for manual redeploys. Note: Render's deploy hook has no way to pin a specific commit — it just
+# tells Render "rebuild from whatever is at the tip of the connected branch now", so unlike the
+# Vercel workflow this can't guarantee it redeploys the exact SHA CI validated if another push
+# lands on main in the few seconds between CI finishing and this job running. That race is
+# inherent to hook-based deploys, not something this gate can close further.
 on:
   workflow_dispatch:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [main]
 
 concurrency:
@@ -15,6 +25,9 @@ jobs:
   deploy:
     name: Deploy frontend to Render
     runs-on: ubuntu-latest
+    # Only deploy when explicitly triggered by hand, or when the triggering CI run actually
+    # passed — a workflow_run event fires on every CI completion, success or failure.
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
 
     steps:
       - name: Gate deploy (requires deploy hook)

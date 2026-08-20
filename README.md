@@ -278,8 +278,16 @@ Security design principles implemented in this project:
 - Ownership checks bound to authenticated identity (`auth.uid()`).
 - Public anon key constrained by database policies.
 - Service role secrets never exposed in frontend runtime.
+- Self-service account deletion (`delete_own_account()` RPC, cascades through every user-data
+  table) — Personalizar dashboard -> Zona de peligro -> Eliminar mi cuenta.
+- `main` branch protection enforced live via the GitHub API: required status checks (backend
+  tests, backend RLS, frontend lint/test/build, CodeQL, gitleaks), no force-push, no branch
+  deletion; production deploys gated on CI success instead of firing independently off the same
+  push.
 
 Practical result: user-level data boundaries are enforced by Postgres, not only by UI behavior.
+See `docs/security/hardening.md` for the full threat model and `PRIVACY.md`/`TERMS.md` for what
+that means for your data.
 
 ---
 
@@ -287,24 +295,32 @@ Practical result: user-level data boundaries are enforced by Postgres, not only 
 
 Quality pipeline includes:
 
-- `npm run lint`
+- `npm run lint` (including `eslint-config`-enforced architecture boundaries — a feature can't
+  import another feature's internals except `features/auth`, and `shared` can't import
+  `features`/`pages`; see `ARCHITECTURE.md`)
 - `npm run test`
 - `npm run build`
 - Backend Deno unit tests (`send-due-reminders`)
-- Backend RLS pgTAP suite (11 assertions against a throwaway local Postgres — no secrets needed)
+- Backend RLS pgTAP suite (28 assertions against a throwaway local Postgres — no secrets needed)
+- A CI check that `schema.sql`'s declared version matches the highest applied migration number,
+  so the two can't silently drift apart again.
+- Lighthouse CI against the production build (`frontend/lighthouserc.json`) — informational for
+  now, promotes to a hard gate once a baseline of non-flaky runs exists.
+- A scheduled synthetic uptime check against the production URL, independent of the Vercel/Render
+  dashboards.
 - Playwright E2E (unauthenticated smoke always; authenticated dashboard/routines/accessibility/
   analytics + RLS cross-user attack + real password-reset flow when their respective repository
   secrets are configured — see `docs/github/manual-actions-checklist.md`)
 - CodeQL (SAST) and Gitleaks (secret scanning) on every push/PR
 
-Coverage snapshot (`npm run test:coverage`, Node 24, 597 tests across 51 files), measured against
+Coverage snapshot (`npm run test:coverage`, Node 24, 603 tests across 53 files), measured against
 every `src/**/*.{ts,tsx}` file via `coverage.include` rather than only files a test happens to
 import (a prior 94%+ snapshot silently dropped untested files from the denominator instead of
 counting them as 0%, which overstated the real number — see `frontend/vite.config.ts`):
 
-- **Statements:** 98.38%
-- **Branches:** 92.67%
-- **Functions:** 100%
+- **Statements:** 98.31%
+- **Branches:** 92.57%
+- **Functions:** 99.81%
 - **Lines:** 100%
 
 `main.tsx`, trivial API-client wiring, and the two largest route-level pages (`DashboardPage.tsx`,
@@ -313,18 +329,19 @@ accessibility/axe sweep) are excluded from this metric with a documented reason 
 without explanation. The four auth pages (Login/Register/Forgot/Reset password) used to be
 excluded the same way but now have dedicated unit tests and are included.
 
-Mutation testing (`npm run test:mutation`, Stryker, scoped to `features/routines` + `shared/lib`):
-last measured at **77.03%** (644 killed / 189 survived / 3 no-coverage out of 833 covered
-mutants), up from 46.48% the same day. That prior number was measured with a broken `mutate` glob
-that also matched the test files themselves, so Stryker was mutating test code and silently
-counting those meaningless mutants as survivors. Fixing the glob, removing a dead-code Zod pattern
-it surfaced, and adding exact call-argument assertions (including on fire-and-forget analytics
-calls) plus multi-item test fixtures (so a `filter`/`map`/`find` mutant can't hide behind a
-single-element array) raised the real score by +30.5 points. This is intentionally reported
-alongside line coverage rather than instead of it: high statement coverage means the code _ran_
-during tests, mutation score measures whether the assertions would actually _catch_ a bug.
+Mutation testing (`npm run test:mutation`, Stryker, scoped to `features/routines` + `shared/lib` +
+`features/auth`): last full measurement at **77.03%** on the pre-`features/auth` scope (644
+killed / 189 survived / 3 no-coverage out of 833 covered mutants), up from 46.48% the same day.
+That prior number was measured with a broken `mutate` glob that also matched the test files
+themselves, so Stryker was mutating test code and silently counting those meaningless mutants as
+survivors. Fixing the glob, removing a dead-code Zod pattern it surfaced, and adding exact
+call-argument assertions (including on fire-and-forget analytics calls) plus multi-item test
+fixtures (so a `filter`/`map`/`find` mutant can't hide behind a single-element array) raised the
+real score by +30.5 points. This is intentionally reported alongside line coverage rather than
+instead of it: high statement coverage means the code _ran_ during tests, mutation score measures
+whether the assertions would actually _catch_ a bug.
 
-**Last updated:** 2026-07-30  
+**Last updated:** 2026-08-20  
 CI reference: https://github.com/TomasPosada0626/Neuroroutine/actions/workflows/ci.yml
 
 ---
