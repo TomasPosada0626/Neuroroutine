@@ -84,3 +84,8 @@ Optional env vars (enable real email sending; see ADR-012):
 - `RESEND_FROM_EMAIL` — defaults to `NeuroRoutine <onboarding@resend.dev>` (Resend's shared test
   sender, which can only deliver to the Resend account's own verified email). For real delivery to
   arbitrary users, verify a sending domain in Resend and set this to an address on that domain.
+- `ALERT_EMAIL` — optional. If set (and `RESEND_API_KEY` is configured), a run where one or more
+  reminder emails failed to send also emails a one-line-per-failure summary to this address via
+  Resend, instead of that failure only being visible in `emailErrors` on the HTTP response / the
+  Supabase function invocation logs. Without it, a failed run still logs via `console.error` but
+  nothing actively notifies anyone.

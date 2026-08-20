@@ -75,6 +75,12 @@ create table if not exists public.routine_tasks (
   updated_at timestamptz not null default now()
 );
 
+-- Every RLS policy on routines/routine_tasks filters by user_id, and routine_tasks is also
+-- joined/filtered by routine_id on nearly every dashboard/routines query (migration 0014).
+create index if not exists routines_user_id_idx on public.routines (user_id);
+create index if not exists routine_tasks_user_id_idx on public.routine_tasks (user_id);
+create index if not exists routine_tasks_routine_id_idx on public.routine_tasks (routine_id);
+
 -- Backfill-friendly change: store last completion timestamp
 alter table public.routine_tasks
   add column if not exists completed_at timestamptz;
@@ -278,6 +284,28 @@ drop policy if exists "profiles_update_own" on public.profiles;
 create policy "profiles_update_own" on public.profiles
 for update using (auth.uid() = id) with check (auth.uid() = id);
 
+-- Self-service account deletion (migration 0017). Every user-data table above already declares
+-- `references auth.users(id) on delete cascade`, so deleting the auth.users row is sufficient on
+-- its own - Postgres cascades the rest, and Supabase's own auth schema (identities, sessions,
+-- refresh_tokens) cascades off auth.users the same way, signing the user out everywhere too.
+-- Scoped to auth.uid(): a user can only ever delete their own account.
+create or replace function public.delete_own_account()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'Not authenticated' using errcode = '28000';
+  end if;
+
+  delete from auth.users where id = auth.uid();
+end;
+$$;
+
+grant execute on function public.delete_own_account() to authenticated;
+
 -- Username login helper (returns the email for a username)
 -- Note: this enables username->email lookup. Keep username choices non-sensitive.
 --
@@ -301,6 +329,38 @@ comment on table public.rpc_rate_limits is
   'purges old rows automatically, so periodically deleting rows older than a day or two is a '
   'reasonable follow-up if this grows large.';
 
+-- Shared fixed-window rate-limit primitive (migration 0016). security definer so callers only
+-- need execute on the RPCs built on top of it, never direct access to rpc_rate_limits itself.
+create or replace function public._rate_limit_check(
+  p_bucket text,
+  p_window interval,
+  p_max integer
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_count integer;
+begin
+  insert into public.rpc_rate_limits as t (bucket_key, window_start, hit_count)
+  values (p_bucket, now(), 1)
+  on conflict (bucket_key) do update
+    set hit_count = case
+          when t.window_start < now() - p_window then 1
+          else t.hit_count + 1
+        end,
+        window_start = case
+          when t.window_start < now() - p_window then now()
+          else t.window_start
+        end
+  returning hit_count into current_count;
+
+  return current_count <= p_max;
+end;
+$$;
+
 create or replace function public.get_email_by_username(u text)
 returns text
 language plpgsql
@@ -309,11 +369,8 @@ set search_path = public
 as $$
 declare
   client_key text;
-  bucket text;
-  window_len constant interval := interval '1 minute';
-  max_calls constant integer := 8;
-  current_count integer;
   xff_parts text[];
+  username_key text;
 begin
   -- PostgREST (Supabase's API layer) exposes request headers as a JSON GUC. x-forwarded-for can
   -- be a comma-separated chain (client, proxy1, proxy2, ...); each hop APPENDS its observed peer
@@ -328,33 +385,26 @@ begin
     coalesce(current_setting('request.headers', true)::json ->> 'x-forwarded-for', ''),
     '\s*,\s*'
   );
-  client_key := coalesce(
-    nullif(btrim(xff_parts[array_upper(xff_parts, 1)]), ''),
-    'unknown'
-  );
-  bucket := 'get_email_by_username:' || client_key;
+  client_key := coalesce(nullif(btrim(xff_parts[array_upper(xff_parts, 1)]), ''), 'unknown');
+  username_key := lower(btrim(coalesce(u, '')));
 
-  insert into public.rpc_rate_limits as t (bucket_key, window_start, hit_count)
-  values (bucket, now(), 1)
-  on conflict (bucket_key) do update
-    set hit_count = case
-          when t.window_start < now() - window_len then 1
-          else t.hit_count + 1
-        end,
-        window_start = case
-          when t.window_start < now() - window_len then now()
-          else t.window_start
-        end
-  returning hit_count into current_count;
+  if not public._rate_limit_check('get_email_by_username:ip:' || client_key, interval '1 minute', 8) then
+    raise exception 'Too many requests, try again in a minute.' using errcode = '55000';
+  end if;
 
-  if current_count > max_calls then
+  -- Defense in depth on top of the IP bucket above: an attacker distributing requests across many
+  -- real IPs isn't slowed by a per-IP limit at all, but probing the SAME username from many IPs
+  -- still hits this second bucket keyed by the username itself (migration 0016). Threshold is
+  -- higher than the IP bucket so a real user mistyping their username a few times is never
+  -- blocked by this - only sustained automated probing of one username is.
+  if username_key <> '' and not public._rate_limit_check('get_email_by_username:user:' || username_key, interval '1 minute', 20) then
     raise exception 'Too many requests, try again in a minute.' using errcode = '55000';
   end if;
 
   return (
     select p.email
     from public.profiles p
-    where lower(p.username) = lower(u)
+    where lower(p.username) = username_key
     limit 1
   );
 end;
@@ -444,6 +494,57 @@ drop policy if exists "app_events_insert_own" on public.app_events;
 create policy "app_events_insert_own" on public.app_events
 for insert with check (auth.uid() = user_id);
 
+-- Scheduled jobs (pg_cron + pg_net, migrations 0010/0012/0015). The service-role key is never
+-- put in this file - it's read at call time from Supabase Vault, where it must be stored once,
+-- manually, by whoever applies this schema (see migration 0010 for the exact
+-- `vault.create_secret` command). Without that manual step these jobs are created but every
+-- reminders run fails with 401 until the secret exists.
+create extension if not exists pg_cron with schema extensions;
+create extension if not exists pg_net with schema extensions;
+
+do $$
+begin
+  if exists (select 1 from cron.job where jobname = 'send-due-reminders-hourly') then
+    perform cron.unschedule('send-due-reminders-hourly');
+  end if;
+end;
+$$;
+
+select cron.schedule(
+  'send-due-reminders-hourly',
+  '0 * * * *', -- every hour on the hour; each user is only matched during their own configured hour
+  $cron$
+  select net.http_post(
+    url := 'https://mqunhthsbbwsrkmxanux.supabase.co/functions/v1/send-due-reminders',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || (
+        select decrypted_secret
+        from vault.decrypted_secrets
+        where name = 'send_due_reminders_service_key'
+      )
+    ),
+    body := '{}'::jsonb
+  );
+  $cron$
+);
+
+do $$
+begin
+  if exists (select 1 from cron.job where jobname = 'purge-stale-rate-limit-rows') then
+    perform cron.unschedule('purge-stale-rate-limit-rows');
+  end if;
+end;
+$$;
+
+select cron.schedule(
+  'purge-stale-rate-limit-rows',
+  '30 3 * * *',
+  $cron$
+  delete from public.rpc_rate_limits where window_start < now() - interval '2 days';
+  $cron$
+);
+
 -- Schema version + capability check (so frontend can warn about missing migrations)
 create table if not exists public.nr_schema_meta (
   id int primary key,
@@ -457,7 +558,7 @@ create table if not exists public.nr_schema_meta (
 alter table public.nr_schema_meta enable row level security;
 
 insert into public.nr_schema_meta (id, version)
-values (1, 11)
+values (1, 17)
 on conflict (id) do update set
   version = excluded.version,
   updated_at = now();

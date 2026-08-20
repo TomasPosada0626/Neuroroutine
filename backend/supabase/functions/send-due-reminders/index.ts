@@ -62,6 +62,34 @@ export function timingSafeEqual(a: string, b: string): boolean {
   return result === 0
 }
 
+// Runs async tasks with a concurrency cap instead of either fully sequential (was the previous
+// behavior for both app_events inserts and Resend calls - fine at a handful of users, but risks
+// this Edge Function's own execution time limit as the user count grows, since every send waits
+// for the previous one to finish) or fully parallel (a burst of hundreds of simultaneous requests
+// against Resend's/Supabase's own rate limits). Exported so index.test.ts can verify the
+// concurrency cap and that results come back in the original order.
+export async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length)
+  let nextIndex = 0
+
+  async function worker() {
+    for (;;) {
+      const current = nextIndex
+      nextIndex += 1
+      if (current >= items.length) return
+      results[current] = await fn(items[current])
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(Math.max(limit, 1), items.length) }, () => worker())
+  await Promise.all(workers)
+  return results
+}
+
 export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -109,18 +137,14 @@ export function renderReminderEmail(params: { firstName: string | null; tasks: D
   return { subject, html, text }
 }
 
-export async function sendReminderEmail(params: {
+async function postResendEmail(params: {
   apiKey: string
   from: string
   to: string
-  firstName: string | null
-  tasks: DueTaskRow[]
+  subject: string
+  html?: string
+  text: string
 }): Promise<{ ok: boolean; error?: string }> {
-  const { subject, html, text } = renderReminderEmail({
-    firstName: params.firstName,
-    tasks: params.tasks,
-  })
-
   try {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -131,9 +155,9 @@ export async function sendReminderEmail(params: {
       body: JSON.stringify({
         from: params.from,
         to: [params.to],
-        subject,
-        html,
-        text,
+        subject: params.subject,
+        ...(params.html ? { html: params.html } : {}),
+        text: params.text,
       }),
     })
 
@@ -146,6 +170,44 @@ export async function sendReminderEmail(params: {
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'Unknown fetch error' }
   }
+}
+
+export async function sendReminderEmail(params: {
+  apiKey: string
+  from: string
+  to: string
+  firstName: string | null
+  tasks: DueTaskRow[]
+}): Promise<{ ok: boolean; error?: string }> {
+  const { subject, html, text } = renderReminderEmail({
+    firstName: params.firstName,
+    tasks: params.tasks,
+  })
+
+  return postResendEmail({ apiKey: params.apiKey, from: params.from, to: params.to, subject, html, text })
+}
+
+// Turns a silent field in this function's JSON response (emailErrors) into an active
+// notification: previously nothing ever read that field unless someone happened to check the
+// invocation logs, so a run where every single email failed looked identical to a fully
+// successful one from the outside. Reuses Resend (already configured, zero extra cost/setup)
+// instead of adding a Sentry SDK dependency just for this one alert. Best-effort: never let a
+// failure sending the alert itself fail the whole run.
+export async function sendReminderFailureAlert(params: {
+  apiKey: string
+  from: string
+  to: string
+  dueDate: string
+  emailErrors: Array<{ user_id: string; error: string }>
+}): Promise<{ ok: boolean; error?: string }> {
+  const lines = params.emailErrors.map((e) => `- ${e.user_id}: ${e.error}`).join('\n')
+  return postResendEmail({
+    apiKey: params.apiKey,
+    from: params.from,
+    to: params.to,
+    subject: `send-due-reminders: ${params.emailErrors.length} reminder email(s) failed (${params.dueDate})`,
+    text: `The following reminder emails failed to send for ${params.dueDate}:\n\n${lines}`,
+  })
 }
 
 // Guarded so index.test.ts can `import` this module for the pure helpers above without also
@@ -265,21 +327,26 @@ async function handleRequest(req: Request): Promise<Response> {
   let emailsSent = 0
   const emailErrors: Array<{ user_id: string; error: string }> = []
 
-  for (const userId of eligibleUserIds) {
-    const userTasks = tasksByUser.get(userId)!
-    for (const task of userTasks) {
-      const { error: eventError } = await supabase.from('app_events').insert({
-        user_id: userId,
-        event_name: 'reminder_due_task',
-        routine_task_id: task.id,
-        meta: {
-          due_date: task.due_date,
-          task_title: task.title,
-          routine_title: task.routines?.title ?? null,
-        },
-      })
-      if (!eventError) remindersPrepared += 1
-    }
+  // Single batched insert instead of one INSERT per task: with N due tasks across many users this
+  // was previously N sequential round-trips to Postgres. A single multi-row insert is one
+  // statement, either all rows land or none do (default single-statement atomicity), so
+  // remindersPrepared is simply the row count on success.
+  const eventRows = eligibleUserIds.flatMap((userId) =>
+    tasksByUser.get(userId)!.map((task) => ({
+      user_id: userId,
+      event_name: 'reminder_due_task',
+      routine_task_id: task.id,
+      meta: {
+        due_date: task.due_date,
+        task_title: task.title,
+        routine_title: task.routines?.title ?? null,
+      },
+    })),
+  )
+
+  if (eventRows.length > 0) {
+    const { error: eventError } = await supabase.from('app_events').insert(eventRows)
+    if (!eventError) remindersPrepared = eventRows.length
   }
 
   // Email sending is optional: without RESEND_API_KEY configured, the function still records
@@ -293,11 +360,13 @@ async function handleRequest(req: Request): Promise<Response> {
 
     if (!profileError) {
       const profileById = new Map(((profiles ?? []) as ProfileRow[]).map((p) => [p.id, p]))
+      const recipients = eligibleUserIds
+        .map((userId) => ({ userId, profile: profileById.get(userId) }))
+        .filter((r): r is { userId: string; profile: ProfileRow } => Boolean(r.profile?.email))
 
-      for (const userId of eligibleUserIds) {
-        const profile = profileById.get(userId)
-        if (!profile?.email) continue
-
+      // Cap at 5 concurrent Resend calls: previously fully sequential (one await per user), which
+      // scales linearly with user count and risks this function's own execution time limit.
+      const results = await mapWithConcurrency(recipients, 5, async ({ userId, profile }) => {
         const result = await sendReminderEmail({
           apiKey: resendApiKey,
           from: fromAddress,
@@ -305,13 +374,36 @@ async function handleRequest(req: Request): Promise<Response> {
           firstName: profile.first_name,
           tasks: tasksByUser.get(userId)!,
         })
+        return { userId, result }
+      })
 
+      for (const { userId, result } of results) {
         if (result.ok) {
           emailsSent += 1
         } else {
           emailErrors.push({ user_id: userId, error: result.error ?? 'unknown error' })
         }
       }
+    }
+  }
+
+  if (emailErrors.length > 0) {
+    const alertEmail = Deno.env.get('ALERT_EMAIL')
+    if (resendApiKey && alertEmail) {
+      await sendReminderFailureAlert({
+        apiKey: resendApiKey,
+        from: fromAddress,
+        to: alertEmail,
+        dueDate,
+        emailErrors,
+      }).catch(() => {
+        // Alerting is best-effort: never fail the whole run because the alert itself couldn't send.
+      })
+    } else {
+      console.error(
+        `send-due-reminders: ${emailErrors.length} email(s) failed to send for ${dueDate} and no ` +
+          'ALERT_EMAIL is configured to notify — see emailErrors in this run\'s response/logs.',
+      )
     }
   }
 

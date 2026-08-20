@@ -18,7 +18,7 @@ grant select, insert, update, delete on public.reminder_preferences to authentic
 grant select, insert, update, delete on public.app_events to authenticated;
 grant select, insert, update, delete on public.profiles to authenticated;
 
-select plan(24);
+select plan(28);
 
 -- Two throwaway auth users, inserted directly (bypassing GoTrue, which isn't needed to exercise
 -- RLS policies — those only care about the `sub` claim `auth.uid()` reads from the session GUC).
@@ -230,6 +230,41 @@ with deleted as (
   returning id
 )
 select is((select count(*) from deleted), 1::bigint, 'user A can DELETE their own task');
+
+-- --- delete_own_account (migration 0017): scoped to auth.uid() only, must never touch another
+-- --- user's data. Run last, near the end since it's destructive to user B's rows.
+reset role;
+reset "request.jwt.claims";
+
+select throws_ok(
+  $$ select public.delete_own_account() $$,
+  '28000',
+  'Not authenticated',
+  'delete_own_account rejects an unauthenticated caller'
+);
+
+set local role authenticated;
+set local "request.jwt.claims" to '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}';
+
+select lives_ok(
+  $$ select public.delete_own_account() $$,
+  'user B can delete their own account'
+);
+
+select is(
+  (select count(*) from public.profiles where id = '22222222-2222-2222-2222-222222222222'),
+  0::bigint,
+  'user B''s profile is gone after deleting their own account (cascade from auth.users)'
+);
+
+reset role;
+reset "request.jwt.claims";
+
+select is(
+  (select count(*) from public.profiles where id = '11111111-1111-1111-1111-111111111111'),
+  1::bigint,
+  'user A''s profile is untouched by user B deleting their own account'
+);
 
 select * from finish();
 rollback;

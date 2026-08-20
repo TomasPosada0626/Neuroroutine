@@ -3,8 +3,10 @@ import {
   escapeHtml,
   getHourInTimezone,
   isReminderHourNow,
+  mapWithConcurrency,
   renderReminderEmail,
   sendReminderEmail,
+  sendReminderFailureAlert,
   timingSafeEqual,
   todayYmd,
   type DueTaskRow,
@@ -212,6 +214,63 @@ Deno.test('sendReminderEmail: returns ok:false instead of throwing when fetch it
     })
 
     assertEquals(result, { ok: false, error: 'network down' })
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+Deno.test('mapWithConcurrency: results preserve input order regardless of completion order', async () => {
+  const items = [30, 10, 20]
+  const results = await mapWithConcurrency(items, 3, (ms) => {
+    return new Promise<number>((resolve) => setTimeout(() => resolve(ms), ms))
+  })
+  assertEquals(results, [30, 10, 20])
+})
+
+Deno.test('mapWithConcurrency: never runs more than `limit` tasks at once', async () => {
+  let active = 0
+  let maxActive = 0
+  const items = Array.from({ length: 10 }, (_, i) => i)
+
+  await mapWithConcurrency(items, 3, async () => {
+    active += 1
+    maxActive = Math.max(maxActive, active)
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    active -= 1
+  })
+
+  assertEquals(maxActive <= 3, true)
+})
+
+Deno.test('mapWithConcurrency: empty input resolves to an empty array', async () => {
+  const results = await mapWithConcurrency<number, number>([], 5, (n) => Promise.resolve(n))
+  assertEquals(results, [])
+})
+
+Deno.test('sendReminderFailureAlert: posts a summary of every failed send to Resend', async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = []
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = ((url: string, init?: RequestInit) => {
+    calls.push({ url, init })
+    return Promise.resolve(new Response(null, { status: 200 }))
+  }) as typeof fetch
+
+  try {
+    const result = await sendReminderFailureAlert({
+      apiKey: 're_test_key',
+      from: 'NeuroRoutine <onboarding@resend.dev>',
+      to: 'ops@example.com',
+      dueDate: '2026-08-20',
+      emailErrors: [{ user_id: 'u1', error: 'Resend 429: rate limited' }],
+    })
+
+    assertEquals(result, { ok: true })
+    assertEquals(calls[0].url, 'https://api.resend.com/emails')
+    const body = JSON.parse(calls[0].init?.body as string)
+    assertEquals(body.to, ['ops@example.com'])
+    assertStringIncludes(body.subject, '1 reminder email(s) failed')
+    assertStringIncludes(body.text, 'u1')
+    assertStringIncludes(body.text, 'Resend 429: rate limited')
   } finally {
     globalThis.fetch = originalFetch
   }
