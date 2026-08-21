@@ -33,10 +33,14 @@ Enforcement cadence.
   `frontend/dist` output (`frontend/lighthouserc.json`, wired into the `frontend` job in
   `.github/workflows/ci.yml`), desktop preset. Currently `warn`-severity (informational, does
   not fail the build) until a few weeks of runs confirm the thresholds hold reliably on GitHub's
-  shared runners; promote to `error` in `lighthouserc.json` once that baseline exists. Action
-  latency targets (routine create / task complete) still rely on a weekly manual review from
-  CI artifacts and app events — Lighthouse doesn't exercise authenticated in-app interactions.
-  Open an issue when any target is exceeded for 2 consecutive runs.
+  shared runners; promote to `error` in `lighthouserc.json` once that baseline exists.
+- Action latency targets (routine create / task complete): automated as of migration 0019 —
+  `.github/workflows/action-latency-check.yml` runs weekly and computes real p95s from
+  `app_events.meta.duration_ms` (already logged by `routinesStore.ts` for both events) via the
+  `get_action_latency_p95()` RPC, failing the job if either exceeds its budget. Lighthouse can't
+  cover this on its own since it doesn't exercise authenticated in-app interactions, so this is a
+  separate check against real production usage data instead of a synthetic page load.
+  Open an issue when any target is exceeded for 2 consecutive weekly runs.
 
 ## Action playbook when exceeded
 

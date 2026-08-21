@@ -65,7 +65,12 @@ export default defineConfig({
       // don't lower them to make a failing change pass.
       thresholds: {
         statements: 96,
-        branches: 84,
+        // Raised 2026-08-20: measured branches sat at 92.57%, ~8.5 points above this gate -
+        // far more slack than statements/functions/lines carry against their own measured
+        // numbers (~1-2 points each). 90 restores a comparable, still-real buffer instead of
+        // leaving branches the one metric a regression could quietly eat into for a while
+        // before this gate would ever catch it.
+        branches: 90,
         functions: 98,
         lines: 99,
       },

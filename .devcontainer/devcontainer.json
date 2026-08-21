@@ -15,5 +15,5 @@
       ]
     }
   },
-  "postCreateCommand": "cd frontend && npm install"
+  "postCreateCommand": "cd frontend && npm install && echo '\nNeuroRoutine devcontainer ready. This container only runs the frontend - for the local Postgres/RLS/pgTAP stack, install the Supabase CLI and run \"npx supabase start\" from backend/ (see backend/README.md). Not chained into this postCreateCommand automatically: it needs Docker-in-Docker, which this devcontainer does not enable.\n'"
 }

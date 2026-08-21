@@ -1,0 +1,57 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
+name: Action latency budget check
+
+# Automates the p95 routine-create (<=800ms) and p95 task-complete (<=600ms) targets from
+# docs/architecture/performance-budget.md, previously "still a weekly manual review from CI
+# artifacts and app events; no automated gate yet" (audit: Rendimiento, Medio).
+#
+# Calls get_action_latency_p95() (migration 0019) via PostgREST with just the public anon key -
+# that RPC is read-only, aggregate-only (no PII, no per-user rows), the same sensitivity class as
+# get_nr_schema_status() which is already anon-grantable - so this needs no new secrets beyond
+# what's already in this repo for the frontend build itself.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 8 * * 1" # weekly, Monday 08:00 UTC
+
+jobs:
+  check:
+    name: Check p95 action latency against budget
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+    steps:
+      - name: Query and check p95 action latency
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "Skipping: VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY secrets are not set." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          response=$(curl --fail --silent --show-error --max-time 10 \
+            -X POST "$SUPABASE_URL/rest/v1/rpc/get_action_latency_p95" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"p_days": 7}')
+
+          echo "Result (7-day window): \`$response\`" >> "$GITHUB_STEP_SUMMARY"
+
+          routine_ms=$(echo "$response" | jq -r '.p95_routine_created_ms // 0')
+          task_ms=$(echo "$response" | jq -r '.p95_task_completed_ms // 0')
+
+          fail=0
+          if (( $(echo "$routine_ms > 800" | bc -l) )); then
+            echo "::error::p95 routine_created latency is ${routine_ms}ms, over the 800ms budget (docs/architecture/performance-budget.md)."
+            fail=1
+          fi
+          if (( $(echo "$task_ms > 600" | bc -l) )); then
+            echo "::error::p95 task_completed latency is ${task_ms}ms, over the 600ms budget (docs/architecture/performance-budget.md)."
+            fail=1
+          fi
+
+          exit $fail
