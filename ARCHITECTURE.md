@@ -40,7 +40,33 @@ This document defines architecture boundaries and maintenance rules for NeuroRou
 
 - Full schema source of truth: `backend/supabase/schema.sql`.
 - Incremental evolution: `backend/supabase/migrations/`.
-- Keep both aligned after every schema change.
+- Keep both aligned after every schema change. Enforced, not just documented: a CI job
+  (`schema.sql version matches latest migration` in `.github/workflows/ci.yml`) fails the build
+  if `schema.sql`'s declared `nr_schema_meta` version doesn't match the highest-numbered file in
+  `migrations/`.
+
+## Schema/API compatibility policy
+
+- Migrations are additive-only: no `DROP COLUMN`/`DROP TABLE`/type-narrowing changes against a
+  column or table an existing deployed frontend build still reads or writes. This has held for
+  every migration to date (verified by grep across `migrations/` — see the audit referenced in
+  `CHANGELOG.md`) and is the actual mechanism that lets an old and a new frontend build coexist
+  against the same database during a deploy, not just a convention.
+- A column/table that's genuinely no longer needed is stopped being read/written by the frontend
+  first, left in place for at least one release, and only dropped in a later, explicitly-labeled
+  migration once nothing references it - never in the same change that stops using it.
+- RPC function signatures (`get_email_by_username`, `search_routines`, `delete_own_account`,
+  `reset_recurring_tasks`, `get_nr_schema_status`) are additive-only the same way: new optional
+  parameters are fine, removing or narrowing an existing parameter/return shape is a breaking
+  change and needs the same deprecation window as a column.
+- Already-applied migrations are never edited in place, even to fix a bug in them - fix forward
+  with a new migration instead. Case in point: migrations 0010 and 0012 hardcoded this project's
+  own Supabase URL directly into a `cron.schedule()` call, which would have misdirected a cron job
+  scheduled from a fresh copy of these migrations against a different Supabase project onto this
+  one's production database. Rather than editing those two files, `0018_parametrize_reminder_cron_url.sql`
+  supersedes just the `cron.schedule()` call with one that reads the URL from Supabase Vault
+  instead of a literal, following the same "fails loud if unconfigured" pattern already used for
+  the service-role-key secret.
 
 ## Security model
 

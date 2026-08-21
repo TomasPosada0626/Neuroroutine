@@ -494,11 +494,11 @@ drop policy if exists "app_events_insert_own" on public.app_events;
 create policy "app_events_insert_own" on public.app_events
 for insert with check (auth.uid() = user_id);
 
--- Scheduled jobs (pg_cron + pg_net, migrations 0010/0012/0015). The service-role key is never
--- put in this file - it's read at call time from Supabase Vault, where it must be stored once,
--- manually, by whoever applies this schema (see migration 0010 for the exact
--- `vault.create_secret` command). Without that manual step these jobs are created but every
--- reminders run fails with 401 until the secret exists.
+-- Scheduled jobs (pg_cron + pg_net, migrations 0010/0012/0015/0018). Neither the service-role key
+-- nor the project URL is put in this file as a literal - both are read at call time from Supabase
+-- Vault, where they must be stored once, manually, by whoever applies this schema (see migrations
+-- 0010 and 0018 for the exact `vault.create_secret` commands). Without those manual steps these
+-- jobs are created but every reminders run fails (401, or a null url) until both secrets exist.
 create extension if not exists pg_cron with schema extensions;
 create extension if not exists pg_net with schema extensions;
 
@@ -515,7 +515,11 @@ select cron.schedule(
   '0 * * * *', -- every hour on the hour; each user is only matched during their own configured hour
   $cron$
   select net.http_post(
-    url := 'https://mqunhthsbbwsrkmxanux.supabase.co/functions/v1/send-due-reminders',
+    url := (
+      select decrypted_secret
+      from vault.decrypted_secrets
+      where name = 'send_due_reminders_project_url'
+    ) || '/functions/v1/send-due-reminders',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
       'Authorization', 'Bearer ' || (
@@ -558,7 +562,7 @@ create table if not exists public.nr_schema_meta (
 alter table public.nr_schema_meta enable row level security;
 
 insert into public.nr_schema_meta (id, version)
-values (1, 17)
+values (1, 18)
 on conflict (id) do update set
   version = excluded.version,
   updated_at = now();

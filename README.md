@@ -517,8 +517,8 @@ Contribution checklist:
 
 ## Legal
 
-- [Privacy Policy / Política de Privacidad](PRIVACY.md)
-- [Terms of Service / Términos de Servicio](TERMS.md)
+- Privacy Policy: [Español](PRIVACY.md) (authoritative) · [English](PRIVACY.en.md)
+- Terms of Service: [Español](TERMS.md) (authoritative) · [English](TERMS.en.md)
 
 ---
 

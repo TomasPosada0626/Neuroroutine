@@ -1,5 +1,8 @@
 # Política de Privacidad de NeuroRoutine
 
+*[English](PRIVACY.en.md) — versión en inglés disponible; este documento en español es el que
+prevalece en caso de conflicto.*
+
 **Última actualización:** 2026-08-20
 
 Esta política describe qué datos recoge NeuroRoutine, para qué se usan, con quién se comparten y

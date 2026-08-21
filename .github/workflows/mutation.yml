@@ -9,7 +9,7 @@ on:
 
 jobs:
   stryker:
-    name: Stryker mutation score (frontend/src/features/routines, shared/lib)
+    name: Stryker mutation score (routines, auth, dashboard/utils, reminders, offline, shared/lib)
     runs-on: ubuntu-latest
 
     defaults:

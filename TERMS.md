@@ -1,5 +1,8 @@
 # Términos de Servicio de NeuroRoutine
 
+*[English](TERMS.en.md) — versión en inglés disponible; este documento en español es el que
+prevalece en caso de conflicto.*
+
 **Última actualización:** 2026-08-20
 
 Al crear una cuenta o usar NeuroRoutine, aceptas estos términos. Léelos junto con nuestra

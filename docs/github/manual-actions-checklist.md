@@ -139,6 +139,23 @@ to the `supabase_vector` log-shipping container crash-looping — the CI job and
 to verify this suite locally both call `psql` directly against the started stack instead of going
 through that wrapper.
 
+## Required Vault secret before applying migration 0018
+
+`0018_parametrize_reminder_cron_url.sql` reschedules the hourly reminders cron job to read the
+project URL from Supabase Vault instead of a hardcoded literal (audit: Portabilidad). This has
+**no effect until you actually apply it** - migrations in this repo are never auto-applied by CI,
+only ever by you running `supabase db push` (or the SQL Editor) by hand. Before or immediately
+after you do that on the production project, run once in the Supabase SQL Editor:
+
+```sql
+select vault.create_secret('https://mqunhthsbbwsrkmxanux.supabase.co', 'send_due_reminders_project_url');
+```
+
+If you skip this, hourly reminders silently stop sending (the cron job runs but every call fails
+because the URL resolves to null) until the secret exists - same fail-loud behavior the
+service-role-key secret already has (migration 0010), not a new class of risk, but a real one if
+forgotten.
+
 ## Milestones
 
 Create milestones using [docs/github/milestones-plan.md](./milestones-plan.md):

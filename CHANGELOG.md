@@ -26,6 +26,18 @@ The format follows Keep a Changelog and Semantic Versioning principles.
   rule instead of relying on manual review alone.
 - Explicit `browserslist` (`package.json`) and Vite `build.target`, replacing an undocumented
   implicit default.
+- Parametrized the reminders cron job's URL via Supabase Vault instead of a literal hardcoded in
+  migrations 0010/0012 (`0018_parametrize_reminder_cron_url.sql`) - a fresh project applying these
+  migrations would otherwise have silently scheduled its cron job against this project's
+  production database instead of its own (audit: Portabilidad, Medio). See
+  `docs/github/manual-actions-checklist.md` for the required one-time Vault secret.
+- English translations of the legal docs (`PRIVACY.en.md`, `TERMS.en.md`), cross-linked with the
+  authoritative Spanish versions (audit: Cumplimiento legal, Bajo).
+- Expanded mutation testing to `features/dashboard/utils`, `features/reminders`, and
+  `shared/offline` (audit: Testabilidad, Medio - was 2 of ~10 code areas, now 6).
+- Formal schema/API compatibility policy in `ARCHITECTURE.md` (additive-only migrations, RPC
+  signature stability, no in-place edits of applied migrations), replacing "keep them aligned" as
+  the only stated rule (audit: Compatibilidad, Bajo).
 - Task editing: title, description, date/time, and the recurring flag can now be changed after
   creation (`TaskFormModal`) instead of only create-or-delete.
 - "Posponer" action to move a one-off task's due date to tomorrow in a single click.
